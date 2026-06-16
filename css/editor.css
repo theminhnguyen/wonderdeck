@@ -296,3 +296,44 @@ html, body {
   color: rgba(255,255,255,0.7); font-variant-numeric: tabular-nums;
 }
 @media (pointer: fine) { .present, .present * { cursor: none; } }
+
+/* ===================== Hilfe-Knopf & -Fenster ===================== */
+.btn--round {
+  width: 34px; height: 34px; padding: 0; border-radius: 50%;
+  font-weight: 700; font-size: 15px; line-height: 1;
+}
+
+.help { position: fixed; inset: 0; z-index: 9500; display: grid; place-items: center; }
+.help[hidden] { display: none; }
+.help__backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); }
+.help__panel {
+  position: relative;
+  width: min(640px, 92vw); max-height: 86vh; overflow-y: auto;
+  background: var(--wd-panel); border: 1px solid var(--wd-line);
+  border-radius: 16px; padding: 26px 28px;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+}
+.help__close {
+  position: absolute; top: 14px; right: 14px;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--wd-panel-2); border: 1px solid var(--wd-line);
+  color: var(--wd-text); font-size: 14px; cursor: pointer;
+}
+.help__close:hover { background: #2a3340; }
+.help__title { font-family: var(--serif); font-size: 25px; font-weight: 600; margin: 0 0 8px; color: var(--wd-text); }
+.help__lead { font-size: 14px; line-height: 1.6; color: var(--wd-text-dim); margin: 0 0 18px; }
+.help__panel h3 {
+  font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--wd-accent); margin: 20px 0 9px;
+}
+.help__table { width: 100%; border-collapse: collapse; font-size: 13.5px; line-height: 1.55; }
+.help__table td { vertical-align: top; padding: 7px 8px; border-top: 1px solid var(--wd-line); color: var(--wd-text); }
+.help__table td:first-child { width: 130px; color: var(--wd-text); white-space: nowrap; }
+.help__list { margin: 0; padding-left: 20px; font-size: 13.5px; line-height: 1.65; color: var(--wd-text); }
+.help__list li { margin-bottom: 5px; }
+.help__list b, .help__table b { color: #fff; }
+.help__tip {
+  margin: 20px 0 0; padding: 12px 14px; border-radius: 10px;
+  background: rgba(201,162,91,0.12); border: 1px solid rgba(201,162,91,0.3);
+  font-size: 13px; color: var(--wd-text);
+}

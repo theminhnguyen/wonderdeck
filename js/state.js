@@ -106,6 +106,16 @@ export async function initDeck() {
   autosave();
 }
 
+export async function loadExample() {
+  const { buildSeedDeck } = await import("./seed.js");
+  const deck = await buildSeedDeck(); // legt ein NEUES Deck an (eigene id)
+  state.deck = deck;
+  state.images = await db.loadImagesForDeck(deck);
+  state.current = 0;
+  state.sel = { type: null, id: null };
+  emit();
+}
+
 export async function newDeck() {
   const deck = createDeck();
   state.deck = deck;

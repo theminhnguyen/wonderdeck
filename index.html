@@ -36,9 +36,11 @@
             <button id="btnExport" class="menu__item">⭳ Als Datei sichern</button>
             <button id="btnImport" class="menu__item">⭱ Datei laden</button>
             <hr class="menu__sep" />
+            <button id="btnExample" class="menu__item">✨ Beispiel-Präsi laden</button>
             <button id="btnNewDeck" class="menu__item">✦ Neue, leere Präsi</button>
           </div>
         </div>
+        <button id="btnHelp" class="btn btn--ghost btn--round" title="Hilfe: welche Bilder verwenden?" aria-label="Hilfe">?</button>
       </div>
     </header>
 
@@ -81,6 +83,63 @@
     <button class="present__nav present__nav--next" id="presentNext" aria-label="Weiter">›</button>
     <button class="present__exit" id="presentExit" aria-label="Beenden (Esc)">✕</button>
     <div class="present__counter" id="presentCounter"></div>
+  </div>
+
+  <!-- ============ Hilfe-Fenster ============ -->
+  <div id="help" class="help" hidden>
+    <div class="help__backdrop" id="helpBackdrop"></div>
+    <div class="help__panel" role="dialog" aria-modal="true" aria-label="Hilfe: Bilder">
+      <button class="help__close" id="helpClose" aria-label="Schließen">✕</button>
+      <h2 class="help__title">Welche Bilder verwenden? 🖼️</h2>
+      <p class="help__lead">
+        Die Tiefe entsteht durch <b>mehrere Ebenen pro Folie</b>. Ein Bild ziehst du
+        einfach auf die Bühne — jede Ebene kannst du rechts einstellen.
+      </p>
+
+      <h3>Ebenen-Typen</h3>
+      <table class="help__table">
+        <tr>
+          <td><b>Hintergrund</b></td>
+          <td>Ganzflächiges Bild (Himmel, Landschaft, Farbverlauf). <b>JPG oder PNG</b>, ohne Transparenz. Wenig Parallax (z.&nbsp;B. 10–16).</td>
+        </tr>
+        <tr>
+          <td><b>Vordergrund / Motiv</b></td>
+          <td>Ein <b>freigestelltes PNG mit transparentem Hintergrund</b> (Person, Berg, Objekt). Nur so sieht man den Hintergrund dahinter → echte Tiefe. Mehr Parallax (z.&nbsp;B. 35–55).</td>
+        </tr>
+        <tr>
+          <td><b>Reaktive Deko</b></td>
+          <td>Transparentes PNG an den Rändern (z.&nbsp;B. Blätter). Schalter <b>„reaktiv"</b> an → weicht im Präsentationsmodus vor dem Cursor zurück.</td>
+        </tr>
+      </table>
+
+      <h3>Format &amp; Größe</h3>
+      <ul class="help__list">
+        <li><b>PNG</b> = mit Transparenz (für freigestellte Motive &amp; Deko). <b>JPG</b> = kleiner, kein Transparenz (für Hintergründe).</li>
+        <li>Mindestens <b>~1920&nbsp;px breit</b>, besser <b>2000&nbsp;px+</b> — damit es im Vollbild scharf bleibt.</li>
+        <li>Seitenverhältnis möglichst <b>16:9</b> für Hintergründe.</li>
+      </ul>
+
+      <h3>Pro Stil</h3>
+      <ul class="help__list">
+        <li><b>✦ Wonder:</b> 1 Hintergrund + optional ein freigestelltes Motiv + reaktive Deko an den Ecken. Starker Intro-Zoom.</li>
+        <li><b>▦ Snap:</b> Hintergrund + 1–2 freigestellte Ebenen (fern/nah) für Tiefe. Ideal für Story-Folien.</li>
+      </ul>
+
+      <h3>Damit Text lesbar bleibt</h3>
+      <ul class="help__list">
+        <li>Dunkle Bildränder/Vignette helfen. Setze Text auf die ruhigere Bildhälfte.</li>
+        <li>Position, Breite &amp; Ausrichtung jedes Textes stellst du rechts ein.</li>
+      </ul>
+
+      <h3>Woher Bilder nehmen?</h3>
+      <ul class="help__list">
+        <li><b>KI-Bilder:</b> z.&nbsp;B. „Nano Banana" (Gemini) — gratis.</li>
+        <li><b>Freistellen / in Ebenen schneiden:</b> <b>Photopea</b> (photopea.com, gratis, im Browser).</li>
+        <li>Oder eigene Fotos / freie Stock-Bilder.</li>
+      </ul>
+
+      <p class="help__tip">💡 Tipp: Über „Backup" oben kannst du deine Präsi jederzeit als Datei sichern.</p>
+    </div>
   </div>
 
   <!-- versteckte File-Inputs -->

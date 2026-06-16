@@ -1,18 +1,23 @@
 /* ===================================================================
    main.js — Startpunkt: Deck laden (oder Demo erzeugen), Editor starten.
+   Deep-Links: #present / ?present=N (Präsentation), ?slide=N (Folie),
+   #help (Hilfe öffnen).
    =================================================================== */
-import { initDeck } from "./state.js";
+import { initDeck, selectSlide, state, srcOf } from "./state.js";
 import { init as initEditor } from "./editor.js";
+import { openPresent } from "./present.js";
 
 async function boot() {
   try {
     await initDeck();
     initEditor();
-    // Deep-Link: direkt in die Präsentation starten
-    if (location.hash.includes("present") || new URLSearchParams(location.search).has("present")) {
-      const [{ openPresent }, S] = await Promise.all([import("./present.js"), import("./state.js")]);
-      openPresent(S.state.deck, S.srcOf, 0);
-    }
+
+    const params = new URLSearchParams(location.search);
+    const n = parseInt(params.get("slide") || params.get("present") || "", 10);
+    const start = Number.isFinite(n) ? Math.max(0, Math.min(n, state.deck.slides.length - 1)) : 0;
+    if (params.has("slide")) selectSlide(start);
+    if (location.hash.includes("help")) document.getElementById("help").hidden = false;
+    if (location.hash.includes("present") || params.has("present")) openPresent(state.deck, srcOf, start);
   } catch (err) {
     console.error("WonderDeck-Start fehlgeschlagen:", err);
     document.body.innerHTML =

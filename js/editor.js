@@ -319,11 +319,23 @@ export function init() {
     a.click(); URL.revokeObjectURL(a.href);
   });
   el("btnImport").addEventListener("click", () => { menuPanel.hidden = true; el("fileImport").click(); });
-  el("btnNewDeck").addEventListener("click", () => { menuPanel.hidden = true; if (confirm("Neue, leere Präsentation starten? Die aktuelle bleibt gespeichert.")) S.newDeck(); });
+  el("btnExample").addEventListener("click", () => {
+    menuPanel.hidden = true;
+    if (confirm("Beispiel-Präsentation laden? Sie ersetzt die aktuelle Ansicht. Tipp: Sichere deine Präsi vorher über das Backup-Menü (Als Datei sichern), falls du sie behalten möchtest.")) S.loadExample();
+  });
+  el("btnNewDeck").addEventListener("click", () => { menuPanel.hidden = true; if (confirm("Neue, leere Präsentation starten? Sie ersetzt die aktuelle Ansicht (vorher ggf. über das Backup-Menü sichern).")) S.newDeck(); });
+
+  // Hilfe-Fenster
+  const help = el("help");
+  const closeHelp = () => (help.hidden = true);
+  el("btnHelp").addEventListener("click", () => (help.hidden = false));
+  el("helpClose").addEventListener("click", closeHelp);
+  el("helpBackdrop").addEventListener("click", closeHelp);
 
   // Tastenkürzel im Editor
   document.addEventListener("keydown", (e) => {
     if (el("present").hidden === false) return; // Präsentation hat Vorrang
+    if (!help.hidden) { if (e.key === "Escape") closeHelp(); return; } // Hilfe offen
     const typing = ["INPUT", "TEXTAREA"].includes(document.activeElement.tagName) || document.activeElement.isContentEditable;
     if ((e.key === "Delete" || e.key === "Backspace") && state.sel.type && !typing) { e.preventDefault(); S.deleteSelected(); }
     if (e.key === "Escape") clearSel();
