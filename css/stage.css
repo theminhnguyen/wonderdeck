@@ -1,0 +1,107 @@
+/* ===================================================================
+   WonderDeck — Bühnen-Styles (geteilt von Editor-Vorschau & Präsentation)
+   Eine "Stage" ist eine 16:9-Fläche mit Bild-Ebenen + Text-Blöcken.
+   =================================================================== */
+
+:root {
+  --wd-accent: #c9a25b;
+  --wd-bg: #0c0f14;
+  --wd-panel: #151a22;
+  --wd-panel-2: #1c232e;
+  --wd-line: #2a3340;
+  --wd-text: #eef2f7;
+  --wd-text-dim: #9aa6b4;
+  --serif: "Playfair Display", Georgia, serif;
+  --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+/* ---------- Stage-Grundgerüst ---------- */
+.wd-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #05070a;
+  --mx: 0;   /* normalisierte Maus -1..1, von effects.js gesetzt */
+  --my: 0;
+}
+
+.wd-layer {
+  position: absolute;
+  inset: -8%;
+  width: 116%;
+  height: 116%;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.wd-layer img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+/* ---------- Text-Blöcke ---------- */
+.wd-text {
+  position: absolute;
+  max-width: 60%;
+  color: var(--wd-text);
+  text-shadow: 0 2px 28px rgba(0, 0, 0, 0.5);
+  line-height: 1.08;
+  white-space: pre-wrap;
+  word-break: break-word;
+  z-index: 50;
+}
+.wd-text[data-role="title"] {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: clamp(28px, 7.4cqw, 96px);
+  letter-spacing: 0.005em;
+}
+.wd-text[data-role="subtitle"] {
+  font-family: var(--sans);
+  font-weight: 300;
+  font-size: clamp(13px, 2.1cqw, 24px);
+  line-height: 1.5;
+  color: rgba(238, 242, 247, 0.9);
+}
+.wd-text[data-role="body"] {
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: clamp(12px, 1.9cqw, 21px);
+  line-height: 1.55;
+  color: rgba(238, 242, 247, 0.86);
+}
+.wd-text[data-role="kicker"] {
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: clamp(10px, 1.4cqw, 15px);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--wd-accent);
+}
+
+/* Container-Queries, damit Textgröße zur Stage-Breite passt */
+.wd-stage { container-type: inline-size; }
+
+/* ---------- Custom-Cursor (Präsentation) ---------- */
+.present__cursor {
+  position: fixed;
+  top: 0; left: 0;
+  width: 28px; height: 28px;
+  margin: -14px 0 0 -14px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: difference;
+  will-change: transform;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.present.is-live .present__cursor { opacity: 1; }
+@media (pointer: coarse) { .present__cursor { display: none; } }

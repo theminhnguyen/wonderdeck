@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WonderDeck — Cinematische Präsentationen</title>
+  <link
+    rel="icon"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E"
+  />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="css/stage.css" />
+  <link rel="stylesheet" href="css/editor.css" />
+</head>
+<body>
+  <div id="app" class="app">
+    <!-- ============ Topbar ============ -->
+    <header class="topbar">
+      <div class="topbar__brand">✦ WonderDeck</div>
+      <input
+        id="deckTitle"
+        class="topbar__title"
+        type="text"
+        value="Meine Präsentation"
+        aria-label="Titel der Präsentation"
+      />
+      <div class="topbar__actions">
+        <button id="btnAddSlide" class="btn">+ Folie</button>
+        <button id="btnPresent" class="btn btn--primary">▶ Präsentieren</button>
+        <div class="menu">
+          <button id="btnMenu" class="btn btn--ghost">Backup ⌄</button>
+          <div id="menuPanel" class="menu__panel" hidden>
+            <button id="btnExport" class="menu__item">⭳ Als Datei sichern</button>
+            <button id="btnImport" class="menu__item">⭱ Datei laden</button>
+            <hr class="menu__sep" />
+            <button id="btnNewDeck" class="menu__item">✦ Neue, leere Präsi</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ============ Hauptbereich ============ -->
+    <main class="workspace">
+      <!-- Folien-Leiste -->
+      <aside class="rail" id="rail" aria-label="Folien">
+        <div class="rail__list" id="railList"></div>
+        <button class="rail__add" id="railAdd">+ Folie hinzufügen</button>
+      </aside>
+
+      <!-- Bühne -->
+      <section class="editor">
+        <div class="editor__toolbar">
+          <button class="chip" id="btnAddLayer">+ Bild-Ebene</button>
+          <button class="chip" id="btnAddText">+ Text</button>
+          <span class="editor__hint">Bilder einfach hierher ziehen ↓</span>
+        </div>
+        <div class="stage-wrap" id="stageWrap">
+          <div class="stage-frame" id="stageFrame">
+            <!-- Stage wird von editor.js gerendert -->
+          </div>
+          <div class="dropmask" id="dropmask"><span>Bild ablegen, um eine Ebene zu erstellen</span></div>
+        </div>
+      </section>
+
+      <!-- Inspektor -->
+      <aside class="inspector" id="inspector" aria-label="Einstellungen">
+        <!-- Inhalt dynamisch von editor.js -->
+      </aside>
+    </main>
+  </div>
+
+  <!-- ============ Präsentations-Overlay ============ -->
+  <div id="present" class="present" hidden>
+    <div class="present__viewport" id="presentViewport"></div>
+    <div class="present__cursor" id="presentCursor"></div>
+    <nav class="present__dots" id="presentDots"></nav>
+    <button class="present__nav present__nav--prev" id="presentPrev" aria-label="Zurück">‹</button>
+    <button class="present__nav present__nav--next" id="presentNext" aria-label="Weiter">›</button>
+    <button class="present__exit" id="presentExit" aria-label="Beenden (Esc)">✕</button>
+    <div class="present__counter" id="presentCounter"></div>
+  </div>
+
+  <!-- versteckte File-Inputs -->
+  <input id="fileImage" type="file" accept="image/*" multiple hidden />
+  <input id="fileImport" type="file" accept="application/json,.wdeck" hidden />
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,178 @@
+/* ===================================================================
+   present.js — Vollbild-Präsentationsmodus
+   Baut alle Folien als Stages, steuert Navigation (Wheel/Touch/Tasten/
+   Dots), den RAF-Loop (Parallax + Cursor) und die Snap-Übergänge.
+   =================================================================== */
+import { createStage } from "./stage.js";
+import { resetIntro, updateStage, placeActive, snapTransition, SNAP_DUR } from "./effects.js";
+
+const el = (id) => document.getElementById(id);
+
+const P = {
+  open: false,
+  stages: [],
+  index: 0,
+  target: -1,
+  locked: false,
+  raf: 0,
+  mouse: { nx: 0, ny: 0, tx: 0, ty: 0, cx: 0, cy: 0, lx: 0, ly: 0 },
+  lastWheel: 0,
+  touchY: null,
+  onClose: null,
+  fine: window.matchMedia("(pointer: fine)").matches,
+};
+
+export function openPresent(deck, resolveSrc, startIndex = 0, onClose = null) {
+  const overlay = el("present");
+  const viewport = el("presentViewport");
+  viewport.innerHTML = "";
+  P.stages = [];
+  P.onClose = onClose;
+
+  deck.slides.forEach((slide, i) => {
+    const stage = createStage(slide, resolveSrc);
+    stage.root.style.display = i === startIndex ? "" : "none";
+    viewport.appendChild(stage.root);
+    P.stages.push(stage);
+  });
+
+  P.index = Math.max(0, Math.min(startIndex, P.stages.length - 1));
+  P.target = -1;
+  P.locked = false;
+  P.open = true;
+
+  buildDots();
+  updateChrome();
+  placeActive(P.stages[P.index]);
+  resetIntro(P.stages[P.index]);
+
+  overlay.hidden = false;
+  requestAnimationFrame(() => overlay.classList.add("is-live"));
+  bind();
+  if (overlay.requestFullscreen) overlay.requestFullscreen().catch(() => {});
+  P.mouse.cx = P.mouse.lx = window.innerWidth / 2;
+  P.mouse.cy = P.mouse.ly = window.innerHeight / 2;
+  P.raf = requestAnimationFrame(loop);
+}
+
+function close() {
+  if (!P.open) return;
+  P.open = false;
+  cancelAnimationFrame(P.raf);
+  unbind();
+  const overlay = el("present");
+  overlay.classList.remove("is-live");
+  overlay.hidden = true;
+  el("presentViewport").innerHTML = "";
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  if (P.onClose) P.onClose(P.index);
+}
+
+/* ---------- Navigation ---------- */
+function go(to) {
+  if (P.locked || !P.open) return;
+  if (to < 0 || to >= P.stages.length || to === P.index) return;
+  const dir = to > P.index ? 1 : -1;
+  const out = P.stages[P.index];
+  const inS = P.stages[to];
+  P.target = to;
+  P.locked = true;
+  snapTransition(out, inS, dir);
+  updateChrome(to);
+  setTimeout(() => {
+    out.root.style.display = "none";
+    P.index = to;
+    P.target = -1;
+    P.locked = false;
+  }, SNAP_DUR + 30);
+}
+const next = () => go(P.index + 1);
+const prev = () => go(P.index - 1);
+
+/* ---------- RAF-Loop ---------- */
+function loop() {
+  if (!P.open) return;
+  const m = P.mouse;
+  m.nx += (m.tx - m.nx) * 0.09;
+  m.ny += (m.ty - m.ny) * 0.09;
+  updateStage(P.stages[P.index], m);
+  if (P.target >= 0) updateStage(P.stages[P.target], m);
+
+  // Custom-Cursor
+  if (P.fine) {
+    m.lx += (m.cx - m.lx) * 0.18;
+    m.ly += (m.cy - m.ly) * 0.18;
+    el("presentCursor").style.transform = `translate3d(${m.lx}px, ${m.ly}px, 0)`;
+  }
+  P.raf = requestAnimationFrame(loop);
+}
+
+/* ---------- Eingaben ---------- */
+function onMove(e) {
+  P.mouse.tx = (e.clientX / window.innerWidth) * 2 - 1;
+  P.mouse.ty = (e.clientY / window.innerHeight) * 2 - 1;
+  P.mouse.cx = e.clientX;
+  P.mouse.cy = e.clientY;
+}
+function onWheel(e) {
+  e.preventDefault();
+  const now = performance.now();
+  if (now - P.lastWheel < 120) return;
+  if (Math.abs(e.deltaY) < 12) return;
+  P.lastWheel = now;
+  e.deltaY > 0 ? next() : prev();
+}
+function onKey(e) {
+  if (["ArrowDown", "ArrowRight", "PageDown", " "].includes(e.key)) { e.preventDefault(); next(); }
+  else if (["ArrowUp", "ArrowLeft", "PageUp"].includes(e.key)) { e.preventDefault(); prev(); }
+  else if (e.key === "Escape") close();
+  else if (e.key === "Home") go(0);
+  else if (e.key === "End") go(P.stages.length - 1);
+}
+function onTouchStart(e) { P.touchY = e.touches[0].clientY; }
+function onTouchEnd(e) {
+  if (P.touchY == null) return;
+  const dy = P.touchY - e.changedTouches[0].clientY;
+  if (Math.abs(dy) > 50) (dy > 0 ? next() : prev());
+  P.touchY = null;
+}
+
+function bind() {
+  const vp = el("presentViewport");
+  vp.addEventListener("mousemove", onMove);
+  window.addEventListener("wheel", onWheel, { passive: false });
+  window.addEventListener("keydown", onKey);
+  vp.addEventListener("touchstart", onTouchStart, { passive: true });
+  vp.addEventListener("touchend", onTouchEnd, { passive: true });
+  el("presentNext").addEventListener("click", next);
+  el("presentPrev").addEventListener("click", prev);
+  el("presentExit").addEventListener("click", close);
+}
+function unbind() {
+  const vp = el("presentViewport");
+  vp.removeEventListener("mousemove", onMove);
+  window.removeEventListener("wheel", onWheel);
+  window.removeEventListener("keydown", onKey);
+  vp.removeEventListener("touchstart", onTouchStart);
+  vp.removeEventListener("touchend", onTouchEnd);
+  el("presentNext").removeEventListener("click", next);
+  el("presentPrev").removeEventListener("click", prev);
+  el("presentExit").removeEventListener("click", close);
+}
+
+/* ---------- Chrome (Dots, Zähler) ---------- */
+function buildDots() {
+  const dots = el("presentDots");
+  dots.innerHTML = "";
+  P.stages.forEach((_, i) => {
+    const b = document.createElement("button");
+    b.className = "present__dot";
+    b.setAttribute("aria-label", `Folie ${i + 1}`);
+    b.addEventListener("click", () => go(i));
+    dots.appendChild(b);
+  });
+}
+function updateChrome(idx = P.index) {
+  el("presentCounter").textContent = `${idx + 1} / ${P.stages.length}`;
+  [...el("presentDots").children].forEach((d, i) => d.classList.toggle("is-on", i === idx));
+}
