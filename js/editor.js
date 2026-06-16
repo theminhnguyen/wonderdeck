@@ -6,6 +6,7 @@ import * as S from "./state.js";
 import { srcOf, curSlide, state } from "./state.js";
 import { createStage } from "./stage.js";
 import { openPresent } from "./present.js";
+import { EXAMPLES } from "./examples.js";
 
 const el = (id) => document.getElementById(id);
 const readFile = (file) =>
@@ -319,10 +320,6 @@ export function init() {
     a.click(); URL.revokeObjectURL(a.href);
   });
   el("btnImport").addEventListener("click", () => { menuPanel.hidden = true; el("fileImport").click(); });
-  el("btnExample").addEventListener("click", () => {
-    menuPanel.hidden = true;
-    if (confirm("Beispiel-Präsentation laden? Sie ersetzt die aktuelle Ansicht. Tipp: Sichere deine Präsi vorher über das Backup-Menü (Als Datei sichern), falls du sie behalten möchtest.")) S.loadExample();
-  });
   el("btnNewDeck").addEventListener("click", () => { menuPanel.hidden = true; if (confirm("Neue, leere Präsentation starten? Sie ersetzt die aktuelle Ansicht (vorher ggf. über das Backup-Menü sichern).")) S.newDeck(); });
 
   // Hilfe-Fenster
@@ -332,10 +329,47 @@ export function init() {
   el("helpClose").addEventListener("click", closeHelp);
   el("helpBackdrop").addEventListener("click", closeHelp);
 
+  // Beispiel-Galerie
+  const gallery = el("gallery");
+  const closeGallery = () => (gallery.hidden = true);
+  function renderGallery() {
+    const grid = el("galleryGrid");
+    grid.innerHTML = "";
+    EXAMPLES.forEach((ex) => {
+      const card = h("button", { class: "gcard" }, [
+        h("div", { class: "gcard__banner", style: `background:${ex.grad}` }),
+        h("div", { class: "gcard__body" }, [
+          h("p", { class: "gcard__name", text: ex.name }),
+          h("p", { class: "gcard__desc", text: ex.desc }),
+        ]),
+      ]);
+      card.addEventListener("click", async () => {
+        if (card.dataset.busy) return;
+        card.dataset.busy = "1";
+        card.querySelector(".gcard__body").appendChild(h("p", { class: "gcard__busy", text: "Lädt …" }));
+        try {
+          const deck = await ex.build();
+          await S.loadDeckObject(deck);
+          closeGallery();
+        } catch (err) {
+          alert("Beispiel konnte nicht geladen werden: " + err.message);
+        } finally {
+          delete card.dataset.busy;
+        }
+      });
+      grid.appendChild(card);
+    });
+  }
+  const openGallery = () => { renderGallery(); gallery.hidden = false; };
+  el("btnGallery").addEventListener("click", () => { menuPanel.hidden = true; openGallery(); });
+  el("galleryClose").addEventListener("click", closeGallery);
+  el("galleryBackdrop").addEventListener("click", closeGallery);
+
   // Tastenkürzel im Editor
   document.addEventListener("keydown", (e) => {
     if (el("present").hidden === false) return; // Präsentation hat Vorrang
     if (!help.hidden) { if (e.key === "Escape") closeHelp(); return; } // Hilfe offen
+    if (!gallery.hidden) { if (e.key === "Escape") closeGallery(); return; } // Galerie offen
     const typing = ["INPUT", "TEXTAREA"].includes(document.activeElement.tagName) || document.activeElement.isContentEditable;
     if ((e.key === "Delete" || e.key === "Backspace") && state.sel.type && !typing) { e.preventDefault(); S.deleteSelected(); }
     if (e.key === "Escape") clearSel();

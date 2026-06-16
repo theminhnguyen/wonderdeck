@@ -106,14 +106,18 @@ export async function initDeck() {
   autosave();
 }
 
-export async function loadExample() {
-  const { buildSeedDeck } = await import("./seed.js");
-  const deck = await buildSeedDeck(); // legt ein NEUES Deck an (eigene id)
+/** Ein fertig gebautes Deck (Bilder bereits in IDB) übernehmen & anzeigen. */
+export async function loadDeckObject(deck) {
   state.deck = deck;
   state.images = await db.loadImagesForDeck(deck);
   state.current = 0;
   state.sel = { type: null, id: null };
   emit();
+}
+
+export async function loadExample() {
+  const { buildSeedDeck } = await import("./seed.js");
+  await loadDeckObject(await buildSeedDeck());
 }
 
 export async function newDeck() {

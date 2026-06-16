@@ -3,9 +3,10 @@
    Deep-Links: #present / ?present=N (Präsentation), ?slide=N (Folie),
    #help (Hilfe öffnen).
    =================================================================== */
-import { initDeck, selectSlide, state, srcOf } from "./state.js";
+import { initDeck, selectSlide, state, srcOf, loadDeckObject } from "./state.js";
 import { init as initEditor } from "./editor.js";
 import { openPresent } from "./present.js";
+import { EXAMPLES } from "./examples.js";
 
 async function boot() {
   try {
@@ -13,10 +14,16 @@ async function boot() {
     initEditor();
 
     const params = new URLSearchParams(location.search);
+    const exKey = params.get("example");
+    if (exKey) {
+      const found = EXAMPLES.find((e) => e.key === exKey);
+      if (found) await loadDeckObject(await found.build());
+    }
     const n = parseInt(params.get("slide") || params.get("present") || "", 10);
     const start = Number.isFinite(n) ? Math.max(0, Math.min(n, state.deck.slides.length - 1)) : 0;
     if (params.has("slide")) selectSlide(start);
     if (location.hash.includes("help")) document.getElementById("help").hidden = false;
+    if (location.hash.includes("gallery")) document.getElementById("btnGallery").click();
     if (location.hash.includes("present") || params.has("present")) openPresent(state.deck, srcOf, start);
   } catch (err) {
     console.error("WonderDeck-Start fehlgeschlagen:", err);

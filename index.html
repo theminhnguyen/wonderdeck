@@ -36,7 +36,7 @@
             <button id="btnExport" class="menu__item">⭳ Als Datei sichern</button>
             <button id="btnImport" class="menu__item">⭱ Datei laden</button>
             <hr class="menu__sep" />
-            <button id="btnExample" class="menu__item">✨ Beispiel-Präsi laden</button>
+            <button id="btnGallery" class="menu__item">✨ Beispiele …</button>
             <button id="btnNewDeck" class="menu__item">✦ Neue, leere Präsi</button>
           </div>
         </div>
@@ -139,6 +139,20 @@
       </ul>
 
       <p class="help__tip">💡 Tipp: Über „Backup" oben kannst du deine Präsi jederzeit als Datei sichern.</p>
+    </div>
+  </div>
+
+  <!-- ============ Beispiel-Galerie ============ -->
+  <div id="gallery" class="help" hidden>
+    <div class="help__backdrop" id="galleryBackdrop"></div>
+    <div class="help__panel" role="dialog" aria-modal="true" aria-label="Beispiel-Präsentationen">
+      <button class="help__close" id="galleryClose" aria-label="Schließen">✕</button>
+      <h2 class="help__title">Beispiele ✨</h2>
+      <p class="help__lead">
+        Lade eine fertige Präsentation als Startpunkt. Sie wird als <b>neue</b> Präsi
+        angelegt und ersetzt die aktuelle Ansicht (vorher ggf. über „Backup" sichern).
+      </p>
+      <div class="gallery__grid" id="galleryGrid"></div>
     </div>
   </div>
 
