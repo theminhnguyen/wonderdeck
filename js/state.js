@@ -38,6 +38,7 @@ export function createSlide({ style = "snap" } = {}) {
   return {
     id: uid(),
     style,                 // "wonder" (maus-reaktiver Hero) | "snap" (Szene)
+    transition: "snap",    // Übergang ZU dieser Folie (snap|fade|slide|zoom|push)
     bg: "#0a1118",
     layers: [],
     texts: [createText("title")],
@@ -45,7 +46,15 @@ export function createSlide({ style = "snap" } = {}) {
 }
 
 export function createDeck(title = "Meine Präsentation") {
-  return { id: uid(), title, slides: [createSlide({ style: "wonder" })], createdAt: Date.now() };
+  return { id: uid(), title, theme: "aurum", slides: [createSlide({ style: "wonder" })], createdAt: Date.now() };
+}
+
+/** Bestehende Decks um neue Felder ergänzen (Migration alter Stände). */
+export function normalizeDeck(deck) {
+  if (!deck) return deck;
+  if (!deck.theme) deck.theme = "aurum";
+  (deck.slides || []).forEach((s) => { if (!s.transition) s.transition = "snap"; });
+  return deck;
 }
 
 /* ---------- State-Singleton ---------- */
@@ -98,6 +107,7 @@ export async function initDeck() {
     const { buildSeedDeck } = await import("./seed.js");
     deck = await buildSeedDeck();
   }
+  normalizeDeck(deck);
   state.deck = deck;
   state.images = await db.loadImagesForDeck(deck);
   state.current = 0;
@@ -108,6 +118,7 @@ export async function initDeck() {
 
 /** Ein fertig gebautes Deck (Bilder bereits in IDB) übernehmen & anzeigen. */
 export async function loadDeckObject(deck) {
+  normalizeDeck(deck);
   state.deck = deck;
   state.images = await db.loadImagesForDeck(deck);
   state.current = 0;
@@ -171,8 +182,10 @@ export function moveSlide(from, to) {
   commit();
 }
 export function setSlideStyle(style) { curSlide().style = style; commit(); }
+export function setSlideTransition(t) { curSlide().transition = t; commit(); }
 export function setSlideBg(color) { curSlide().bg = color; commit(); }
 export function setDeckTitle(title) { state.deck.title = title; commit(); }
+export function setDeckTheme(key) { state.deck.theme = key; commit(); }
 
 /* ---------- Ebenen-Mutationen ---------- */
 export async function addImageLayer(dataURL, name = "Bild") {
@@ -240,6 +253,7 @@ export async function importDeck(bundle) {
   if (!bundle || bundle.format !== "wonderdeck" || !bundle.deck) throw new Error("Ungültige Datei");
   const deck = bundle.deck;
   deck.id = uid(); // neue id, um Kollisionen zu vermeiden
+  normalizeDeck(deck);
   for (const [id, data] of Object.entries(bundle.images || {})) {
     await db.putImage(id, data);
     state.images[id] = data;

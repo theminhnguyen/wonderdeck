@@ -12,9 +12,13 @@ function L(id, name, parallax, kenburns = 0, reactive = false) {
   const l = createLayer({ imageId: id, name }); l.parallax = parallax; l.kenburns = kenburns; l.reactive = reactive; return l;
 }
 const T = (role, text, p = {}) => Object.assign(createText(role), { text, ...p });
-function Slide(style, bg, layers, texts) { const s = createSlide({ style }); s.bg = bg; s.layers = layers; s.texts = texts; return s; }
-async function finalize(title, slides) {
-  const deck = { id: uid(), title, slides, createdAt: Date.now() };
+function Slide(style, bg, layers, texts, transition) {
+  const s = createSlide({ style }); s.bg = bg; s.layers = layers; s.texts = texts;
+  if (transition) s.transition = transition;
+  return s;
+}
+async function finalize(title, theme, slides) {
+  const deck = { id: uid(), title, theme, slides, createdAt: Date.now() };
   await db.saveDeck(structuredClone(deck));
   localStorage.setItem("wonderdeck:currentDeckId", deck.id);
   return deck;
@@ -29,7 +33,7 @@ async function buildAurora() {
   const aura = await img(G.blobsBg("#0a1030", ["#3a4bd6", "#7a4bd6", "#4bb0d6"], 11));
   const close = await img(G.orbGlow("#1a1240", "#06040f", "#c89bff", 800, 470));
 
-  return finalize("Aurora · Produkt-Keynote", [
+  return finalize("Aurora · Produkt-Keynote", "sky", [
     Slide("wonder", "#05060f", [L(space, "Weltraum", 10, 0.06), L(stars, "Sterne (reaktiv)", 34, 0, true)],
       [T("kicker", "INTRODUCING", { x: 20, y: 28, w: 60, align: "center" }), T("title", "Aurora", { x: 20, y: 38, w: 60, align: "center" }),
        T("subtitle", "Die nächste Generation. Heute.", { x: 20, y: 62, w: 60, align: "center" })]),
@@ -58,7 +62,7 @@ async function buildWanderlust() {
     { y: 740, amp: 26, phase: 2.1, color: "#06203a" }]));
   const night = await img(G.skyGrad(["#0e1430", "#2a2050", "#5a3a6a"]));
 
-  return finalize("Wanderlust · Reise-Story", [
+  return finalize("Wanderlust · Reise-Story", "aurum", [
     Slide("wonder", "#16244e", [L(sky1, "Himmel", 12, 0.12), L(far1, "Berge", 28), L(near1, "Vordergrund", 52)],
       [T("kicker", "EINE REISE", { x: 8, y: 24 }), T("title", "Wander-\nlust", { x: 8, y: 32, w: 56 }), T("subtitle", "Geschichten von unterwegs.", { x: 8, y: 76, w: 46 })]),
     Slide("snap", "#0a2a2e", [L(sky2, "Himmel", 12, 0.1), L(far2, "Hügel", 26), L(near2, "Vordergrund", 46)],
@@ -78,7 +82,7 @@ async function buildStudioNova() {
   const bg3 = await img(G.blobsBg("#0c0a18", ["#ff9a3c", "#ff5a8a", "#7a5bff"], 12));
   const bg4 = await img(G.blobsBg("#0c0a18", ["#ff5a8a", "#7a5bff"], 8));
 
-  return finalize("Studio Nova · Portfolio", [
+  return finalize("Studio Nova · Portfolio", "coral", [
     Slide("wonder", "#0c0a18", [L(bg1, "Farben", 12, 0.1), L(deco, "Akzent (reaktiv)", 40, 0, true)],
       [T("kicker", "CREATIVE STUDIO", { x: 8, y: 26 }), T("title", "Studio\nNova", { x: 8, y: 34, w: 60 }), T("subtitle", "Wir gestalten Erlebnisse, die man fühlt.", { x: 8, y: 74, w: 48 })]),
     Slide("snap", "#100a1a", [L(bg2, "Farben", 16, 0.08)],
@@ -95,10 +99,10 @@ async function buildStille() {
   const g1 = await img(G.skyGrad(["#1a1a22", "#2a2630", "#3a3340"]));
   const g2 = await img(G.skyGrad(["#12161c", "#1c2630", "#2a3a44"]));
   const g3 = await img(G.skyGrad(["#201820", "#33232e", "#46303c"]));
-  return finalize("Stille · Minimalismus", [
-    Slide("wonder", "#1a1a22", [L(g1, "Verlauf", 8, 0.06)], [T("title", "Weniger,\naber besser.", { x: 20, y: 38, w: 60, align: "center" })]),
-    Slide("snap", "#12161c", [L(g2, "Verlauf", 8, 0.06)], [T("subtitle", "Die Stille zwischen den Noten\nmacht die Musik.", { x: 22, y: 40, w: 56, align: "center" })]),
-    Slide("snap", "#201820", [L(g3, "Verlauf", 8, 0.06)], [T("kicker", "✦", { x: 20, y: 46, w: 60, align: "center" })]),
+  return finalize("Stille · Minimalismus", "editorial", [
+    Slide("wonder", "#1a1a22", [L(g1, "Verlauf", 8, 0.06)], [T("title", "Weniger,\naber besser.", { x: 20, y: 38, w: 60, align: "center" })], "fade"),
+    Slide("snap", "#12161c", [L(g2, "Verlauf", 8, 0.06)], [T("subtitle", "Die Stille zwischen den Noten\nmacht die Musik.", { x: 22, y: 40, w: 56, align: "center" })], "fade"),
+    Slide("snap", "#201820", [L(g3, "Verlauf", 8, 0.06)], [T("kicker", "✦", { x: 20, y: 46, w: 60, align: "center" })], "fade"),
   ]);
 }
 

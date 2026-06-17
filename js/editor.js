@@ -9,6 +9,8 @@ import { openPresent } from "./present.js";
 import { EXAMPLES } from "./examples.js";
 import { LAYOUTS } from "./layouts.js";
 import { exportStandaloneHTML } from "./export.js";
+import { THEMES, applyTheme } from "./themes.js";
+import { TRANSITIONS } from "./effects.js";
 
 const el = (id) => document.getElementById(id);
 const readFile = (file) =>
@@ -38,6 +40,7 @@ let imageMode = { mode: "add", layerId: null };
 
 /* =================== Render: alles =================== */
 function renderAll() {
+  applyTheme(document.body, state.deck.theme || "aurum");
   renderRail();
   renderStage();
   applyOutline();
@@ -149,9 +152,24 @@ function slider(labelText, value, min, max, step, oninput, fmt = (v) => v) {
   ]);
 }
 
+function deckSection() {
+  const sec = h("div", { class: "insp-section" }, [h("h3", { text: "Theme (ganzes Deck)" })]);
+  const grid = h("div", { class: "themes" });
+  THEMES.forEach((t) => {
+    grid.appendChild(h("button", {
+      class: "themebtn" + ((state.deck.theme || "aurum") === t.key ? " is-on" : ""),
+      title: t.name,
+      onclick: () => S.setDeckTheme(t.key),
+    }, [h("span", { class: "sw", style: `background:${t.accent}` }), t.name]));
+  });
+  sec.appendChild(grid);
+  return sec;
+}
+
 function renderInspector() {
   const insp = el("inspector");
   insp.innerHTML = "";
+  insp.appendChild(deckSection());
   insp.appendChild(slideSection());
   if (state.sel.type === "layer") insp.appendChild(layerSection(S.findLayer(state.sel.id)));
   else if (state.sel.type === "text") insp.appendChild(textSection(S.findText(state.sel.id)));
@@ -176,6 +194,12 @@ function slideSection() {
   // Hintergrundfarbe
   sec.appendChild(field("Hintergrundfarbe (hinter Ebenen)",
     h("input", { type: "color", value: slide.bg || "#0a1118", oninput: (e) => S.setSlideBg(e.target.value) })));
+
+  // Übergang zu dieser Folie
+  const tsel = h("select", { onchange: (e) => S.setSlideTransition(e.target.value) });
+  TRANSITIONS.forEach((tr) =>
+    tsel.appendChild(h("option", { value: tr.key, ...((slide.transition || "snap") === tr.key ? { selected: "selected" } : {}), text: tr.name })));
+  sec.appendChild(field("Übergang zu dieser Folie", tsel));
 
   // Ebenen-Liste
   const list = h("div", { class: "layerlist" });

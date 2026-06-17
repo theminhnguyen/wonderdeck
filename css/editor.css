@@ -303,6 +303,18 @@ html, body {
   font-weight: 700; font-size: 15px; line-height: 1;
 }
 
+/* Theme-Picker im Inspektor */
+.themes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.themebtn {
+  display: flex; align-items: center; gap: 7px;
+  font: inherit; font-size: 12px; color: var(--wd-text-dim);
+  background: var(--wd-bg); border: 1px solid var(--wd-line);
+  border-radius: 7px; padding: 6px 8px; cursor: pointer; text-align: left;
+}
+.themebtn:hover { color: var(--wd-text); }
+.themebtn.is-on { color: var(--wd-text); border-color: var(--wd-accent); }
+.themebtn .sw { width: 14px; height: 14px; border-radius: 50%; flex: 0 0 auto; box-shadow: 0 0 0 1px rgba(255,255,255,0.15); }
+
 .help { position: fixed; inset: 0; z-index: 9500; display: grid; place-items: center; }
 .help[hidden] { display: none; }
 .help__backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); }

@@ -4,7 +4,7 @@
    Dots), den RAF-Loop (Parallax + Cursor) und die Snap-Übergänge.
    =================================================================== */
 import { createStage } from "./stage.js";
-import { resetIntro, updateStage, placeActive, snapTransition, SNAP_DUR } from "./effects.js";
+import { resetIntro, updateStage, placeActive, transition, SNAP_DUR } from "./effects.js";
 
 const el = (id) => document.getElementById(id);
 
@@ -31,6 +31,7 @@ export function openPresent(deck, resolveSrc, startIndex = 0, onClose = null) {
 
   deck.slides.forEach((slide, i) => {
     const stage = createStage(slide, resolveSrc);
+    stage._transition = slide.transition || "snap";
     stage.root.style.display = i === startIndex ? "" : "none";
     viewport.appendChild(stage.root);
     P.stages.push(stage);
@@ -77,7 +78,7 @@ function go(to) {
   const inS = P.stages[to];
   P.target = to;
   P.locked = true;
-  snapTransition(out, inS, dir);
+  transition(out, inS, dir, inS._transition || "snap");
   updateChrome(to);
   setTimeout(() => {
     out.root.style.display = "none";

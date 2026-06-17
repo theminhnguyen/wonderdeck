@@ -4,6 +4,8 @@
    Läuft per Doppelklick in jedem Browser, ohne WonderDeck.
    =================================================================== */
 
+import { themeVars } from "./themes.js";
+
 /* Eigenständiger Viewer (wird via toString() in die Export-Datei eingebettet
    und dort mit dem Deck aufgerufen). Darf nur globale APIs nutzen. */
 function VIEWER_RUNTIME(DECK) {
@@ -34,7 +36,7 @@ function VIEWER_RUNTIME(DECK) {
     return { root: root, layers: layers, texts: texts };
   }
 
-  const stages = DECK.slides.map((s) => { const st = stageEl(s); st.root.style.display = "none"; vp.appendChild(st.root); return st; });
+  const stages = DECK.slides.map((s) => { const st = stageEl(s); st._transition = s.transition || "snap"; st.root.style.display = "none"; vp.appendChild(st.root); return st; });
   let index = 0, target = -1, locked = false, lastWheel = 0, touchY = null;
   const m = { nx: 0, ny: 0, tx: 0, ty: 0, cx: innerWidth / 2, cy: innerHeight / 2, lx: innerWidth / 2, ly: innerHeight / 2 };
 
@@ -51,16 +53,26 @@ function VIEWER_RUNTIME(DECK) {
     });
     st.texts.forEach((t, i) => { const te = easeOutCubic(clamp01((a - 250 - i * 140) / 900)); t.el.style.opacity = te; t.el.style.transform = "translateY(" + (1 - te) * 26 + "px)"; });
   }
-  function snap(st, o) {
+  const SPEC = {
+    snap:  { in: (d) => ({ y: d > 0 ? 100 : -100 }), out: (d) => ({ y: d > 0 ? -30 : 30, s: 0.95, o: 0.4 }) },
+    fade:  { in: () => ({ o: 0 }),                    out: () => ({ o: 0 }) },
+    slide: { in: (d) => ({ x: d > 0 ? 100 : -100 }),  out: (d) => ({ x: d > 0 ? -100 : 100 }) },
+    zoom:  { in: () => ({ s: 1.14, o: 0 }),           out: () => ({ s: 0.9, o: 0 }) },
+    push:  { in: (d) => ({ y: d > 0 ? 100 : -100 }),  out: (d) => ({ y: d > 0 ? -100 : 100 }) }
+  };
+  function setT(st, o) {
+    o = o || {};
+    var x = o.x || 0, y = o.y || 0, s = o.s == null ? 1 : o.s, op = o.o == null ? 1 : o.o;
     st.root.style.transition = o.instant ? "none" : "transform " + SNAP_DUR + "ms " + SNAP_EASE + ",opacity " + SNAP_DUR + "ms " + SNAP_EASE;
-    st.root.style.transform = "translateY(" + o.y + "%) scale(" + o.s + ")"; st.root.style.opacity = o.o;
+    st.root.style.transform = "translate(" + x + "%," + y + "%) scale(" + s + ")"; st.root.style.opacity = op;
   }
   function setDots(i) { [].forEach.call(dots.children, (d, j) => d.classList.toggle("on", j === i)); counter.textContent = (i + 1) + " / " + stages.length; }
   function go(to) {
     if (locked || to < 0 || to >= stages.length || to === index) return;
     const dir = to > index ? 1 : -1, out = stages[index], inn = stages[to]; target = to; locked = true;
-    snap(inn, { y: dir > 0 ? 100 : -100, s: 1, o: 1, instant: true }); inn.root.style.display = ""; resetIntro(inn, performance.now());
-    void inn.root.offsetWidth; snap(inn, { y: 0, s: 1, o: 1 }); snap(out, { y: dir > 0 ? -30 : 30, s: 0.95, o: 0.4 }); setDots(to);
+    const sp = SPEC[inn._transition] || SPEC.snap;
+    setT(inn, Object.assign({ instant: true }, sp.in(dir))); inn.root.style.display = ""; resetIntro(inn, performance.now());
+    void inn.root.offsetWidth; setT(inn, {}); setT(out, sp.out(dir)); setDots(to);
     setTimeout(() => { out.root.style.display = "none"; index = to; target = -1; locked = false; }, SNAP_DUR + 30);
   }
   function loop(now) {
@@ -82,7 +94,7 @@ function VIEWER_RUNTIME(DECK) {
   addEventListener("touchstart", (e) => (touchY = e.touches[0].clientY), { passive: true });
   addEventListener("touchend", (e) => { if (touchY == null) return; const d = touchY - e.changedTouches[0].clientY; if (Math.abs(d) > 50) (d > 0 ? go(index + 1) : go(index - 1)); touchY = null; }, { passive: true });
 
-  snap(stages[0], { y: 0, s: 1, o: 1, instant: true }); stages[0].root.style.display = ""; resetIntro(stages[0], performance.now()); setDots(0);
+  setT(stages[0], { instant: true }); stages[0].root.style.display = ""; resetIntro(stages[0], performance.now()); setDots(0);
   const hint = document.getElementById("hint"); if (hint) setTimeout(() => (hint.style.opacity = 0), 4200);
   requestAnimationFrame(loop);
 }
@@ -92,11 +104,11 @@ const VIEWER_CSS = "*{margin:0;box-sizing:border-box}html,body{height:100%;overf
   + ".wd-stage{position:absolute;inset:0;overflow:hidden;container-type:inline-size;background:#05070a;will-change:transform,opacity}"
   + ".wd-layer{position:absolute;inset:-8%;width:116%;height:116%;will-change:transform,opacity}"
   + ".wd-layer img{width:100%;height:100%;object-fit:cover;object-position:center;display:block}"
-  + ".wd-text{position:absolute;max-width:60%;text-shadow:0 2px 28px rgba(0,0,0,.5);line-height:1.08;white-space:pre-wrap;word-break:break-word;z-index:50}"
-  + ".wd-text[data-role=title]{font-family:'Playfair Display',Georgia,serif;font-weight:600;font-size:clamp(28px,7.4cqw,96px)}"
-  + ".wd-text[data-role=subtitle]{font-weight:300;font-size:clamp(13px,2.1cqw,24px);line-height:1.5;color:rgba(246,239,230,.9)}"
-  + ".wd-text[data-role=body]{font-weight:400;font-size:clamp(12px,1.9cqw,21px);line-height:1.55;color:rgba(246,239,230,.86)}"
-  + ".wd-text[data-role=kicker]{font-weight:600;font-size:clamp(10px,1.4cqw,15px);letter-spacing:.22em;text-transform:uppercase;color:#c9a25b}"
+  + ".wd-text{position:absolute;max-width:60%;color:var(--ink,#f6efe6);text-shadow:0 2px 28px rgba(0,0,0,.5);line-height:1.08;white-space:pre-wrap;word-break:break-word;z-index:50}"
+  + ".wd-text[data-role=title]{font-family:var(--font-title,'Playfair Display',Georgia,serif);font-weight:600;font-size:clamp(28px,7.4cqw,96px)}"
+  + ".wd-text[data-role=subtitle]{font-family:var(--font-body,'Inter',sans-serif);font-weight:300;font-size:clamp(13px,2.1cqw,24px);line-height:1.5;opacity:.9}"
+  + ".wd-text[data-role=body]{font-family:var(--font-body,'Inter',sans-serif);font-weight:400;font-size:clamp(12px,1.9cqw,21px);line-height:1.55;opacity:.86}"
+  + ".wd-text[data-role=kicker]{font-family:var(--font-body,'Inter',sans-serif);font-weight:600;font-size:clamp(10px,1.4cqw,15px);letter-spacing:.22em;text-transform:uppercase;color:var(--accent,#c9a25b)}"
   + ".cur{position:fixed;top:0;left:0;width:28px;height:28px;margin:-14px 0 0 -14px;border:2px solid #fff;border-radius:50%;pointer-events:none;z-index:9999;mix-blend-mode:difference}@media(pointer:coarse){.cur{display:none}}"
   + ".dots{position:fixed;right:22px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:11px;z-index:100}"
   + ".dot{width:11px;height:11px;border-radius:50%;padding:0;cursor:pointer;background:rgba(255,255,255,.28);border:1px solid rgba(255,255,255,.5);transition:transform .2s,background .2s}.dot.on{background:#fff;transform:scale(1.35)}"
@@ -107,12 +119,14 @@ function esc(s) { return String(s).replace(/[<&>]/g, (c) => ({ "<": "&lt;", "&":
 
 function buildDoc(deck) {
   const json = JSON.stringify(deck).replace(/</g, "\\u003c");
+  const tv = themeVars(deck.theme);
+  const rootVars = ":root{" + Object.keys(tv).map((k) => k + ":" + tv[k]).join(";") + "}";
   return "<!DOCTYPE html>\n<html lang=\"de\"><head><meta charset=\"utf-8\">"
     + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
     + "<title>" + esc(deck.title || "WonderDeck") + "</title>"
     + "<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\"><link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>"
-    + "<link href=\"https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap\" rel=\"stylesheet\">"
-    + "<style>" + VIEWER_CSS + "</style></head><body>"
+    + "<link href=\"https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;600;700&family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600&display=swap\" rel=\"stylesheet\">"
+    + "<style>" + rootVars + VIEWER_CSS + "</style></head><body>"
     + "<div id=\"vp\" class=\"vp\"></div><div id=\"cur\" class=\"cur\"></div>"
     + "<nav id=\"dots\" class=\"dots\"></nav><div id=\"counter\" class=\"counter\"></div>"
     + "<div id=\"hint\" class=\"hint\">Pfeiltasten / Scrollen zum Blättern · F = Vollbild</div>"

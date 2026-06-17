@@ -49,7 +49,8 @@
 .wd-text {
   position: absolute;
   max-width: 60%;
-  color: var(--wd-text);
+  /* Theme-Variablen mit Fallback auf das Standard-Theme */
+  color: var(--ink, var(--wd-text));
   text-shadow: 0 2px 28px rgba(0, 0, 0, 0.5);
   line-height: 1.08;
   white-space: pre-wrap;
@@ -57,32 +58,32 @@
   z-index: 50;
 }
 .wd-text[data-role="title"] {
-  font-family: var(--serif);
+  font-family: var(--font-title, var(--serif));
   font-weight: 600;
   font-size: clamp(28px, 7.4cqw, 96px);
   letter-spacing: 0.005em;
 }
 .wd-text[data-role="subtitle"] {
-  font-family: var(--sans);
+  font-family: var(--font-body, var(--sans));
   font-weight: 300;
   font-size: clamp(13px, 2.1cqw, 24px);
   line-height: 1.5;
-  color: rgba(238, 242, 247, 0.9);
+  opacity: 0.9;
 }
 .wd-text[data-role="body"] {
-  font-family: var(--sans);
+  font-family: var(--font-body, var(--sans));
   font-weight: 400;
   font-size: clamp(12px, 1.9cqw, 21px);
   line-height: 1.55;
-  color: rgba(238, 242, 247, 0.86);
+  opacity: 0.86;
 }
 .wd-text[data-role="kicker"] {
-  font-family: var(--sans);
+  font-family: var(--font-body, var(--sans));
   font-weight: 600;
   font-size: clamp(10px, 1.4cqw, 15px);
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--wd-accent);
+  color: var(--accent, var(--wd-accent));
 }
 
 /* Container-Queries, damit Textgröße zur Stage-Breite passt */

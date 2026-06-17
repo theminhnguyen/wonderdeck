@@ -58,29 +58,45 @@ export function updateStage(stage, mouse, now = performance.now()) {
   });
 }
 
-/* ---------- Snap-Übergänge ---------- */
-function setSnap(stage, { y, scale, opacity, instant }) {
+/* ---------- Übergänge ---------- */
+export const TRANSITIONS = [
+  { key: "snap",  name: "Snap (Standard)" },
+  { key: "fade",  name: "Überblenden" },
+  { key: "slide", name: "Seitlich schieben" },
+  { key: "zoom",  name: "Zoom" },
+  { key: "push",  name: "Durchschieben" },
+];
+
+// Jeder Typ: Startposition der eingehenden Folie + Endposition der ausgehenden.
+// Fehlende Achsen werden von setT auf x:0,y:0,s:1,o:1 ergänzt.
+const SPEC = {
+  snap:  { in: (d) => ({ y: d > 0 ? 100 : -100 }), out: (d) => ({ y: d > 0 ? -30 : 30, s: 0.95, o: 0.4 }) },
+  fade:  { in: () => ({ o: 0 }),                    out: () => ({ o: 0 }) },
+  slide: { in: (d) => ({ x: d > 0 ? 100 : -100 }),  out: (d) => ({ x: d > 0 ? -100 : 100 }) },
+  zoom:  { in: () => ({ s: 1.14, o: 0 }),           out: () => ({ s: 0.9, o: 0 }) },
+  push:  { in: (d) => ({ y: d > 0 ? 100 : -100 }),  out: (d) => ({ y: d > 0 ? -100 : 100 }) },
+};
+
+function setT(stage, { x = 0, y = 0, s = 1, o = 1, instant } = {}) {
   stage.root.style.transition = instant
     ? "none"
     : `transform ${SNAP_DUR}ms ${SNAP_EASE}, opacity ${SNAP_DUR}ms ${SNAP_EASE}`;
-  stage.root.style.transform = `translateY(${y}%) scale(${scale})`;
-  stage.root.style.opacity = String(opacity);
+  stage.root.style.transform = `translate(${x}%, ${y}%) scale(${s})`;
+  stage.root.style.opacity = String(o);
 }
 
 /** Folie sofort als aktiv positionieren (kein Übergang). */
 export function placeActive(stage) {
-  setSnap(stage, { y: 0, scale: 1, opacity: 1, instant: true });
+  setT(stage, { instant: true });
 }
 
-/** Snap von out -> in. dir: +1 (weiter/runter), -1 (zurück/hoch). */
-export function snapTransition(outStage, inStage, dir, now = performance.now()) {
-  // Eingehende Folie vorpositionieren
-  setSnap(inStage, { y: dir > 0 ? 100 : -100, scale: 1, opacity: 1, instant: true });
+/** Übergang von out -> in. dir: +1 (weiter), -1 (zurück). type: SPEC-Schlüssel. */
+export function transition(outStage, inStage, dir, type = "snap", now = performance.now()) {
+  const sp = SPEC[type] || SPEC.snap;
+  setT(inStage, { ...sp.in(dir), instant: true });
   inStage.root.style.display = "";
   resetIntro(inStage, now);
-  // Reflow erzwingen, damit die Transition greift
-  void inStage.root.offsetWidth;
-  // Bewegung starten
-  setSnap(inStage, { y: 0, scale: 1, opacity: 1 });
-  if (outStage) setSnap(outStage, { y: dir > 0 ? -30 : 30, scale: 0.95, opacity: 0.4 });
+  void inStage.root.offsetWidth; // Reflow erzwingen
+  setT(inStage, {}); // -> zentriert/sichtbar
+  if (outStage) setT(outStage, sp.out(dir));
 }
