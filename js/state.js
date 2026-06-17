@@ -139,6 +139,17 @@ export function addSlide(style = "snap") {
   state.sel = { type: null, id: null };
   commit();
 }
+/** Neue Folie aus einer Layout-Vorlage einfügen. */
+export function addSlideFromSpec(spec) {
+  const s = createSlide({ style: spec.style || "snap" });
+  if (spec.bg) s.bg = spec.bg;
+  s.texts = typeof spec.texts === "function" ? spec.texts() : (spec.texts || []);
+  state.deck.slides.splice(state.current + 1, 0, s);
+  state.current += 1;
+  state.sel = { type: null, id: null };
+  commit();
+}
+
 export function deleteSlide(index) {
   if (state.deck.slides.length <= 1) return;
   state.deck.slides.splice(index, 1);

@@ -352,3 +352,16 @@ html, body {
 .gcard__desc { font-size: 12px; line-height: 1.45; color: var(--wd-text-dim); margin: 0; }
 .gcard__busy { font-size: 12px; color: var(--wd-accent); margin: 6px 0 0; }
 @media (max-width: 560px) { .gallery__grid { grid-template-columns: 1fr; } }
+
+/* ===================== Layout-Vorlagen ===================== */
+.layout__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px; }
+.lcard {
+  padding: 0; overflow: hidden; cursor: pointer; text-align: left;
+  background: var(--wd-panel-2); border: 1px solid var(--wd-line);
+  border-radius: 11px; color: var(--wd-text); transition: transform 0.15s, border-color 0.15s;
+}
+.lcard:hover { transform: translateY(-3px); border-color: var(--wd-accent); }
+.lcard__prev { position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: #05070a; }
+.lcard__prev .wd-stage { position: absolute; inset: 0; }
+.lcard__name { display: block; padding: 9px 11px; font-size: 12.5px; font-weight: 500; }
+@media (max-width: 560px) { .layout__grid { grid-template-columns: 1fr; } }

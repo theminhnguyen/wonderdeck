@@ -24,6 +24,7 @@ async function boot() {
     if (params.has("slide")) selectSlide(start);
     if (location.hash.includes("help")) document.getElementById("help").hidden = false;
     if (location.hash.includes("gallery")) document.getElementById("btnGallery").click();
+    if (location.hash.includes("layouts")) document.getElementById("btnAddSlide").click();
     if (location.hash.includes("present") || params.has("present")) openPresent(state.deck, srcOf, start);
   } catch (err) {
     console.error("WonderDeck-Start fehlgeschlagen:", err);

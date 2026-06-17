@@ -7,6 +7,8 @@ import { srcOf, curSlide, state } from "./state.js";
 import { createStage } from "./stage.js";
 import { openPresent } from "./present.js";
 import { EXAMPLES } from "./examples.js";
+import { LAYOUTS } from "./layouts.js";
+import { exportStandaloneHTML } from "./export.js";
 
 const el = (id) => document.getElementById(id);
 const readFile = (file) =>
@@ -277,8 +279,8 @@ export function init() {
   renderAll();
 
   el("deckTitle").addEventListener("input", (e) => { state.deck.title = e.target.value; S.touchSave(); });
-  el("btnAddSlide").addEventListener("click", () => S.addSlide(curSlide().style));
-  el("railAdd").addEventListener("click", () => S.addSlide(curSlide().style));
+  el("btnAddSlide").addEventListener("click", () => openLayouts());
+  el("railAdd").addEventListener("click", () => openLayouts());
   el("btnAddLayer").addEventListener("click", () => { imageMode = { mode: "add", layerId: null }; el("fileImage").click(); });
   el("btnAddText").addEventListener("click", () => S.addText("body"));
   el("btnPresent").addEventListener("click", () =>
@@ -319,6 +321,7 @@ export function init() {
     const a = h("a", { href: URL.createObjectURL(blob), download: (state.deck.title || "praesentation").replace(/[^\w\-]+/g, "_") + ".wdeck.json" });
     a.click(); URL.revokeObjectURL(a.href);
   });
+  el("btnExportHtml").addEventListener("click", () => { menuPanel.hidden = true; exportStandaloneHTML(state.deck, state.images); });
   el("btnImport").addEventListener("click", () => { menuPanel.hidden = true; el("fileImport").click(); });
   el("btnNewDeck").addEventListener("click", () => { menuPanel.hidden = true; if (confirm("Neue, leere Präsentation starten? Sie ersetzt die aktuelle Ansicht (vorher ggf. über das Backup-Menü sichern).")) S.newDeck(); });
 
@@ -365,11 +368,30 @@ export function init() {
   el("galleryClose").addEventListener("click", closeGallery);
   el("galleryBackdrop").addEventListener("click", closeGallery);
 
+  // Layout-Vorlagen (neue Folie)
+  const layoutsM = el("layouts");
+  const closeLayouts = () => (layoutsM.hidden = true);
+  function renderLayouts() {
+    const grid = el("layoutGrid");
+    grid.innerHTML = "";
+    LAYOUTS.forEach((lo) => {
+      const prev = h("div", { class: "lcard__prev" });
+      prev.appendChild(createStage({ style: lo.style, bg: lo.bg, layers: [], texts: lo.texts() }, () => null).root);
+      const card = h("button", { class: "lcard" }, [prev, h("span", { class: "lcard__name", text: lo.name })]);
+      card.addEventListener("click", () => { S.addSlideFromSpec(lo); closeLayouts(); });
+      grid.appendChild(card);
+    });
+  }
+  const openLayouts = () => { renderLayouts(); layoutsM.hidden = false; };
+  el("layoutsClose").addEventListener("click", closeLayouts);
+  el("layoutsBackdrop").addEventListener("click", closeLayouts);
+
   // Tastenkürzel im Editor
   document.addEventListener("keydown", (e) => {
     if (el("present").hidden === false) return; // Präsentation hat Vorrang
     if (!help.hidden) { if (e.key === "Escape") closeHelp(); return; } // Hilfe offen
     if (!gallery.hidden) { if (e.key === "Escape") closeGallery(); return; } // Galerie offen
+    if (!layoutsM.hidden) { if (e.key === "Escape") closeLayouts(); return; } // Vorlagen offen
     const typing = ["INPUT", "TEXTAREA"].includes(document.activeElement.tagName) || document.activeElement.isContentEditable;
     if ((e.key === "Delete" || e.key === "Backspace") && state.sel.type && !typing) { e.preventDefault(); S.deleteSelected(); }
     if (e.key === "Escape") clearSel();

@@ -18,7 +18,9 @@ Browser Module & Speicher.)
 
 ## Bedienung
 
-- **Folie hinzufügen:** Knopf oben oder „+ Folie hinzufügen" links.
+- **Folie hinzufügen:** Knopf oben oder „+ Folie hinzufügen" links öffnet die
+  **Layout-Vorlagen** (Hero, Titel zentriert, Kapitel, Aussage/Zitat, Titel+Text,
+  Große Zahl, Titel rechts, Leer).
 - **Bild einfügen:** Bild einfach **auf die Bühne ziehen** (oder „+ Bild-Ebene").
   Jede Ebene hat Parallax, reaktiv-Schalter, langsamen Zoom (Ken-Burns), Größe,
   Deckkraft und Reihenfolge.
@@ -31,6 +33,10 @@ Browser Module & Speicher.)
 - **Speichern:** passiert **automatisch im Browser** (IndexedDB).
 - **Backup:** Menü „Backup" → „Als Datei sichern" / „Datei laden" (eine `.wdeck.json`
   inkl. Bilder, zum Sichern & Weitergeben).
+- **Als Webseite exportieren:** Menü „Backup" → „Als Webseite exportieren" erzeugt
+  eine einzelne `.html` mit allen Bildern + Animationen — läuft überall per
+  Doppelklick, ganz ohne WonderDeck.
+- **Beispiele:** Menü „Backup" → „Beispiele …" lädt fertige Präsentationen.
 
 ## Aufbau (kein Build-Schritt, reine ES-Module)
 
