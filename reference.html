@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Swiss · Snap-Scroll Reference</title>
+
+  <!-- Schriften: Bricolage Grotesque (Titel) + Inter (Copy) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS v4 (Browser-CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <!-- GSAP Core (CDN) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+  <style>
+    :root {
+      --ease: cubic-bezier(0.16, 1, 0.3, 1);
+      --ink-light: #f4f1ea;     /* Text auf dunklen Sektionen */
+      --ink-dark: #1a1a1a;      /* Text auf hellen Sektionen  */
+    }
+    * { margin: 0; box-sizing: border-box; }
+    html, body { height: 100%; width: 100%; overflow: hidden; background: #111; }
+    body {
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .font-display { font-family: "Bricolage Grotesque", "Inter", sans-serif; }
+
+    /* ---------- Bühne & Sektionen (absolut gestapelt, GSAP bewegt sie) ---------- */
+    #stage { position: fixed; inset: 0; touch-action: none; overflow: hidden; }
+    .panel {
+      position: absolute; inset: 0;
+      display: flex;
+      overflow: hidden;
+      will-change: transform, opacity;
+    }
+    .panel__bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-position: center; }
+    .panel__fg { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+    .panel__content { position: relative; z-index: 2; width: 100%; height: 100%; padding: clamp(24px, 6vw, 96px); }
+
+    /* ---------- Minimalistische CSS-Platzhalter-Formen (Vordergrund) ---------- */
+    .shape { position: absolute; pointer-events: auto; will-change: transform; }
+    .shape--ring {
+      width: 46vmin; height: 46vmin; border-radius: 50%;
+      border: 1.5px solid rgba(244, 241, 234, 0.55);
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
+    }
+    .shape--ring::after {
+      content: ""; position: absolute; inset: 18%; border-radius: 50%;
+      border: 1px solid rgba(244, 241, 234, 0.18);
+    }
+    .shape--square {
+      width: 40vmin; height: 40vmin; background: #1a1a1a;
+      top: 50%; right: -6vmin; transform: translateY(-50%);
+    }
+    .shape--bar {
+      width: 1px; height: 56vmin; background: rgba(244, 241, 234, 0.4);
+      bottom: -6vmin; left: 14vw;
+    }
+    .shape--dot {
+      width: 11vmin; height: 11vmin; border-radius: 50%;
+      background: var(--accent, #d6452f);
+      top: 22%; right: 16vw;
+    }
+
+    /* ---------- Typografie ---------- */
+    .title { font-weight: 800; line-height: 0.92; letter-spacing: -0.02em; }
+    .copy { font-weight: 300; line-height: 1.6; max-width: 38ch; }
+    .kicker { font-size: 12px; font-weight: 500; letter-spacing: 0.32em; text-transform: uppercase; }
+
+    /* ---------- Fixe UI-Overlays (mix-blend-difference -> lesbar auf Hell & Dunkel) ---------- */
+    .overlay { position: fixed; z-index: 50; mix-blend-mode: difference; color: #fff; }
+    .nav { top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between;
+           padding: clamp(20px, 3vw, 36px) clamp(24px, 6vw, 96px); }
+    .nav a { font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; text-decoration: none; color: #fff; opacity: 0.85; }
+    .nav a:hover { opacity: 1; }
+
+    .scroll-ind { left: clamp(16px, 3vw, 40px); bottom: 40px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .scroll-ind__line { width: 1px; height: 56px; background: #fff; opacity: 0.5; transform-origin: bottom; animation: pulse 2.4s var(--ease) infinite; }
+    .scroll-ind__txt { writing-mode: vertical-rl; font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; opacity: 0.7; }
+    @keyframes pulse { 0%,100% { transform: scaleY(0.4); opacity: 0.25; } 50% { transform: scaleY(1); opacity: 0.7; } }
+
+    .counter { left: clamp(24px, 6vw, 96px); bottom: 36px; font-size: 12px; letter-spacing: 0.2em; font-variant-numeric: tabular-nums; }
+
+    /* Fortschritts-Dots rechts */
+    .dots { right: clamp(20px, 3vw, 40px); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 16px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; border: 1px solid #fff; background: transparent; padding: 0; cursor: pointer; transition: transform 0.4s var(--ease), background 0.4s var(--ease); }
+    .dot.is-active { background: #fff; transform: scale(1.4); }
+
+    .socials { position: absolute; bottom: clamp(24px, 6vw, 96px); display: flex; gap: 28px; z-index: 2; }
+    .socials a { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; text-decoration: none; opacity: 0.6; transition: opacity 0.3s; }
+    .socials a:hover { opacity: 1; }
+  </style>
+</head>
+<body>
+  <!-- ===================== Fixe Overlays ===================== -->
+  <nav class="overlay nav">
+    <a href="#" class="font-display" style="font-weight:700;letter-spacing:0.05em;">◆ STUDIO</a>
+    <div style="display:flex; gap:clamp(16px,2.4vw,40px);">
+      <a href="#">Work</a><a href="#">About</a><a href="#">Contact</a>
+    </div>
+  </nav>
+
+  <div class="overlay scroll-ind">
+    <span class="scroll-ind__txt">Scroll</span>
+    <span class="scroll-ind__line"></span>
+  </div>
+
+  <div class="overlay counter"><span id="counterNow">01</span> &nbsp;/&nbsp; 03</div>
+
+  <nav class="overlay dots" id="dots" aria-label="Sektionen"></nav>
+
+  <!-- ===================== Bühne / 3 Sektionen ===================== -->
+  <main id="stage">
+
+    <!-- ───────── SEKTION 1 — Zentraler Titel ───────── -->
+    <section class="panel" data-index="0" style="color:var(--ink-light); --accent:#d6452f;">
+      <!-- ▶ ECHTES BG-BILD: Gradient unten ersetzen durch
+           style="background-image:url('public/images/hero1-bg.png')" -->
+      <div class="panel__bg" data-bg style="background:linear-gradient(150deg,#1c1b19 0%,#2a2825 48%,#5f574c 100%);"></div>
+
+      <!-- ▶ ECHTE FIGUR: diese CSS-Form ersetzen durch
+           <img src="public/images/hero1-figure.png" data-fg class="..."> -->
+      <div class="panel__fg"><div class="shape shape--ring" data-fg></div></div>
+
+      <div class="panel__content" style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
+        <span class="kicker" data-copy style="margin-bottom:clamp(20px,4vh,40px); opacity:0.7;">◆ Universal Template</span>
+        <h1 class="title font-display" data-title style="font-size:clamp(48px,12vw,200px); text-transform:uppercase;">
+          Form&nbsp;&amp;<br />Function
+        </h1>
+        <p class="copy" data-copy style="margin-top:clamp(20px,4vh,40px); opacity:0.7; text-align:center;">
+          Eine universelle Snap-Scroll-Vorlage im Swiss-Design-Stil.
+        </p>
+      </div>
+    </section>
+
+    <!-- ───────── SEKTION 2 — Titel unten rechts, Copy oben links ───────── -->
+    <section class="panel" data-index="1" style="color:var(--ink-dark); --accent:#1a1a1a;">
+      <!-- ▶ ECHTES BG-BILD: hero2-bg.png hier einsetzen -->
+      <div class="panel__bg" data-bg style="background:linear-gradient(135deg,#d8d1c4 0%,#c5bcab 60%,#b3a892 100%);"></div>
+
+      <!-- ▶ ECHTE FIGUR: hero2-figure.png hier einsetzen (versetzt = Asymmetrie) -->
+      <div class="panel__fg"><div class="shape shape--square" data-fg></div></div>
+
+      <div class="panel__content">
+        <p class="copy" data-copy style="position:absolute; top:clamp(96px,16vh,180px); left:clamp(24px,6vw,96px); color:var(--ink-dark);">
+          Wir reduzieren auf das Wesentliche, damit das Wichtige sprechen kann. Raster, Typografie und Weißraum — mehr braucht es nicht.
+        </p>
+        <h2 class="title font-display" data-title style="position:absolute; bottom:clamp(64px,12vh,140px); right:clamp(24px,6vw,96px); text-align:right; font-size:clamp(40px,9vw,150px); color:var(--ink-dark);">
+          Less,<br />but&nbsp;better
+        </h2>
+      </div>
+    </section>
+
+    <!-- ───────── SEKTION 3 — Titel links, Copy rechts, Footer-Socials ───────── -->
+    <section class="panel" data-index="2" style="color:var(--ink-light); --accent:#d6452f;">
+      <!-- ▶ ECHTES BG-BILD: hero3-bg.png hier einsetzen -->
+      <div class="panel__bg" data-bg style="background:linear-gradient(200deg,#141414 0%,#1c1c1c 55%,#262320 100%);"></div>
+
+      <!-- ▶ ECHTE FIGUR: hero3-figure.png hier einsetzen -->
+      <div class="panel__fg">
+        <div class="shape shape--bar" data-fg></div>
+        <div class="shape shape--dot" data-fg></div>
+      </div>
+
+      <div class="panel__content" style="display:flex; align-items:center; justify-content:space-between; gap:6vw; flex-wrap:wrap;">
+        <h2 class="title font-display" data-title style="font-size:clamp(44px,10vw,170px);">
+          Let's<br />talk
+        </h2>
+        <p class="copy" data-copy style="align-self:center; opacity:0.75;">
+          Bereit für ein Projekt, das auffällt? Schreib uns — wir antworten in Bewegung.
+        </p>
+
+        <!-- Footer-Socials -->
+        <div class="socials" data-copy>
+          <a href="#">Instagram</a><a href="#">LinkedIn</a><a href="#">Behance</a><a href="#">hello@studio.example</a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    /* ===================================================================
+       SNAP-SCROLL ENGINE (GSAP)
+       - Section-by-Section: 1 Wheel / 1 Swipe (>=50px) = genau 1 Wechsel
+       - Input während der Transition komplett gesperrt (isAnimating-Gate)
+       - Dauer 0.75s, Ease power2.out
+       - Snap-Bewegung + Layer-Animationen laufen PARALLEL (gleicher Startpunkt)
+       =================================================================== */
+    (() => {
+      "use strict";
+      const DURATION = 0.75;
+      const EASE = "power2.out";
+
+      const sections = gsap.utils.toArray(".panel");
+      const total = sections.length;
+      let current = 0;
+      let isAnimating = false; // <- die "Input-Sperre"
+
+      /* ---- Anfangszustand: Sektion 0 sichtbar, Rest darunter geparkt ---- */
+      sections.forEach((sec, i) => gsap.set(sec, { yPercent: i === 0 ? 0 : 100, zIndex: i === 0 ? 2 : 0 }));
+
+      /* ---- Fortschritts-Dots aufbauen ---- */
+      const dotsWrap = document.getElementById("dots");
+      sections.forEach((_, i) => {
+        const b = document.createElement("button");
+        b.className = "dot" + (i === 0 ? " is-active" : "");
+        b.setAttribute("aria-label", "Sektion " + (i + 1));
+        b.addEventListener("click", () => goTo(i));
+        dotsWrap.appendChild(b);
+      });
+      const counterNow = document.getElementById("counterNow");
+
+      function updateChrome(i) {
+        [...dotsWrap.children].forEach((d, k) => d.classList.toggle("is-active", k === i));
+        counterNow.textContent = String(i + 1).padStart(2, "0");
+      }
+
+      /* ---- Layer-Animationen pro Sektion (Entrance) — läuft parallel zum Snap ---- */
+      function animateLayers(index) {
+        const sec = sections[index];
+        const title = sec.querySelector("[data-title]");
+        const copies = sec.querySelectorAll("[data-copy]");
+        const figures = sec.querySelectorAll("[data-fg]");
+        const tl = gsap.timeline();
+        // Vordergrund-Form(en): dezent hochskalieren + einblenden
+        figures.forEach((fg, k) =>
+          tl.fromTo(fg, { scale: 0.7, opacity: 0 }, { scale: 1, opacity: 1, duration: 1.1, ease: "power3.out" }, k * 0.08));
+        // Titel: von unten einfahren
+        if (title) tl.fromTo(title, { yPercent: 40, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.9, ease: "power3.out" }, 0.1);
+        // Copy-Blöcke: gestaffelt
+        copies.forEach((c, k) =>
+          tl.fromTo(c, { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: "power3.out" }, 0.2 + k * 0.08));
+        return tl;
+      }
+
+      /* ---- Kern: zu Sektion `target` wechseln ---- */
+      function goTo(target) {
+        if (isAnimating || target < 0 || target >= total || target === current) return;
+        isAnimating = true; // Eingaben sperren
+
+        const dir = target > current ? 1 : -1;
+        const inSec = sections[target];
+        const outSec = sections[current];
+
+        // Eingehende Sektion off-screen vorpositionieren (von unten bzw. oben)
+        gsap.set(inSec, { yPercent: dir > 0 ? 100 : -100, scale: 1, opacity: 1, zIndex: 2 });
+        gsap.set(outSec, { zIndex: 1 });
+
+        // Layer-Entrance der eingehenden Sektion — PARALLEL zum Snap (Position 0)
+        animateLayers(target);
+
+        const tl = gsap.timeline({
+          onComplete: () => {
+            // ausgehende Sektion sauber off-screen parken (unsichtbar hinter inSec)
+            gsap.set(outSec, { yPercent: dir > 0 ? -100 : 100, scale: 1, opacity: 1, zIndex: 0 });
+            current = target;
+            isAnimating = false; // Eingaben wieder frei
+          },
+        });
+        tl.to(inSec, { yPercent: 0, duration: DURATION, ease: EASE }, 0)
+          .to(outSec, { yPercent: dir > 0 ? -30 : 30, scale: 0.95, opacity: 0.4, duration: DURATION, ease: EASE }, 0);
+
+        updateChrome(target);
+      }
+      const next = () => goTo(current + 1);
+      const prev = () => goTo(current - 1);
+
+      /* ---- Idle-Hover-Effekt der Vordergrund-Formen ---- */
+      sections.forEach((sec) => {
+        sec.querySelectorAll("[data-fg]").forEach((fg) => {
+          fg.addEventListener("mouseenter", () => gsap.to(fg, { scale: 1.06, duration: 0.6, ease: "power2.out" }));
+          fg.addEventListener("mouseleave", () => gsap.to(fg, { scale: 1, duration: 0.6, ease: "power2.out" }));
+        });
+      });
+
+      /* ===================== Eingaben ===================== */
+      // Mausrad: 1 Dreh = 1 Wechsel (durch isAnimating-Sperre)
+      window.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        if (isAnimating || Math.abs(e.deltaY) < 10) return;
+        e.deltaY > 0 ? next() : prev();
+      }, { passive: false });
+
+      // Touch: Swipe ab 50px
+      let touchY = null;
+      window.addEventListener("touchstart", (e) => { touchY = e.touches[0].clientY; }, { passive: true });
+      window.addEventListener("touchmove", (e) => { e.preventDefault(); }, { passive: false });
+      window.addEventListener("touchend", (e) => {
+        if (touchY === null || isAnimating) return;
+        const dy = touchY - e.changedTouches[0].clientY;
+        if (Math.abs(dy) >= 50) (dy > 0 ? next() : prev());
+        touchY = null;
+      });
+
+      // Tastatur: Pfeile, Leertaste, PageUp/Down
+      window.addEventListener("keydown", (e) => {
+        if (isAnimating) return;
+        if (["ArrowDown", "ArrowRight", "PageDown", " "].includes(e.key)) { e.preventDefault(); next(); }
+        else if (["ArrowUp", "ArrowLeft", "PageUp"].includes(e.key)) { e.preventDefault(); prev(); }
+      });
+
+      /* ---- Start: erste Sektion einblenden (optional Deep-Link #2) ---- */
+      const startHash = parseInt((location.hash || "").replace("#", ""), 10);
+      const startIndex = Number.isFinite(startHash) ? Math.max(0, Math.min(startHash, total - 1)) : 0;
+      if (startIndex !== 0) { sections.forEach((s, i) => gsap.set(s, { yPercent: i === startIndex ? 0 : (i < startIndex ? -100 : 100), zIndex: i === startIndex ? 2 : 0 })); current = startIndex; updateChrome(startIndex); }
+      animateLayers(current);
+    })();
+  </script>
+</body>
+</html>

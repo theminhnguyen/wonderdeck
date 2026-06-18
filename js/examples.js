@@ -137,6 +137,30 @@ async function buildEon() {
   ]);
 }
 
+/* ---------- Swiss · Editorial (High-End-Minimalismus) ---------- */
+async function buildSwiss() {
+  const bg1 = await img(G.skyGrad(["#1c1b19", "#2a2825", "#5f574c"]));
+  const ring = await img(G.svgURL('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900"><circle cx="800" cy="450" r="300" fill="none" stroke="#f4f1ea" stroke-opacity="0.5" stroke-width="2"/><circle cx="800" cy="450" r="215" fill="none" stroke="#f4f1ea" stroke-opacity="0.16" stroke-width="1.5"/></svg>'));
+  const bg2 = await img(G.skyGrad(["#201d18", "#2b2720", "#3a342b"]));
+  const square = await img(G.svgURL('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900"><rect x="1090" y="250" width="380" height="380" fill="#3a352d"/></svg>'));
+  const bg3 = await img(G.skyGrad(["#141414", "#1c1c1c", "#262320"]));
+  const bars = await img(G.svgURL('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900"><rect x="240" y="120" width="3" height="640" fill="#f4f1ea" fill-opacity="0.35"/><circle cx="1150" cy="250" r="70" fill="#d6452f"/></svg>'));
+
+  return finalize("Swiss · Editorial", "swiss", [
+    Slide("wonder", "#1a1916", [L(bg1, "Verlauf", 10, 0.08), L(ring, "Ring (reaktiv)", 26, 0, true)],
+      [T("kicker", "◆ UNIVERSAL TEMPLATE", { x: 20, y: 26, w: 60, align: "center" }),
+       T("title", "FORM &\nFUNCTION", { x: 10, y: 36, w: 80, align: "center" }),
+       T("subtitle", "High-End-Minimalismus im Swiss-Design-Stil.", { x: 20, y: 66, w: 60, align: "center" })]),
+    Slide("snap", "#201d18", [L(bg2, "Verlauf", 12, 0.08), L(square, "Block", 30)],
+      [T("body", "Wir reduzieren auf das Wesentliche, damit das Wichtige sprechen kann. Raster, Typografie, Weißraum.", { x: 8, y: 22, w: 42 }),
+       T("title", "Less,\nbut better", { x: 40, y: 60, w: 54, align: "right" })], "slide"),
+    Slide("snap", "#141414", [L(bg3, "Verlauf", 10, 0.1), L(bars, "Linie + Punkt", 22)],
+      [T("title", "Let's\ntalk", { x: 8, y: 34, w: 50 }),
+       T("body", "Bereit für ein Projekt, das auffällt? Schreib uns.", { x: 52, y: 42, w: 40, align: "right" }),
+       T("kicker", "INSTAGRAM · LINKEDIN · BEHANCE", { x: 8, y: 82, w: 80 })], "fade"),
+  ]);
+}
+
 /* ---------- Galerie-Index ---------- */
 export const EXAMPLES = [
   { key: "grundlagen", name: "Grundlagen-Demo", desc: "Der Schnellstart: Wonder-Hero plus geschichtete Snap-Szenen.", grad: "linear-gradient(135deg,#1d2f86,#a85fa0,#f4a071)", build: () => import("./seed.js").then((m) => m.buildSeedDeck()) },
@@ -145,4 +169,5 @@ export const EXAMPLES = [
   { key: "nova", name: "Studio Nova · Portfolio", desc: "Knallige Kreativ-Agentur: Farb-Blobs und fette Typo.", grad: "linear-gradient(135deg,#ff5a8a,#7a5bff,#3cc8ff)", build: buildStudioNova },
   { key: "stille", name: "Stille · Minimalismus", desc: "Poesie pur: viel Weißraum, ein Gedanke pro Folie.", grad: "linear-gradient(135deg,#2a2630,#46303c)", build: buildStille },
   { key: "eon", name: "E.ON Expert Services", desc: "Markenvorlage aus dem PowerPoint-Master: E.ON-Rot, Brix-Sans-Schrift — cinematisch, Platzhalter zum Anpassen.", grad: "linear-gradient(135deg,#ea1b0a,#9d1207,#700e61)", build: buildEon },
+  { key: "swiss", name: "Swiss · Editorial", desc: "High-End-Minimalismus (Swiss): fette Bricolage-Typo, matte Verläufe, klare Formen.", grad: "linear-gradient(135deg,#1c1b19,#5f574c)", build: buildSwiss },
 ];

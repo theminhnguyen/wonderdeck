@@ -125,7 +125,7 @@ function buildDoc(deck) {
     + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
     + "<title>" + esc(deck.title || "WonderDeck") + "</title>"
     + "<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\"><link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>"
-    + "<link href=\"https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;600;700&family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600&display=swap\" rel=\"stylesheet\">"
+    + "<link href=\"https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;600;700&family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&display=swap\" rel=\"stylesheet\">"
     + "<style>" + rootVars + VIEWER_CSS + "</style></head><body>"
     + "<div id=\"vp\" class=\"vp\"></div><div id=\"cur\" class=\"cur\"></div>"
     + "<nav id=\"dots\" class=\"dots\"></nav><div id=\"counter\" class=\"counter\"></div>"
