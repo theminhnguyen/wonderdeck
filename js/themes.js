@@ -11,6 +11,10 @@ export const THEMES = [
   { key: "mint",      name: "Mint",      accent: "#3fd6a0", fontTitle: '"Space Grotesk",sans-serif',         fontBody: '"Inter",sans-serif',   ink: "#eafff6" },
   { key: "editorial", name: "Editorial", accent: "#e6c068", fontTitle: '"Cormorant Garamond",Georgia,serif', fontBody: '"Inter",sans-serif',   ink: "#f4efe6" },
   { key: "mono",      name: "Mono",      accent: "#ffffff", fontTitle: '"Space Grotesk",sans-serif',         fontBody: '"DM Sans",sans-serif', ink: "#f4f6f8" },
+  // E.ON Expert Services — Markenfarben aus dem .potx-Master.
+  // "EON Brix Sans" zuerst (rendert echt auf E.ON-Geräten), sonst DM Sans.
+  { key: "eon",         name: "E.ON Rot",     accent: "#ea1b0a", fontTitle: '"EON Brix Sans","DM Sans",sans-serif', fontBody: '"EON Brix Sans","DM Sans",sans-serif', ink: "#ffffff" },
+  { key: "eon-magenta", name: "E.ON Magenta", accent: "#ab3f98", fontTitle: '"EON Brix Sans","DM Sans",sans-serif', fontBody: '"EON Brix Sans","DM Sans",sans-serif', ink: "#ffffff" },
 ];
 
 export function themeVars(key) {

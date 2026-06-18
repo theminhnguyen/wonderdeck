@@ -106,6 +106,30 @@ async function buildStille() {
   ]);
 }
 
+/* ---------- E.ON Expert Services · Markenvorlage ---------- */
+async function buildEon() {
+  const bg1 = await img(G.blobsBg("#0e0a0c", ["#ea1b0a", "#700e61", "#ab3f98"], 12));
+  const deco = await img(G.blobsBg("transparent", ["#ea1b0a", "#f69c91"], 6));
+  const bg2 = await img(G.skyGrad(["#0a0708", "#2a0c0a", "#5a1410"], { cx: 0.72, cy: 0.34, r: 0.5, color: "#ea1b0a" }));
+  const bg3 = await img(G.orbGlow("#1a0a14", "#0a0608", "#ab3f98"));
+  const bg4 = await img(G.skyGrad(["#0a0708", "#1a0a0c", "#2a0c0a"]));
+
+  return finalize("E.ON Expert Services", "eon", [
+    Slide("wonder", "#0e0a0c", [L(bg1, "Marke", 12, 0.1), L(deco, "Akzent (reaktiv)", 38, 0, true)],
+      [T("kicker", "E.ON · INTELLIGENT AUTOMATION", { x: 8, y: 26 }), T("title", "Expert\nServices", { x: 8, y: 34, w: 60 }),
+       T("subtitle", "Prozesse neu gedacht — mit KI und Automatisierung.", { x: 8, y: 74, w: 48 })]),
+    Slide("snap", "#0a0708", [L(bg2, "Hintergrund", 16, 0.08)],
+      [T("kicker", "WAS WIR TUN", { x: 8, y: 24 }), T("title", "Vom Prozess\nzur Plattform", { x: 8, y: 32, w: 58 }),
+       T("body", "BPM, RAG-Architekturen und Copilot-Lösungen\nfür den Expert-Service.", { x: 8, y: 74, w: 50 })], "slide"),
+    Slide("snap", "#1a0a14", [L(bg3, "Orb", 16, 0.08)],
+      [T("kicker", "WIRKUNG", { x: 8, y: 26 }), T("title", "100+", { x: 8, y: 34, w: 50 }),
+       T("body", "automatisierte Schritte (Platzhalter — anpassen).", { x: 8, y: 64, w: 46 })], "zoom"),
+    Slide("snap", "#0a0708", [L(bg4, "Hintergrund", 14, 0.1)],
+      [T("title", "Danke.", { x: 20, y: 40, w: 60, align: "center" }),
+       T("subtitle", "E.ON Expert Services · BPM & Intelligent Automation", { x: 20, y: 60, w: 60, align: "center" })], "fade"),
+  ]);
+}
+
 /* ---------- Galerie-Index ---------- */
 export const EXAMPLES = [
   { key: "grundlagen", name: "Grundlagen-Demo", desc: "Der Schnellstart: Wonder-Hero plus geschichtete Snap-Szenen.", grad: "linear-gradient(135deg,#1d2f86,#a85fa0,#f4a071)", build: () => import("./seed.js").then((m) => m.buildSeedDeck()) },
@@ -113,4 +137,5 @@ export const EXAMPLES = [
   { key: "wanderlust", name: "Wanderlust · Reise", desc: "Reise-Story mit echter Tiefe: Berge, Täler und Meer.", grad: "linear-gradient(135deg,#16244e,#c2738e,#f0a36a)", build: buildWanderlust },
   { key: "nova", name: "Studio Nova · Portfolio", desc: "Knallige Kreativ-Agentur: Farb-Blobs und fette Typo.", grad: "linear-gradient(135deg,#ff5a8a,#7a5bff,#3cc8ff)", build: buildStudioNova },
   { key: "stille", name: "Stille · Minimalismus", desc: "Poesie pur: viel Weißraum, ein Gedanke pro Folie.", grad: "linear-gradient(135deg,#2a2630,#46303c)", build: buildStille },
+  { key: "eon", name: "E.ON Expert Services", desc: "Markenvorlage aus dem PowerPoint-Master: E.ON-Rot, Brix-Sans-Schrift — cinematisch, Platzhalter zum Anpassen.", grad: "linear-gradient(135deg,#ea1b0a,#9d1207,#700e61)", build: buildEon },
 ];
