@@ -106,6 +106,12 @@ async function buildStille() {
   ]);
 }
 
+/* E.ON-Bildmarke (Chevron ">") aus dem .potx-Master, als Ecken-Logo (oben rechts). */
+function eonLogo() {
+  const p = "M0 20.2576 20.328 0 70 49.5 20.328 99 0 78.7424 29.343 49.5 0 20.2576Z";
+  return G.svgURL(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900"><g transform="translate(1362 118) scale(0.8)"><path d="${p}" fill="#ffffff" fill-rule="evenodd" clip-rule="evenodd" opacity="0.92"/></g></svg>`);
+}
+
 /* ---------- E.ON Expert Services · Markenvorlage ---------- */
 async function buildEon() {
   const bg1 = await img(G.blobsBg("#0e0a0c", ["#ea1b0a", "#700e61", "#ab3f98"], 12));
@@ -113,18 +119,19 @@ async function buildEon() {
   const bg2 = await img(G.skyGrad(["#0a0708", "#2a0c0a", "#5a1410"], { cx: 0.72, cy: 0.34, r: 0.5, color: "#ea1b0a" }));
   const bg3 = await img(G.orbGlow("#1a0a14", "#0a0608", "#ab3f98"));
   const bg4 = await img(G.skyGrad(["#0a0708", "#1a0a0c", "#2a0c0a"]));
+  const logo = await img(eonLogo()); // gleiche Bildmarke auf allen Folien
 
   return finalize("E.ON Expert Services", "eon", [
-    Slide("wonder", "#0e0a0c", [L(bg1, "Marke", 12, 0.1), L(deco, "Akzent (reaktiv)", 38, 0, true)],
+    Slide("wonder", "#0e0a0c", [L(bg1, "Marke", 12, 0.1), L(deco, "Akzent (reaktiv)", 38, 0, true), L(logo, "E.ON-Logo", 0)],
       [T("kicker", "E.ON · INTELLIGENT AUTOMATION", { x: 8, y: 26 }), T("title", "Expert\nServices", { x: 8, y: 34, w: 60 }),
        T("subtitle", "Prozesse neu gedacht — mit KI und Automatisierung.", { x: 8, y: 74, w: 48 })]),
-    Slide("snap", "#0a0708", [L(bg2, "Hintergrund", 16, 0.08)],
+    Slide("snap", "#0a0708", [L(bg2, "Hintergrund", 16, 0.08), L(logo, "E.ON-Logo", 0)],
       [T("kicker", "WAS WIR TUN", { x: 8, y: 24 }), T("title", "Vom Prozess\nzur Plattform", { x: 8, y: 32, w: 58 }),
        T("body", "BPM, RAG-Architekturen und Copilot-Lösungen\nfür den Expert-Service.", { x: 8, y: 74, w: 50 })], "slide"),
-    Slide("snap", "#1a0a14", [L(bg3, "Orb", 16, 0.08)],
+    Slide("snap", "#1a0a14", [L(bg3, "Orb", 16, 0.08), L(logo, "E.ON-Logo", 0)],
       [T("kicker", "WIRKUNG", { x: 8, y: 26 }), T("title", "100+", { x: 8, y: 34, w: 50 }),
        T("body", "automatisierte Schritte (Platzhalter — anpassen).", { x: 8, y: 64, w: 46 })], "zoom"),
-    Slide("snap", "#0a0708", [L(bg4, "Hintergrund", 14, 0.1)],
+    Slide("snap", "#0a0708", [L(bg4, "Hintergrund", 14, 0.1), L(logo, "E.ON-Logo", 0)],
       [T("title", "Danke.", { x: 20, y: 40, w: 60, align: "center" }),
        T("subtitle", "E.ON Expert Services · BPM & Intelligent Automation", { x: 20, y: 60, w: 60, align: "center" })], "fade"),
   ]);
