@@ -154,6 +154,7 @@ export function addSlide(style = "snap") {
 export function addSlideFromSpec(spec) {
   const s = createSlide({ style: spec.style || "snap" });
   if (spec.bg) s.bg = spec.bg;
+  if (spec.ink) s.ink = spec.ink;
   s.texts = typeof spec.texts === "function" ? spec.texts() : (spec.texts || []);
   state.deck.slides.splice(state.current + 1, 0, s);
   state.current += 1;
@@ -184,6 +185,7 @@ export function moveSlide(from, to) {
 export function setSlideStyle(style) { curSlide().style = style; commit(); }
 export function setSlideTransition(t) { curSlide().transition = t; commit(); }
 export function setSlideBg(color) { curSlide().bg = color; commit(); }
+export function setSlideInk(ink) { if (ink) curSlide().ink = ink; else delete curSlide().ink; commit(); }
 export function setDeckTitle(title) { state.deck.title = title; commit(); }
 export function setDeckTheme(key) { state.deck.theme = key; commit(); }
 

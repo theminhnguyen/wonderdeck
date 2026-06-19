@@ -37,6 +37,22 @@ export const LAYOUTS = [
     texts: () => [T("kicker", "ABSCHNITT", 50, 24, 44, "right"), T("title", "Überschrift\nrechts", 40, 32, 54, "right"), T("body", "Text rechtsbündig — ideal mit Motiv links.", 48, 74, 46, "right")],
   },
   {
+    key: "editorial-split", name: "Editorial · Split", style: "snap", bg: "#101418",
+    texts: () => [T("title", "Linke\nÜberschrift", 8, 32, 46), T("body", "Rechte Spalte mit erläuterndem Text — klar getrennt, ruhig gesetzt.", 52, 40, 40, "right")],
+  },
+  {
+    key: "lower", name: "Bauchbinde unten", style: "snap", bg: "#0e0f12",
+    texts: () => [T("kicker", "KAPITEL", 8, 64, 50), T("title", "Aussage in der\nunteren Zone", 8, 70, 64)],
+  },
+  {
+    key: "quote", name: "Zitat", style: "snap", bg: "#121013",
+    texts: () => [T("title", "„So wenig Design\nwie möglich.“", 16, 30, 68, "center"), T("kicker", "— Dieter Rams", 16, 70, 68, "center")],
+  },
+  {
+    key: "light", name: "Hell (dunkler Text)", style: "snap", bg: "#ece7dd", ink: "#1a1a1a",
+    texts: () => [T("kicker", "HELLE FOLIE", 8, 28, 50), T("title", "Dunkler Text\nauf Hell", 8, 36, 64), T("body", "Per-Folie-Textfarbe — ideal für Editorial-Sektionen.", 8, 70, 44)],
+  },
+  {
     key: "blank", name: "Leer", style: "snap", bg: "#0a0d12",
     texts: () => [],
   },

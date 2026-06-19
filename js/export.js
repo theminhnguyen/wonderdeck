@@ -20,6 +20,7 @@ function VIEWER_RUNTIME(DECK) {
   function stageEl(slide) {
     const root = document.createElement("div");
     root.className = "wd-stage"; root.style.background = slide.bg || "#05070a"; root.dataset.style = slide.style;
+    if (slide.ink) root.style.setProperty("--ink", slide.ink);
     const layers = [];
     (slide.layers || []).forEach((c, i) => {
       const el = document.createElement("div"); el.className = "wd-layer"; el.style.zIndex = i + 1; el.style.opacity = c.opacity == null ? 1 : c.opacity;

@@ -10,6 +10,7 @@ export function createStage(slide, resolveSrc) {
   root.className = "wd-stage";
   root.style.background = slide.bg || "#05070a";
   root.dataset.style = slide.style;
+  if (slide.ink) root.style.setProperty("--ink", slide.ink); // per-Folie Textfarbe (überschreibt Theme)
 
   const layers = [];
   slide.layers.forEach((layer, i) => {

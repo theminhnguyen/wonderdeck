@@ -201,6 +201,13 @@ function slideSection() {
     tsel.appendChild(h("option", { value: tr.key, ...((slide.transition || "snap") === tr.key ? { selected: "selected" } : {}), text: tr.name })));
   sec.appendChild(field("Übergang zu dieser Folie", tsel));
 
+  // Textfarbe dieser Folie (überschreibt das Theme — für helle Sektionen)
+  const inkSeg = h("div", { class: "seg" });
+  const curInk = slide.ink || "auto";
+  [["auto", "Auto"], ["#f4f1ea", "Hell"], ["#1a1a1a", "Dunkel"]].forEach(([val, lab]) =>
+    inkSeg.appendChild(h("button", { class: curInk === val ? "is-on" : "", text: lab, onclick: () => S.setSlideInk(val === "auto" ? null : val) })));
+  sec.appendChild(field("Textfarbe (diese Folie)", inkSeg));
+
   // Ebenen-Liste
   const list = h("div", { class: "layerlist" });
   [...slide.layers].reverse().forEach((layer) => {
@@ -400,7 +407,7 @@ export function init() {
     grid.innerHTML = "";
     LAYOUTS.forEach((lo) => {
       const prev = h("div", { class: "lcard__prev" });
-      prev.appendChild(createStage({ style: lo.style, bg: lo.bg, layers: [], texts: lo.texts() }, () => null).root);
+      prev.appendChild(createStage({ style: lo.style, bg: lo.bg, ink: lo.ink, layers: [], texts: lo.texts() }, () => null).root);
       const card = h("button", { class: "lcard" }, [prev, h("span", { class: "lcard__name", text: lo.name })]);
       card.addEventListener("click", () => { S.addSlideFromSpec(lo); closeLayouts(); });
       grid.appendChild(card);
