@@ -23,6 +23,21 @@ export function openJourney(deck, resolveSrc, onClose = null, startIndex = 0) {
   world.appendChild(Object.assign(document.createElement("div"), { className: "jr-floor" }));
   world.appendChild(Object.assign(document.createElement("div"), { className: "jr-line" }));
 
+  // Tiefen-Partikel (Parallaxe für mehr Tiefe)
+  const depth = Object.assign(document.createElement("div"), { className: "jr-depth" });
+  for (let i = 0; i < 30; i++) {
+    const dot = document.createElement("span");
+    dot.className = "jr-dot2";
+    dot.dataset.sp = (0.2 + Math.random() * 1.7).toFixed(2);
+    dot.style.left = (Math.random() * 100).toFixed(1) + "%";
+    dot.style.top = (Math.random() * 100).toFixed(1) + "%";
+    const s = (1 + Math.random() * 2.6).toFixed(1);
+    dot.style.width = dot.style.height = s + "px";
+    dot.style.opacity = (0.12 + Math.random() * 0.5).toFixed(2);
+    depth.appendChild(dot);
+  }
+  world.appendChild(depth);
+
   const stage = Object.assign(document.createElement("div"), { className: "jr-stations" });
   world.appendChild(stage);
 
@@ -86,6 +101,8 @@ function loop() {
   const floor = world.querySelector(".jr-floor");
   if (sky) sky.style.transform = `translateY(${(-p * 22).toFixed(1)}px) scale(1.1)`;
   if (floor) floor.style.backgroundPosition = `0 ${(p * 120).toFixed(0)}px`;
+  const depth = world.querySelector(".jr-depth");
+  if (depth) for (const d of depth.children) d.style.transform = `translateY(${(-p * parseFloat(d.dataset.sp) * 38).toFixed(1)}px)`;
 
   J.stations.forEach((st, i) => {
     const d = i - p; // >0 = noch vor uns, <0 = passiert

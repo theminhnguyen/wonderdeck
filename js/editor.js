@@ -209,6 +209,7 @@ function navSection() {
       onchange: (e) => {
         const v = e.target.value;
         if (v === "__url__") S.updateNavItem(item.id, { type: "url", target: item.type === "url" ? item.target : "https://" });
+        else if (v === "__text__") S.updateNavItem(item.id, { type: "text", target: item.type === "text" ? item.target : "Kurzer Hinweistext." });
         else if (v.indexOf("deck:") === 0) S.updateNavItem(item.id, { type: "deck", target: v.slice(5) });
         else S.updateNavItem(item.id, { type: "slide", target: v });
       },
@@ -219,6 +220,7 @@ function navSection() {
       sel.appendChild(h("option", { value: s.id, ...(item.type === "slide" && item.target === s.id ? { selected: "selected" } : {}), text: lab }));
     });
     sel.appendChild(h("option", { value: "__url__", ...(item.type === "url" ? { selected: "selected" } : {}), text: "🔗 Externer Link" }));
+    sel.appendChild(h("option", { value: "__text__", ...(item.type === "text" ? { selected: "selected" } : {}), text: "💬 Kurztext (Popover)" }));
     deckList.filter((d) => d.id !== state.deck.id).forEach((d) =>
       sel.appendChild(h("option", { value: "deck:" + d.id, ...(item.type === "deck" && item.target === d.id ? { selected: "selected" } : {}), text: "📑 " + (d.title || "Präsentation") })));
     row.appendChild(sel);
@@ -226,6 +228,8 @@ function navSection() {
     sec.appendChild(row);
     if (item.type === "url")
       sec.appendChild(h("div", { class: "field" }, [h("input", { type: "text", value: item.target || "", placeholder: "https://…", oninput: (e) => { item.target = e.target.value; S.touchSave(); } })]));
+    if (item.type === "text")
+      sec.appendChild(h("div", { class: "field" }, [h("textarea", { placeholder: "Text, der bei Klick erscheint …", oninput: (e) => { item.target = e.target.value; S.touchSave(); } }, item.target || "")]));
   });
   sec.appendChild(h("button", { class: "btn btn-block", text: "+ Navigations-Eintrag", onclick: () => S.addNavItem() }));
   return sec;

@@ -75,6 +75,7 @@ function close() {
   overlay.hidden = true;
   el("presentViewport").innerHTML = "";
   el("presentNav").innerHTML = "";
+  el("presentNote").hidden = true;
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   if (P.onClose) P.onClose(P.index);
 }
@@ -83,6 +84,7 @@ function close() {
 function go(to) {
   if (P.locked || !P.open) return;
   if (to < 0 || to >= P.stages.length || to === P.index) return;
+  el("presentNote").hidden = true; // Popover bei Navigation schließen
   const dir = to > P.index ? 1 : -1;
   const out = P.stages[P.index];
   const inS = P.stages[to];
@@ -202,7 +204,13 @@ function buildNav(deck) {
       e.preventDefault();
       if (item.type === "url" && item.target) window.open(item.target, "_blank", "noopener");
       else if (item.type === "deck" && item.target) { if (P.onDeck) P.onDeck(item.target); }
-      else {
+      else if (item.type === "text") {
+        const note = el("presentNote");
+        const showing = !note.hidden && note.dataset.for === item.id;
+        note.textContent = item.target || "";
+        note.dataset.for = item.id;
+        note.hidden = showing; // erneuter Klick blendet wieder aus
+      } else {
         const idx = deck.slides.findIndex((s) => s.id === item.target);
         if (idx >= 0) go(idx);
       }
