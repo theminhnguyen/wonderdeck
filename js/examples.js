@@ -18,8 +18,8 @@ function Slide(style, bg, layers, texts, transition, ink) {
   if (ink) s.ink = ink; // per-Folie Textfarbe (überschreibt Theme)
   return s;
 }
-async function finalize(title, theme, slides) {
-  const deck = { id: uid(), title, theme, slides, createdAt: Date.now() };
+async function finalize(title, theme, slides, nav) {
+  const deck = { id: uid(), title, theme, nav: nav || [], slides, createdAt: Date.now() };
   await db.saveDeck(structuredClone(deck));
   localStorage.setItem("wonderdeck:currentDeckId", deck.id);
   return deck;
@@ -147,7 +147,7 @@ async function buildSwiss() {
   const bg3 = await img(G.skyGrad(["#141414", "#1c1c1c", "#262320"]));
   const bars = await img(G.svgURL('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900"><rect x="240" y="120" width="3" height="640" fill="#f4f1ea" fill-opacity="0.35"/><circle cx="1150" cy="250" r="70" fill="#d6452f"/></svg>'));
 
-  return finalize("Swiss · Editorial", "swiss", [
+  const slides = [
     Slide("wonder", "#1a1916", [L(bg1, "Verlauf", 10, 0.08), L(ring, "Ring (reaktiv)", 26, 0, true)],
       [T("kicker", "◆ UNIVERSAL TEMPLATE", { x: 20, y: 26, w: 60, align: "center" }),
        T("title", "FORM &\nFUNCTION", { x: 10, y: 36, w: 80, align: "center" }),
@@ -159,7 +159,13 @@ async function buildSwiss() {
       [T("title", "Let's\ntalk", { x: 8, y: 34, w: 50 }),
        T("body", "Bereit für ein Projekt, das auffällt? Schreib uns.", { x: 52, y: 42, w: 40, align: "right" }),
        T("kicker", "INSTAGRAM · LINKEDIN · BEHANCE", { x: 8, y: 82, w: 80 })], "fade"),
-  ]);
+  ];
+  const nav = [
+    { id: uid(), label: "Start", type: "slide", target: slides[0].id },
+    { id: uid(), label: "Über", type: "slide", target: slides[1].id },
+    { id: uid(), label: "Kontakt", type: "slide", target: slides[2].id },
+  ];
+  return finalize("Swiss · Editorial", "swiss", slides, nav);
 }
 
 /* ---------- Galerie-Index ---------- */

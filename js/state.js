@@ -46,13 +46,14 @@ export function createSlide({ style = "snap" } = {}) {
 }
 
 export function createDeck(title = "Meine Präsentation") {
-  return { id: uid(), title, theme: "aurum", slides: [createSlide({ style: "wonder" })], createdAt: Date.now() };
+  return { id: uid(), title, theme: "aurum", nav: [], slides: [createSlide({ style: "wonder" })], createdAt: Date.now() };
 }
 
 /** Bestehende Decks um neue Felder ergänzen (Migration alter Stände). */
 export function normalizeDeck(deck) {
   if (!deck) return deck;
   if (!deck.theme) deck.theme = "aurum";
+  if (!deck.nav) deck.nav = [];
   (deck.slides || []).forEach((s) => { if (!s.transition) s.transition = "snap"; });
   return deck;
 }
@@ -188,6 +189,23 @@ export function setSlideBg(color) { curSlide().bg = color; commit(); }
 export function setSlideInk(ink) { if (ink) curSlide().ink = ink; else delete curSlide().ink; commit(); }
 export function setDeckTitle(title) { state.deck.title = title; commit(); }
 export function setDeckTheme(key) { state.deck.theme = key; commit(); }
+
+/* ---------- Navigation (Deck-Kopfzeile, wirkt wie Website-Nav) ---------- */
+export function addNavItem() {
+  if (!state.deck.nav) state.deck.nav = [];
+  const first = state.deck.slides[0];
+  state.deck.nav.push({ id: uid(), label: "Seite", type: "slide", target: first ? first.id : "" });
+  commit();
+}
+export function updateNavItem(id, patch) {
+  const it = (state.deck.nav || []).find((n) => n.id === id);
+  if (it) Object.assign(it, patch);
+  commit();
+}
+export function deleteNavItem(id) {
+  state.deck.nav = (state.deck.nav || []).filter((n) => n.id !== id);
+  commit();
+}
 
 /* ---------- Ebenen-Mutationen ---------- */
 export async function addImageLayer(dataURL, name = "Bild") {

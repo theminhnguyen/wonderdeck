@@ -43,6 +43,7 @@ export function openPresent(deck, resolveSrc, startIndex = 0, onClose = null) {
   P.open = true;
 
   buildDots();
+  buildNav(deck);
   updateChrome();
   placeActive(P.stages[P.index]);
   resetIntro(P.stages[P.index]);
@@ -65,6 +66,7 @@ function close() {
   overlay.classList.remove("is-live");
   overlay.hidden = true;
   el("presentViewport").innerHTML = "";
+  el("presentNav").innerHTML = "";
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   if (P.onClose) P.onClose(P.index);
 }
@@ -159,6 +161,37 @@ function unbind() {
   el("presentNext").removeEventListener("click", next);
   el("presentPrev").removeEventListener("click", prev);
   el("presentExit").removeEventListener("click", close);
+}
+
+/* ---------- Website-Kopfzeile (Deck-Navigation) ---------- */
+function buildNav(deck) {
+  const nav = el("presentNav");
+  nav.innerHTML = "";
+  const items = deck.nav || [];
+  if (!items.length) { nav.style.display = "none"; return; }
+  nav.style.display = "";
+  const brand = document.createElement("span");
+  brand.className = "present__brand";
+  brand.textContent = deck.title || "";
+  nav.appendChild(brand);
+  const links = document.createElement("div");
+  links.className = "present__links";
+  items.forEach((item) => {
+    const a = document.createElement("a");
+    a.className = "present__navlink";
+    a.href = "#";
+    a.textContent = item.label || "";
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (item.type === "url" && item.target) window.open(item.target, "_blank", "noopener");
+      else {
+        const idx = deck.slides.findIndex((s) => s.id === item.target);
+        if (idx >= 0) go(idx);
+      }
+    });
+    links.appendChild(a);
+  });
+  nav.appendChild(links);
 }
 
 /* ---------- Chrome (Dots, Zähler) ---------- */

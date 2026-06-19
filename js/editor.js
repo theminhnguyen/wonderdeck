@@ -94,6 +94,15 @@ function renderStage() {
   const { root, layers, texts } = createStage(curSlide(), srcOf);
   frame.appendChild(root);
 
+  // Nicht-interaktive Vorschau der Deck-Navigation (Kopfzeile)
+  if ((state.deck.nav || []).length) {
+    const np = h("div", { class: "wd-navpreview" }, [h("span", { class: "b", text: state.deck.title || "" })]);
+    const l = h("div", { class: "l" });
+    state.deck.nav.forEach((it) => l.appendChild(h("span", { text: it.label || "" })));
+    np.appendChild(l);
+    frame.appendChild(np);
+  }
+
   layers.forEach(({ el: lel, cfg }) => {
     layerEls[cfg.id] = lel;
     lel.addEventListener("click", (e) => { e.stopPropagation(); selectEl("layer", cfg.id); });
@@ -166,10 +175,42 @@ function deckSection() {
   return sec;
 }
 
+function navSection() {
+  const sec = h("div", { class: "insp-section" }, [h("h3", { text: "Navigation (Kopfzeile)" })]);
+  const nav = state.deck.nav || [];
+  if (!nav.length)
+    sec.appendChild(h("p", { class: "insp-empty", text: "Noch keine Navigation. Einträge erscheinen als Website-Kopfzeile in der Präsentation — Klick springt zur Folie oder öffnet einen Link." }));
+  nav.forEach((item) => {
+    const row = h("div", { class: "navrow" });
+    row.appendChild(h("input", { type: "text", value: item.label, placeholder: "Label", oninput: (e) => { item.label = e.target.value; S.touchSave(); } }));
+    const sel = h("select", {
+      onchange: (e) => {
+        const v = e.target.value;
+        if (v === "__url__") S.updateNavItem(item.id, { type: "url", target: item.type === "url" ? item.target : "https://" });
+        else S.updateNavItem(item.id, { type: "slide", target: v });
+      },
+    });
+    state.deck.slides.forEach((s, i) => {
+      const ttl = (s.texts.find((x) => x.role === "title") || {}).text || "";
+      const lab = "→ Folie " + (i + 1) + (ttl ? " · " + ttl.replace(/\n/g, " ").slice(0, 16) : "");
+      sel.appendChild(h("option", { value: s.id, ...(item.type === "slide" && item.target === s.id ? { selected: "selected" } : {}), text: lab }));
+    });
+    sel.appendChild(h("option", { value: "__url__", ...(item.type === "url" ? { selected: "selected" } : {}), text: "🔗 Externer Link" }));
+    row.appendChild(sel);
+    row.appendChild(h("button", { class: "navrow__del", text: "✕", title: "Eintrag löschen", onclick: () => S.deleteNavItem(item.id) }));
+    sec.appendChild(row);
+    if (item.type === "url")
+      sec.appendChild(h("div", { class: "field" }, [h("input", { type: "text", value: item.target || "", placeholder: "https://…", oninput: (e) => { item.target = e.target.value; S.touchSave(); } })]));
+  });
+  sec.appendChild(h("button", { class: "btn btn-block", text: "+ Navigations-Eintrag", onclick: () => S.addNavItem() }));
+  return sec;
+}
+
 function renderInspector() {
   const insp = el("inspector");
   insp.innerHTML = "";
   insp.appendChild(deckSection());
+  insp.appendChild(navSection());
   insp.appendChild(slideSection());
   if (state.sel.type === "layer") insp.appendChild(layerSection(S.findLayer(state.sel.id)));
   else if (state.sel.type === "text") insp.appendChild(textSection(S.findText(state.sel.id)));

@@ -84,6 +84,23 @@ function VIEWER_RUNTIME(DECK) {
   }
 
   stages.forEach((_, i) => { const b = document.createElement("button"); b.className = "dot"; b.onclick = () => go(i); dots.appendChild(b); });
+
+  // Website-Kopfzeile (Deck-Navigation)
+  const topnav = document.getElementById("topnav");
+  if (DECK.nav && DECK.nav.length) {
+    const brand = document.createElement("span"); brand.className = "tn-brand"; brand.textContent = DECK.title || ""; topnav.appendChild(brand);
+    const lw = document.createElement("div"); lw.className = "tn-links";
+    DECK.nav.forEach((item) => {
+      const a = document.createElement("a"); a.className = "tn-link"; a.href = "#"; a.textContent = item.label || "";
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        if (item.type === "url" && item.target) window.open(item.target, "_blank", "noopener");
+        else { const idx = DECK.slides.findIndex((s) => s.id === item.target); if (idx >= 0) go(idx); }
+      });
+      lw.appendChild(a);
+    });
+    topnav.appendChild(lw);
+  } else { topnav.style.display = "none"; }
   addEventListener("mousemove", (e) => { m.tx = (e.clientX / innerWidth) * 2 - 1; m.ty = (e.clientY / innerHeight) * 2 - 1; m.cx = e.clientX; m.cy = e.clientY; });
   addEventListener("wheel", (e) => { e.preventDefault(); const n = performance.now(); if (n - lastWheel < 120 || Math.abs(e.deltaY) < 12) return; lastWheel = n; e.deltaY > 0 ? go(index + 1) : go(index - 1); }, { passive: false });
   addEventListener("keydown", (e) => {
@@ -114,7 +131,11 @@ const VIEWER_CSS = "*{margin:0;box-sizing:border-box}html,body{height:100%;overf
   + ".dots{position:fixed;right:22px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:11px;z-index:100}"
   + ".dot{width:11px;height:11px;border-radius:50%;padding:0;cursor:pointer;background:rgba(255,255,255,.28);border:1px solid rgba(255,255,255,.5);transition:transform .2s,background .2s}.dot.on{background:#fff;transform:scale(1.35)}"
   + ".counter{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:100;font-size:13px;letter-spacing:.1em;color:rgba(255,255,255,.7);font-variant-numeric:tabular-nums}"
-  + ".hint{position:fixed;bottom:16px;right:20px;z-index:100;font-size:12px;color:rgba(255,255,255,.5);transition:opacity .6s}";
+  + ".hint{position:fixed;bottom:16px;right:20px;z-index:100;font-size:12px;color:rgba(255,255,255,.5);transition:opacity .6s}"
+  + ".topnav{position:fixed;top:0;left:0;right:0;z-index:120;display:flex;align-items:center;justify-content:space-between;padding:20px clamp(22px,5vw,60px);mix-blend-mode:difference;color:#fff;pointer-events:none}"
+  + ".tn-brand{font-family:var(--font-title,'Playfair Display',Georgia,serif);font-weight:600;font-size:15px;letter-spacing:.04em}"
+  + ".tn-links{display:flex;gap:clamp(14px,2vw,30px);pointer-events:auto}"
+  + ".tn-link{color:#fff;text-decoration:none;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;opacity:.82}.tn-link:hover{opacity:1}";
 
 function esc(s) { return String(s).replace(/[<&>]/g, (c) => ({ "<": "&lt;", "&": "&amp;", ">": "&gt;" }[c])); }
 
@@ -128,7 +149,7 @@ function buildDoc(deck) {
     + "<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\"><link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>"
     + "<link href=\"https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;600;700&family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&display=swap\" rel=\"stylesheet\">"
     + "<style>" + rootVars + VIEWER_CSS + "</style></head><body>"
-    + "<div id=\"vp\" class=\"vp\"></div><div id=\"cur\" class=\"cur\"></div>"
+    + "<div id=\"vp\" class=\"vp\"></div><nav id=\"topnav\" class=\"topnav\"></nav><div id=\"cur\" class=\"cur\"></div>"
     + "<nav id=\"dots\" class=\"dots\"></nav><div id=\"counter\" class=\"counter\"></div>"
     + "<div id=\"hint\" class=\"hint\">Pfeiltasten / Scrollen zum Blättern · F = Vollbild</div>"
     + "<script>(" + VIEWER_RUNTIME.toString() + ")(" + json + ");<\/script></body></html>";
