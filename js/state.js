@@ -54,6 +54,7 @@ export function normalizeDeck(deck) {
   if (!deck) return deck;
   if (!deck.theme) deck.theme = "aurum";
   if (!deck.nav) deck.nav = [];
+  if (!deck.navPos) deck.navPos = "top";
   (deck.slides || []).forEach((s) => { if (!s.transition) s.transition = "snap"; });
   return deck;
 }
@@ -205,6 +206,37 @@ export function updateNavItem(id, patch) {
 export function deleteNavItem(id) {
   state.deck.nav = (state.deck.nav || []).filter((n) => n.id !== id);
   commit();
+}
+export function setNavPos(pos) { state.deck.navPos = pos; commit(); }
+export function setDeckBrand(text) { state.deck.brand = text; commit(); }
+export async function setBrandImage(dataURL) {
+  const imageId = uid();
+  await db.putImage(imageId, dataURL);
+  state.images[imageId] = dataURL;
+  state.deck.brandImageId = imageId;
+  commit();
+}
+export function clearBrandImage() { delete state.deck.brandImageId; commit(); }
+export function setSlideHideNav(hide) { if (hide) curSlide().hideNav = true; else delete curSlide().hideNav; commit(); }
+
+/* ---------- Präsentations-Bibliothek (mehrere Decks) ---------- */
+export const listDecks = () => db.getAllDecks();
+export async function openDeckById(id) {
+  const d = await db.getDeck(id);
+  if (d) await loadDeckObject(d);
+  return d;
+}
+export async function renameDeckById(id, title) {
+  if (state.deck && state.deck.id === id) { state.deck.title = title; commit(); }
+  else { const d = await db.getDeck(id); if (d) { d.title = title; await db.saveDeck(d); } }
+}
+export async function deleteDeckById(id) {
+  await db.deleteDeck(id);
+  if (state.deck && state.deck.id === id) {
+    const all = (await db.getAllDecks()).filter((x) => x.id !== id);
+    if (all.length) await loadDeckObject(all[all.length - 1]);
+    else await newDeck();
+  }
 }
 
 /* ---------- Ebenen-Mutationen ---------- */

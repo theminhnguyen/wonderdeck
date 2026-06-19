@@ -50,6 +50,7 @@ function reqP(request) {
 export const saveDeck = (deck) => tx("decks", "readwrite", (s) => s.put(deck));
 export const getDeck = (id) => tx("decks", "readonly", (s) => reqP(s.get(id)));
 export const getAllDecks = () => tx("decks", "readonly", (s) => reqP(s.getAll()));
+export const deleteDeck = (id) => tx("decks", "readwrite", (s) => s.delete(id));
 
 /* ---------- Images ---------- */
 export const putImage = (id, dataURL) => tx("images", "readwrite", (s) => s.put(dataURL, id));
@@ -59,6 +60,7 @@ export const deleteImage = (id) => tx("images", "readwrite", (s) => s.delete(id)
 /** Lädt alle Bilder, die in einem Deck referenziert sind, als { id: dataURL }. */
 export async function loadImagesForDeck(deck) {
   const ids = new Set();
+  if (deck.brandImageId) ids.add(deck.brandImageId); // Logo der Kopfzeile
   for (const slide of deck.slides || [])
     for (const layer of slide.layers || []) if (layer.imageId) ids.add(layer.imageId);
   const map = {};

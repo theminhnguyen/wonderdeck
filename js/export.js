@@ -67,7 +67,7 @@ function VIEWER_RUNTIME(DECK) {
     st.root.style.transition = o.instant ? "none" : "transform " + SNAP_DUR + "ms " + SNAP_EASE + ",opacity " + SNAP_DUR + "ms " + SNAP_EASE;
     st.root.style.transform = "translate(" + x + "%," + y + "%) scale(" + s + ")"; st.root.style.opacity = op;
   }
-  function setDots(i) { [].forEach.call(dots.children, (d, j) => d.classList.toggle("on", j === i)); counter.textContent = (i + 1) + " / " + stages.length; }
+  function setDots(i) { [].forEach.call(dots.children, (d, j) => d.classList.toggle("on", j === i)); counter.textContent = (i + 1) + " / " + stages.length; var tn = document.getElementById("topnav"); if (tn) tn.style.visibility = (DECK.slides[i] && DECK.slides[i].hideNav) ? "hidden" : ""; }
   function go(to) {
     if (locked || to < 0 || to >= stages.length || to === index) return;
     const dir = to > index ? 1 : -1, out = stages[index], inn = stages[to]; target = to; locked = true;
@@ -87,14 +87,19 @@ function VIEWER_RUNTIME(DECK) {
 
   // Website-Kopfzeile (Deck-Navigation)
   const topnav = document.getElementById("topnav");
-  if (DECK.nav && DECK.nav.length) {
-    const brand = document.createElement("span"); brand.className = "tn-brand"; brand.textContent = DECK.title || ""; topnav.appendChild(brand);
+  topnav.className = "topnav" + ((DECK.navPos || "top") === "bottom" ? " topnav--bottom" : "");
+  if ((DECK.nav && DECK.nav.length) || DECK.brand || DECK.brandSrc) {
+    let brand;
+    if (DECK.brandSrc) { brand = document.createElement("img"); brand.className = "tn-brandimg"; brand.src = DECK.brandSrc; }
+    else { brand = document.createElement("span"); brand.className = "tn-brand"; brand.textContent = DECK.brand || DECK.title || ""; }
+    topnav.appendChild(brand);
     const lw = document.createElement("div"); lw.className = "tn-links";
-    DECK.nav.forEach((item) => {
+    (DECK.nav || []).forEach((item) => {
       const a = document.createElement("a"); a.className = "tn-link"; a.href = "#"; a.textContent = item.label || "";
       a.addEventListener("click", (e) => {
         e.preventDefault();
         if (item.type === "url" && item.target) window.open(item.target, "_blank", "noopener");
+        else if (item.type === "deck") { /* andere Präsentation: im eigenständigen Export nicht verfügbar */ }
         else { const idx = DECK.slides.findIndex((s) => s.id === item.target); if (idx >= 0) go(idx); }
       });
       lw.appendChild(a);
@@ -135,7 +140,8 @@ const VIEWER_CSS = "*{margin:0;box-sizing:border-box}html,body{height:100%;overf
   + ".topnav{position:fixed;top:0;left:0;right:0;z-index:120;display:flex;align-items:center;justify-content:space-between;padding:20px clamp(22px,5vw,60px);mix-blend-mode:difference;color:#fff;pointer-events:none}"
   + ".tn-brand{font-family:var(--font-title,'Playfair Display',Georgia,serif);font-weight:600;font-size:15px;letter-spacing:.04em}"
   + ".tn-links{display:flex;gap:clamp(14px,2vw,30px);pointer-events:auto}"
-  + ".tn-link{color:#fff;text-decoration:none;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;opacity:.82}.tn-link:hover{opacity:1}";
+  + ".tn-link{color:#fff;text-decoration:none;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;opacity:.82}.tn-link:hover{opacity:1}"
+  + ".topnav--bottom{top:auto;bottom:0}.tn-brandimg{height:26px;width:auto;display:block}";
 
 function esc(s) { return String(s).replace(/[<&>]/g, (c) => ({ "<": "&lt;", "&": "&amp;", ">": "&gt;" }[c])); }
 
@@ -160,6 +166,7 @@ export function buildStandaloneHTML(deck, images) {
   const d = structuredClone(deck);
   for (const s of d.slides)
     for (const l of s.layers) { if (l.imageId && images[l.imageId]) l.src = images[l.imageId]; delete l.imageId; }
+  if (d.brandImageId && images[d.brandImageId]) d.brandSrc = images[d.brandImageId]; // Logo einbetten
   return buildDoc(d);
 }
 

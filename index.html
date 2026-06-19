@@ -37,6 +37,7 @@
             <button id="btnExportHtml" class="menu__item">🌐 Als Webseite exportieren (.html)</button>
             <button id="btnImport" class="menu__item">⭱ Datei laden</button>
             <hr class="menu__sep" />
+            <button id="btnDecks" class="menu__item">📑 Meine Präsentationen …</button>
             <button id="btnGallery" class="menu__item">✨ Beispiele …</button>
             <button id="btnNewDeck" class="menu__item">✦ Neue, leere Präsi</button>
           </div>
@@ -166,6 +167,17 @@
       <h2 class="help__title">Neue Folie · Layout wählen</h2>
       <p class="help__lead">Wähle ein Layout als Startpunkt. Bilder ziehst du danach einfach auf die Bühne.</p>
       <div class="layout__grid" id="layoutGrid"></div>
+    </div>
+  </div>
+
+  <!-- ============ Präsentations-Bibliothek ============ -->
+  <div id="decks" class="help" hidden>
+    <div class="help__backdrop" id="decksBackdrop"></div>
+    <div class="help__panel" role="dialog" aria-modal="true" aria-label="Meine Präsentationen">
+      <button class="help__close" id="decksClose" aria-label="Schließen">✕</button>
+      <h2 class="help__title">Meine Präsentationen 📑</h2>
+      <p class="help__lead">Wechsle zwischen Präsentationen, benenne um oder lösche. Nav-Einträge können auf eine andere Präsentation verweisen.</p>
+      <div class="decks__grid" id="decksGrid"></div>
     </div>
   </div>
 

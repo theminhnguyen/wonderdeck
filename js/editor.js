@@ -37,6 +37,8 @@ function h(tag, props = {}, kids = []) {
 
 let layerEls = {}; // id -> Ebenen-Element der aktuellen Bühne (für Live-Updates)
 let imageMode = { mode: "add", layerId: null };
+let deckList = []; // Cache aller Präsentationen (für Nav-Ziele & Bibliothek)
+async function refreshDecks() { deckList = await S.listDecks(); }
 
 /* =================== Render: alles =================== */
 function renderAll() {
@@ -178,15 +180,28 @@ function deckSection() {
 function navSection() {
   const sec = h("div", { class: "insp-section" }, [h("h3", { text: "Navigation (Kopfzeile)" })]);
   const nav = state.deck.nav || [];
+
+  // Marke (Text oder Logo) + Position der Kopfzeile
+  sec.appendChild(field("Marke (Text)", h("input", { type: "text", value: state.deck.brand || "", placeholder: state.deck.title || "Titel", oninput: (e) => { state.deck.brand = e.target.value; S.touchSave(); } })));
+  sec.appendChild(field("Logo statt Text", h("div", { class: "row" }, [
+    h("button", { class: "btn", text: state.deck.brandImageId ? "Logo ersetzen" : "Logo hochladen", onclick: () => { imageMode = { mode: "brand", layerId: null }; el("fileImage").click(); } }),
+    state.deck.brandImageId ? h("button", { class: "btn btn-danger", text: "Entfernen", onclick: () => S.clearBrandImage() }) : null,
+  ])));
+  const posSeg = h("div", { class: "seg" });
+  [["top", "Oben"], ["bottom", "Unten"]].forEach(([val, lab]) =>
+    posSeg.appendChild(h("button", { class: (state.deck.navPos || "top") === val ? "is-on" : "", text: lab, onclick: () => S.setNavPos(val) })));
+  sec.appendChild(field("Position", posSeg));
+
   if (!nav.length)
-    sec.appendChild(h("p", { class: "insp-empty", text: "Noch keine Navigation. Einträge erscheinen als Website-Kopfzeile in der Präsentation — Klick springt zur Folie oder öffnet einen Link." }));
+    sec.appendChild(h("p", { class: "insp-empty", text: "Noch keine Einträge. Klick auf einen Eintrag springt zur Folie, öffnet einen Link oder eine andere Präsentation." }));
   nav.forEach((item) => {
     const row = h("div", { class: "navrow" });
-    row.appendChild(h("input", { type: "text", value: item.label, placeholder: "Label", oninput: (e) => { item.label = e.target.value; S.touchSave(); } }));
+    row.appendChild(h("input", { type: "text", value: item.label, placeholder: "Text (z. B. About me)", oninput: (e) => { item.label = e.target.value; S.touchSave(); } }));
     const sel = h("select", {
       onchange: (e) => {
         const v = e.target.value;
         if (v === "__url__") S.updateNavItem(item.id, { type: "url", target: item.type === "url" ? item.target : "https://" });
+        else if (v.indexOf("deck:") === 0) S.updateNavItem(item.id, { type: "deck", target: v.slice(5) });
         else S.updateNavItem(item.id, { type: "slide", target: v });
       },
     });
@@ -196,6 +211,8 @@ function navSection() {
       sel.appendChild(h("option", { value: s.id, ...(item.type === "slide" && item.target === s.id ? { selected: "selected" } : {}), text: lab }));
     });
     sel.appendChild(h("option", { value: "__url__", ...(item.type === "url" ? { selected: "selected" } : {}), text: "🔗 Externer Link" }));
+    deckList.filter((d) => d.id !== state.deck.id).forEach((d) =>
+      sel.appendChild(h("option", { value: "deck:" + d.id, ...(item.type === "deck" && item.target === d.id ? { selected: "selected" } : {}), text: "📑 " + (d.title || "Präsentation") })));
     row.appendChild(sel);
     row.appendChild(h("button", { class: "navrow__del", text: "✕", title: "Eintrag löschen", onclick: () => S.deleteNavItem(item.id) }));
     sec.appendChild(row);
@@ -248,6 +265,12 @@ function slideSection() {
   [["auto", "Auto"], ["#f4f1ea", "Hell"], ["#1a1a1a", "Dunkel"]].forEach(([val, lab]) =>
     inkSeg.appendChild(h("button", { class: curInk === val ? "is-on" : "", text: lab, onclick: () => S.setSlideInk(val === "auto" ? null : val) })));
   sec.appendChild(field("Textfarbe (diese Folie)", inkSeg));
+
+  // Kopfzeile auf dieser Folie ausblenden
+  sec.appendChild(field(null, h("label", { class: "toggle" }, [
+    h("input", { type: "checkbox", ...(slide.hideNav ? { checked: "checked" } : {}), onchange: (e) => S.setSlideHideNav(e.target.checked) }),
+    "Kopfzeile auf dieser Folie ausblenden",
+  ])));
 
   // Ebenen-Liste
   const list = h("div", { class: "layerlist" });
@@ -335,7 +358,11 @@ async function handleImageFiles(files) {
     if (!f.type.startsWith("image/")) continue;
     const data = await readFile(f);
     const name = f.name.replace(/\.[^.]+$/, "");
-    if (imageMode.mode === "replace" && imageMode.layerId) {
+    if (imageMode.mode === "brand") {
+      await S.setBrandImage(data);
+      imageMode = { mode: "add", layerId: null };
+      break;
+    } else if (imageMode.mode === "replace" && imageMode.layerId) {
       await S.replaceLayerImage(imageMode.layerId, data, name);
       imageMode = { mode: "add", layerId: null };
       break;
@@ -355,8 +382,9 @@ export function init() {
   el("railAdd").addEventListener("click", () => openLayouts());
   el("btnAddLayer").addEventListener("click", () => { imageMode = { mode: "add", layerId: null }; el("fileImage").click(); });
   el("btnAddText").addEventListener("click", () => S.addText("body"));
-  el("btnPresent").addEventListener("click", () =>
-    openPresent(state.deck, srcOf, state.current, (i) => S.selectSlide(i)));
+  const present = (idx) => openPresent(state.deck, srcOf, idx == null ? state.current : idx, (i) => S.selectSlide(i), onDeckNav);
+  async function onDeckNav(deckId) { const d = await S.openDeckById(deckId); if (d) present(0); }
+  el("btnPresent").addEventListener("click", () => present());
 
   // File-Inputs
   el("fileImage").addEventListener("change", async (e) => { await handleImageFiles([...e.target.files]); e.target.value = ""; });
@@ -458,12 +486,38 @@ export function init() {
   el("layoutsClose").addEventListener("click", closeLayouts);
   el("layoutsBackdrop").addEventListener("click", closeLayouts);
 
+  // Präsentations-Bibliothek (mehrere Decks)
+  const decksM = el("decks");
+  const closeDecks = () => (decksM.hidden = true);
+  async function renderDecks() {
+    await refreshDecks();
+    const grid = el("decksGrid");
+    grid.innerHTML = "";
+    deckList.slice().reverse().forEach((d) => {
+      const card = h("div", { class: "dcard" + (d.id === state.deck.id ? " is-current" : "") });
+      card.appendChild(h("div", { class: "dcard__prev", style: `background:${(d.slides && d.slides[0] && d.slides[0].bg) || "#11151c"}` }));
+      card.appendChild(h("div", { class: "dcard__body" }, [h("p", { class: "dcard__name", text: (d.title || "Ohne Titel") + " · " + (d.slides ? d.slides.length : 0) + " Folien" })]));
+      card.appendChild(h("div", { class: "dcard__acts" }, [
+        h("button", { class: "chip", text: "Öffnen", onclick: async () => { await S.openDeckById(d.id); closeDecks(); } }),
+        h("button", { class: "chip", text: "Umben.", onclick: async () => { const t = prompt("Neuer Titel:", d.title || ""); if (t != null) { await S.renameDeckById(d.id, t); renderDecks(); } } }),
+        h("button", { class: "chip", text: "Löschen", onclick: async () => { if (confirm("Präsentation löschen? (nicht umkehrbar)")) { await S.deleteDeckById(d.id); renderDecks(); } } }),
+      ]));
+      grid.appendChild(card);
+    });
+  }
+  const openDecks = () => { renderDecks(); decksM.hidden = false; };
+  el("btnDecks").addEventListener("click", () => { menuPanel.hidden = true; openDecks(); });
+  el("decksClose").addEventListener("click", closeDecks);
+  el("decksBackdrop").addEventListener("click", closeDecks);
+  refreshDecks(); // Deck-Liste für Nav-Ziele vorladen
+
   // Tastenkürzel im Editor
   document.addEventListener("keydown", (e) => {
     if (el("present").hidden === false) return; // Präsentation hat Vorrang
     if (!help.hidden) { if (e.key === "Escape") closeHelp(); return; } // Hilfe offen
     if (!gallery.hidden) { if (e.key === "Escape") closeGallery(); return; } // Galerie offen
     if (!layoutsM.hidden) { if (e.key === "Escape") closeLayouts(); return; } // Vorlagen offen
+    if (!decksM.hidden) { if (e.key === "Escape") closeDecks(); return; } // Bibliothek offen
     const typing = ["INPUT", "TEXTAREA"].includes(document.activeElement.tagName) || document.activeElement.isContentEditable;
     if ((e.key === "Delete" || e.key === "Backspace") && state.sel.type && !typing) { e.preventDefault(); S.deleteSelected(); }
     if (e.key === "Escape") clearSel();

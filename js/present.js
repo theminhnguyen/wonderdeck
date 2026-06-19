@@ -19,19 +19,27 @@ const P = {
   lastWheel: 0,
   touchY: null,
   onClose: null,
+  onDeck: null,
+  deck: null,
+  resolveSrc: null,
   fine: window.matchMedia("(pointer: fine)").matches,
 };
 
-export function openPresent(deck, resolveSrc, startIndex = 0, onClose = null) {
+export function openPresent(deck, resolveSrc, startIndex = 0, onClose = null, onDeck = null) {
+  cancelAnimationFrame(P.raf); // Re-Entrancy: erlaubt Deck-Wechsel mitten in der Präsentation
   const overlay = el("present");
   const viewport = el("presentViewport");
   viewport.innerHTML = "";
   P.stages = [];
   P.onClose = onClose;
+  P.onDeck = onDeck;
+  P.deck = deck;
+  P.resolveSrc = resolveSrc;
 
   deck.slides.forEach((slide, i) => {
     const stage = createStage(slide, resolveSrc);
     stage._transition = slide.transition || "snap";
+    stage._slide = slide;
     stage.root.style.display = i === startIndex ? "" : "none";
     viewport.appendChild(stage.root);
     P.stages.push(stage);
@@ -168,11 +176,20 @@ function buildNav(deck) {
   const nav = el("presentNav");
   nav.innerHTML = "";
   const items = deck.nav || [];
-  if (!items.length) { nav.style.display = "none"; return; }
+  nav.classList.toggle("present__topnav--bottom", (deck.navPos || "top") === "bottom");
+  if (!items.length && !deck.brand && !deck.brandImageId) { nav.style.display = "none"; return; }
   nav.style.display = "";
-  const brand = document.createElement("span");
-  brand.className = "present__brand";
-  brand.textContent = deck.title || "";
+  // Marke: Logo-Bild oder Text
+  let brand;
+  if (deck.brandImageId && P.resolveSrc) {
+    brand = document.createElement("img");
+    brand.className = "present__brandimg";
+    brand.src = P.resolveSrc({ imageId: deck.brandImageId }) || "";
+  } else {
+    brand = document.createElement("span");
+    brand.className = "present__brand";
+    brand.textContent = deck.brand || deck.title || "";
+  }
   nav.appendChild(brand);
   const links = document.createElement("div");
   links.className = "present__links";
@@ -184,6 +201,7 @@ function buildNav(deck) {
     a.addEventListener("click", (e) => {
       e.preventDefault();
       if (item.type === "url" && item.target) window.open(item.target, "_blank", "noopener");
+      else if (item.type === "deck" && item.target) { if (P.onDeck) P.onDeck(item.target); }
       else {
         const idx = deck.slides.findIndex((s) => s.id === item.target);
         if (idx >= 0) go(idx);
@@ -209,4 +227,7 @@ function buildDots() {
 function updateChrome(idx = P.index) {
   el("presentCounter").textContent = `${idx + 1} / ${P.stages.length}`;
   [...el("presentDots").children].forEach((d, i) => d.classList.toggle("is-on", i === idx));
+  // Kopfzeile pro Folie aus-/einblenden
+  const slide = P.stages[idx] && P.stages[idx]._slide;
+  el("presentNav").style.visibility = slide && slide.hideNav ? "hidden" : "";
 }
