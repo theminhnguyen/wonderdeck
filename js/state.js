@@ -55,6 +55,7 @@ export function normalizeDeck(deck) {
   if (!deck.theme) deck.theme = "aurum";
   if (!deck.nav) deck.nav = [];
   if (!deck.navPos) deck.navPos = "top";
+  if (!deck.mode) deck.mode = "deck"; // "deck" (Folien) | "journey" (durchlaufbare Welt)
   (deck.slides || []).forEach((s) => { if (!s.transition) s.transition = "snap"; });
   return deck;
 }
@@ -208,6 +209,7 @@ export function deleteNavItem(id) {
   commit();
 }
 export function setNavPos(pos) { state.deck.navPos = pos; commit(); }
+export function setDeckMode(m) { state.deck.mode = m; commit(); }
 export function setDeckBrand(text) { state.deck.brand = text; commit(); }
 export async function setBrandImage(dataURL) {
   const imageId = uid();

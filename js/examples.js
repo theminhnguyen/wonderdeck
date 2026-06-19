@@ -18,8 +18,8 @@ function Slide(style, bg, layers, texts, transition, ink) {
   if (ink) s.ink = ink; // per-Folie Textfarbe (überschreibt Theme)
   return s;
 }
-async function finalize(title, theme, slides, nav) {
-  const deck = { id: uid(), title, theme, nav: nav || [], slides, createdAt: Date.now() };
+async function finalize(title, theme, slides, nav, mode) {
+  const deck = { id: uid(), title, theme, mode: mode || "deck", nav: nav || [], slides, createdAt: Date.now() };
   await db.saveDeck(structuredClone(deck));
   localStorage.setItem("wonderdeck:currentDeckId", deck.id);
   return deck;
@@ -168,6 +168,23 @@ async function buildSwiss() {
   return finalize("Swiss · Editorial", "swiss", slides, nav);
 }
 
+/* ---------- Journey · durchlaufbare 2.5D-Welt ---------- */
+async function buildJourney() {
+  const a = await img(G.skyGrad(["#0a1230", "#243a8a", "#5a4bbf"], { cx: 0.5, cy: 0.4, r: 0.5, color: "#bcd0ff" }));
+  const b = await img(G.orbGlow("#101838", "#06070f", "#8aa0ff"));
+  const c = await img(G.gradientScene("#0b2a3a", "#13506b", "#1f8a8a", "#a7f0d8"));
+  const d = await img(G.gradientScene("#2a1640", "#7a2e63", "#e06a4e", "#ffd28a"));
+  const e = await img(G.skyGrad(["#0a0708", "#1a0a0c", "#2a0c0a"]));
+  const slides = [
+    Slide("snap", "#0a1230", [L(a, "Szene", 0)], [T("kicker", "DIE REISE BEGINNT"), T("title", "Willkommen"), T("subtitle", "Scrolle oder ziehe, um loszugehen.")]),
+    Slide("snap", "#101838", [L(b, "Szene", 0)], [T("kicker", "STATION 1"), T("title", "Eine Idee"), T("body", "Jede Station zeigt einen Gedanken auf dem Weg.")]),
+    Slide("snap", "#0b2a3a", [L(c, "Szene", 0)], [T("kicker", "STATION 2"), T("title", "Sie wächst"), T("body", "Du gehst weiter — die Geschichte entfaltet sich.")]),
+    Slide("snap", "#2a1640", [L(d, "Szene", 0)], [T("kicker", "STATION 3"), T("title", "Der Höhepunkt"), T("body", "Alles führt hierher.")]),
+    Slide("snap", "#0a0708", [L(e, "Szene", 0)], [T("title", "Ende des Wegs"), T("subtitle", "Danke fürs Mitlaufen ✦")]),
+  ];
+  return finalize("Journey · Eine Reise", "sky", slides, [], "journey");
+}
+
 /* ---------- Galerie-Index ---------- */
 export const EXAMPLES = [
   { key: "grundlagen", name: "Grundlagen-Demo", desc: "Der Schnellstart: Wonder-Hero plus geschichtete Snap-Szenen.", grad: "linear-gradient(135deg,#1d2f86,#a85fa0,#f4a071)", build: () => import("./seed.js").then((m) => m.buildSeedDeck()) },
@@ -177,4 +194,5 @@ export const EXAMPLES = [
   { key: "stille", name: "Stille · Minimalismus", desc: "Poesie pur: viel Weißraum, ein Gedanke pro Folie.", grad: "linear-gradient(135deg,#2a2630,#46303c)", build: buildStille },
   { key: "eon", name: "E.ON Expert Services", desc: "Markenvorlage aus dem PowerPoint-Master: E.ON-Rot, Brix-Sans-Schrift — cinematisch, Platzhalter zum Anpassen.", grad: "linear-gradient(135deg,#ea1b0a,#9d1207,#700e61)", build: buildEon },
   { key: "swiss", name: "Swiss · Editorial", desc: "High-End-Minimalismus (Swiss): fette Bricolage-Typo, matte Verläufe, klare Formen.", grad: "linear-gradient(135deg,#1c1b19,#5f574c)", build: buildSwiss },
+  { key: "journey", name: "Journey · Reise", desc: "Durchlaufbare 2.5D-Welt: ein Pfad, Stationen tauchen auf, während du gehst.", grad: "linear-gradient(135deg,#243a8a,#8aa0ff)", build: buildJourney },
 ];

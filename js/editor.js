@@ -6,6 +6,7 @@ import * as S from "./state.js";
 import { srcOf, curSlide, state } from "./state.js";
 import { createStage } from "./stage.js";
 import { openPresent } from "./present.js";
+import { openJourney } from "./journey.js";
 import { EXAMPLES } from "./examples.js";
 import { LAYOUTS } from "./layouts.js";
 import { exportStandaloneHTML } from "./export.js";
@@ -165,6 +166,13 @@ function slider(labelText, value, min, max, step, oninput, fmt = (v) => v) {
 
 function deckSection() {
   const sec = h("div", { class: "insp-section" }, [h("h3", { text: "Theme (ganzes Deck)" })]);
+
+  // Modus: klassisches Folien-Deck vs. durchlaufbare Journey-Welt
+  const modeSeg = h("div", { class: "seg" });
+  [["deck", "▦ Folien"], ["journey", "🚶 Journey"]].forEach(([val, lab]) =>
+    modeSeg.appendChild(h("button", { class: (state.deck.mode || "deck") === val ? "is-on" : "", text: lab, onclick: () => S.setDeckMode(val) })));
+  sec.appendChild(field("Modus", modeSeg));
+
   const grid = h("div", { class: "themes" });
   THEMES.forEach((t) => {
     grid.appendChild(h("button", {
@@ -382,7 +390,10 @@ export function init() {
   el("railAdd").addEventListener("click", () => openLayouts());
   el("btnAddLayer").addEventListener("click", () => { imageMode = { mode: "add", layerId: null }; el("fileImage").click(); });
   el("btnAddText").addEventListener("click", () => S.addText("body"));
-  const present = (idx) => openPresent(state.deck, srcOf, idx == null ? state.current : idx, (i) => S.selectSlide(i), onDeckNav);
+  const present = (idx) => {
+    if (state.deck.mode === "journey") openJourney(state.deck, srcOf, () => {});
+    else openPresent(state.deck, srcOf, idx == null ? state.current : idx, (i) => S.selectSlide(i), onDeckNav);
+  };
   async function onDeckNav(deckId) { const d = await S.openDeckById(deckId); if (d) present(0); }
   el("btnPresent").addEventListener("click", () => present());
 

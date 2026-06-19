@@ -6,6 +6,7 @@
 import { initDeck, selectSlide, state, srcOf, loadDeckObject } from "./state.js";
 import { init as initEditor } from "./editor.js";
 import { openPresent } from "./present.js";
+import { openJourney } from "./journey.js";
 import { EXAMPLES } from "./examples.js";
 
 async function boot() {
@@ -26,7 +27,10 @@ async function boot() {
     if (location.hash.includes("gallery")) document.getElementById("btnGallery").click();
     if (location.hash.includes("layouts")) document.getElementById("btnAddSlide").click();
     if (location.hash.includes("decks")) document.getElementById("btnDecks").click();
-    if (location.hash.includes("present") || params.has("present")) openPresent(state.deck, srcOf, start);
+    if (location.hash.includes("present") || params.has("present")) {
+      if (state.deck.mode === "journey") openJourney(state.deck, srcOf, null, start);
+      else openPresent(state.deck, srcOf, start);
+    }
   } catch (err) {
     console.error("WonderDeck-Start fehlgeschlagen:", err);
     document.body.innerHTML =
