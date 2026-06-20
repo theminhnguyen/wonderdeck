@@ -135,7 +135,7 @@ export async function loadExample() {
 }
 
 export async function newDeck() {
-  const deck = createDeck();
+  const deck = normalizeDeck(createDeck());
   state.deck = deck;
   state.images = {};
   state.current = 0;

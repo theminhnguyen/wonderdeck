@@ -153,9 +153,12 @@ function JOURNEY_RUNTIME(DECK) {
   const world = document.getElementById("jworld");
   world.appendChild(Object.assign(document.createElement("div"), { className: "jr-sky" }));
   world.appendChild(Object.assign(document.createElement("div"), { className: "jr-floor" }));
-  world.appendChild(Object.assign(document.createElement("div"), { className: "jr-line" }));
+  const trail = document.createElement("div"); trail.className = "jr-trail"; trail.innerHTML = '<svg viewBox="0 0 200 1000" preserveAspectRatio="xMidYMax slice"><path d="M100 1000 C60 840 150 700 98 540 C58 380 138 240 100 90 C92 56 104 30 100 0" fill="none" stroke-width="2.5"/></svg>'; world.appendChild(trail);
+  const arcs = document.createElement("div"); arcs.className = "jr-arcs";
+  [["left:-9%;top:16%", 0.6], ["right:-11%;top:40%", 0.9], ["left:-13%;top:64%", 1.3], ["right:-8%;top:82%", 1.7]].forEach((q) => { const a = document.createElement("span"); a.style.cssText = q[0]; a.dataset.sp = String(q[1]); arcs.appendChild(a); });
+  world.appendChild(arcs);
   const depth = Object.assign(document.createElement("div"), { className: "jr-depth" });
-  for (let i = 0; i < 30; i++) { const d = document.createElement("span"); d.className = "jr-dot2"; d.dataset.sp = (0.2 + Math.random() * 1.7).toFixed(2); d.style.left = (Math.random() * 100).toFixed(1) + "%"; d.style.top = (Math.random() * 100).toFixed(1) + "%"; const s = (1 + Math.random() * 2.6).toFixed(1); d.style.width = d.style.height = s + "px"; d.style.opacity = (0.12 + Math.random() * 0.5).toFixed(2); depth.appendChild(d); }
+  for (let i = 0; i < 44; i++) { const d = document.createElement("span"); d.className = "jr-dot2"; const sp = 0.2 + Math.random() * 2.8; d.dataset.sp = sp.toFixed(2); d.style.left = (Math.random() * 100).toFixed(1) + "%"; d.style.top = (Math.random() * 100).toFixed(1) + "%"; const s = (0.8 + sp * 0.9).toFixed(1); d.style.width = d.style.height = s + "px"; d.style.opacity = (0.1 + Math.random() * 0.45).toFixed(2); depth.appendChild(d); }
   world.appendChild(depth);
   const stageEl = Object.assign(document.createElement("div"), { className: "jr-stations" });
   world.appendChild(stageEl);
@@ -176,6 +179,8 @@ function JOURNEY_RUNTIME(DECK) {
     if (sky) sky.style.transform = "translateY(" + (-p * 22).toFixed(1) + "px) scale(1.1)";
     if (floor) floor.style.backgroundPosition = "0 " + (p * 120).toFixed(0) + "px";
     for (const d of depth.children) d.style.transform = "translateY(" + (-p * parseFloat(d.dataset.sp) * 38).toFixed(1) + "px)";
+    const tr = world.querySelector(".jr-trail svg"); if (tr) tr.style.transform = "translateY(" + (-p * 44).toFixed(1) + "px)";
+    const ar = world.querySelector(".jr-arcs"); if (ar) for (const a of ar.children) a.style.transform = "translateY(" + (-p * parseFloat(a.dataset.sp) * 60).toFixed(1) + "px)";
     stations.forEach((st, i) => { const dd = i - p; if (dd < -1.1 || dd > 3.4) { st.style.display = "none"; return; } st.style.display = ""; let sc, op, ty; if (dd >= 0) { sc = 1 / (1 + dd * 0.55); op = clamp(1 - dd * 0.42, 0, 1); ty = -dd * 70; } else { sc = 1 + (-dd) * 0.7; op = clamp(1 + dd * 1.4, 0, 1); ty = (-dd) * 150; } st.style.transform = "translate(-50%,-50%) translateY(" + ty.toFixed(1) + "px) scale(" + sc.toFixed(3) + ")"; st.style.opacity = op.toFixed(3); st.style.zIndex = String(200 - Math.round(Math.abs(dd) * 10)); });
     const idx = Math.round(p); [].forEach.call(dots.children, (d, i) => d.classList.toggle("on", i === idx)); counter.textContent = (idx + 1) + " / " + n;
     requestAnimationFrame(loop);
@@ -199,7 +204,8 @@ const JOURNEY_CSS = "*{margin:0;box-sizing:border-box}html,body{height:100%;over
   + ".jr-world{position:fixed;inset:0;overflow:hidden}"
   + ".jr-sky{position:absolute;inset:-12%;will-change:transform;background:radial-gradient(120% 80% at 50% 32%,color-mix(in srgb,var(--accent,#c9a25b) 16%,#0a0c12),#06070a 72%)}"
   + ".jr-floor{position:absolute;left:0;right:0;bottom:0;height:46%;opacity:.5;clip-path:polygon(40% 0,60% 0,100% 100%,0 100%);background-image:repeating-linear-gradient(to top,color-mix(in srgb,var(--accent,#c9a25b) 16%,transparent) 0 2px,transparent 2px 48px)}"
-  + ".jr-line{position:absolute;left:50%;bottom:0;width:1px;height:54%;transform:translateX(-50%);opacity:.45;background:linear-gradient(to top,color-mix(in srgb,var(--accent,#c9a25b) 60%,transparent),transparent)}"
+  + ".jr-trail{position:absolute;left:50%;bottom:0;width:46vw;height:72%;transform:translateX(-50%);pointer-events:none;-webkit-mask-image:linear-gradient(to top,#000 28%,transparent);mask-image:linear-gradient(to top,#000 28%,transparent)}.jr-trail svg{width:100%;height:118%;will-change:transform}.jr-trail path{stroke:var(--accent,#c9a25b);stroke-opacity:.55}"
+  + ".jr-arcs{position:absolute;inset:0;pointer-events:none}.jr-arcs span{position:absolute;width:44vmin;height:44vmin;border-radius:50%;border:1px solid color-mix(in srgb,var(--accent,#c9a25b) 20%,transparent);will-change:transform}"
   + ".jr-depth{position:absolute;inset:0;pointer-events:none}.jr-dot2{position:absolute;border-radius:50%;background:var(--ink,#fff);will-change:transform}"
   + ".jr-stations{position:absolute;inset:0}"
   + ".jr-station{position:absolute;left:50%;top:50%;width:min(74%,780px);text-align:center;container-type:inline-size;will-change:transform,opacity}"

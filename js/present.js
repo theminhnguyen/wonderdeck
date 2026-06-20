@@ -179,6 +179,7 @@ function buildNav(deck) {
   nav.innerHTML = "";
   const items = deck.nav || [];
   nav.classList.toggle("present__topnav--bottom", (deck.navPos || "top") === "bottom");
+  el("presentNote").classList.toggle("present__note--bottom", (deck.navPos || "top") === "bottom");
   if (!items.length && !deck.brand && !deck.brandImageId) { nav.style.display = "none"; return; }
   nav.style.display = "";
   // Marke: Logo-Bild oder Text

@@ -172,6 +172,8 @@ function deckSection() {
   [["deck", "▦ Folien"], ["journey", "🚶 Journey"]].forEach(([val, lab]) =>
     modeSeg.appendChild(h("button", { class: (state.deck.mode || "deck") === val ? "is-on" : "", text: lab, onclick: () => S.setDeckMode(val) })));
   sec.appendChild(field("Modus", modeSeg));
+  if ((state.deck.mode || "deck") === "journey")
+    sec.appendChild(h("p", { class: "insp-empty", text: "Journey: Folien werden zu Stationen auf einem Pfad. Stil, Übergang & Kopfzeile haben hier keine Wirkung." }));
 
   const grid = h("div", { class: "themes" });
   THEMES.forEach((t) => {
