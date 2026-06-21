@@ -482,6 +482,8 @@ html, body {
 .world__panel p { font-size: 15px; line-height: 1.6; color: var(--wd-text); white-space: pre-wrap; margin: 0 0 10px; }
 .world__exit { z-index: 9400; opacity: 0.75; }
 .world:hover .world__exit { opacity: 1; }
+.world__home { position: fixed; top: 18px; left: 18px; z-index: 9400; display: inline-flex; align-items: center; gap: 6px; padding: 9px 15px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.22); background: rgba(0,0,0,0.42); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); opacity: 0.82; transition: opacity 0.15s, background 0.15s; }
+.world__home:hover { opacity: 1; background: rgba(0,0,0,0.6); }
 .world__joy { position: fixed; left: 26px; bottom: 26px; width: 110px; height: 110px; border-radius: 50%; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); z-index: 9100; touch-action: none; }
 .world__nub { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.4); }
 .jr-stations { position: absolute; inset: 0; }

@@ -111,7 +111,7 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   const dir = new THREE.DirectionalLight(0xffffff, 0.75); dir.position.set(6, 18, 8); scene.add(dir);
 
   const n = deck.slides.length;
-  const spacing = 6.4, halfW = 6, hallLen = n * spacing + 16;
+  const spacing = 7, halfW = 7.5, hallLen = n * spacing + 18;
 
   // Akzent-Licht am Eingang + am Ende -> Tiefe & Farbe
   const glowEnd = new THREE.PointLight(acc.getHex(), 0.9, 80, 1.3); glowEnd.position.set(0, 3.6, -hallLen + 6); scene.add(glowEnd);
@@ -146,6 +146,51 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
 
   const boards = [];
   const disposables = [];
+
+  /* ===== Museums-Ausstattung: Säulen, Deckenbalken, Wandbilder, Bänke, Pflanzen ===== */
+  const stoneMat = new THREE.MeshStandardMaterial({ color: tint(0.2, 0.14).getHex(), roughness: 0.9 });
+  const stoneDark = new THREE.MeshStandardMaterial({ color: tint(0.12, 0.18).getHex(), roughness: 0.95 });
+  const woodMat = new THREE.MeshStandardMaterial({ color: tint(0.14, 0.3).getHex(), roughness: 0.6, metalness: 0.15 });
+  const frameMat = new THREE.MeshStandardMaterial({ color: tint(0.09, 0.2).getHex(), roughness: 0.8 });
+  const potMat = new THREE.MeshStandardMaterial({ color: tint(0.16, 0.22).getHex(), roughness: 0.9 });
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0x2f5a3a, roughness: 1 });
+  const colGeo = new THREE.CylinderGeometry(0.4, 0.46, 4.9, 18);
+  const fluteGeo = new THREE.BoxGeometry(1.1, 0.42, 1.1);
+  const capGeo = new THREE.BoxGeometry(1.0, 0.34, 1.0);
+  const beamGeo = new THREE.BoxGeometry(halfW * 2, 0.26, 0.4);
+  const artFrameGeo = new THREE.BoxGeometry(2.7, 3.5, 0.14);
+  const artFillGeo = new THREE.PlaneGeometry(2.2, 3.0);
+  const benchSeatGeo = new THREE.BoxGeometry(2.6, 0.18, 0.8);
+  const benchLegGeo = new THREE.BoxGeometry(0.18, 0.5, 0.7);
+  const potGeo = new THREE.CylinderGeometry(0.32, 0.24, 0.6, 14);
+  const leafGeo = new THREE.SphereGeometry(0.55, 12, 10);
+  disposables.push(stoneMat, stoneDark, woodMat, frameMat, potMat, leafMat, colGeo, fluteGeo, capGeo, beamGeo, artFrameGeo, artFillGeo, benchSeatGeo, benchLegGeo, potGeo, leafGeo);
+
+  const colXs = [-(halfW - 0.7), halfW - 0.7];
+  const colZs = []; for (let z = 1; z > -hallLen + 6; z -= 7) colZs.push(z);
+  for (const z of colZs) {
+    const beam = new THREE.Mesh(beamGeo, stoneDark); beam.position.set(0, 5.24, z); scene.add(beam); // Deckenbalken
+    for (const cx of colXs) {
+      const col = new THREE.Mesh(colGeo, stoneMat); col.position.set(cx, 2.65, z); scene.add(col);
+      const cb = new THREE.Mesh(fluteGeo, stoneDark); cb.position.set(cx, 0.21, z); scene.add(cb);
+      const cc = new THREE.Mesh(capGeo, stoneDark); cc.position.set(cx, 5.02, z); scene.add(cc);
+    }
+  }
+  // Wandbilder zwischen den Säulen (dekorative gerahmte „Gemälde")
+  const artZs = []; for (let z = -2.5; z > -hallLen + 6; z -= 7) artZs.push(z);
+  for (const z of artZs) for (const sx of [-1, 1]) {
+    const fr = new THREE.Mesh(artFrameGeo, frameMat); fr.position.set(sx * (halfW - 0.13), 2.7, z); fr.rotation.y = -sx * Math.PI / 2; scene.add(fr);
+    const fillMat = new THREE.MeshBasicMaterial({ color: tint(0.16 + Math.random() * 0.16, 0.5).getHex() });
+    const fill = new THREE.Mesh(artFillGeo, fillMat); fill.position.set(sx * (halfW - 0.19), 2.7, z); fill.rotation.y = -sx * Math.PI / 2; scene.add(fill);
+    disposables.push(fillMat);
+  }
+  // Bänke in den Seitengängen (nicht im Laufweg) + ein paar Pflanzen
+  for (let i = 0, z = -5; z > -hallLen + 6; z -= 14, i++) for (const sx of [-1, 1]) {
+    const bx = sx * (halfW - 2.3);
+    const seat = new THREE.Mesh(benchSeatGeo, woodMat); seat.position.set(bx, 0.5, z); scene.add(seat);
+    for (const lz of [-0.7, 0.7]) { const leg = new THREE.Mesh(benchLegGeo, woodMat); leg.position.set(bx, 0.25, z + lz); scene.add(leg); }
+    if (i % 2 === 0) { const pot = new THREE.Mesh(potGeo, potMat); pot.position.set(sx * (halfW - 0.9), 0.3, z + 3.5); scene.add(pot); const leaf = new THREE.Mesh(leafGeo, leafMat); leaf.position.set(sx * (halfW - 0.9), 0.95, z + 3.5); leaf.scale.set(1, 1.3, 1); scene.add(leaf); }
+  }
   await Promise.all(deck.slides.map(async (slide, i) => {
     const cv = await slideToCanvas(slide, { accent, ink, fontTitle, fontBody }, resolveSrc);
     const tex = new THREE.CanvasTexture(cv); tex.anisotropy = 4;
@@ -164,9 +209,9 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
     frame.position.z = -0.02; g.add(frame);
     const board = new THREE.Mesh(new THREE.PlaneGeometry(bw, bh), new THREE.MeshBasicMaterial({ map: tex }));
     g.add(board);
-    // schlanker Standfuß, damit die Tafel im Raum „steht"
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, y - bh / 2, 0.12), new THREE.MeshStandardMaterial({ color: tint(0.1, 0.32).getHex(), roughness: 0.9 }));
-    post.position.set(x, (y - bh / 2) / 2, z); scene.add(post);
+    // Sockel/Plinthe, auf dem die Tafel „steht" (Museums-Look)
+    const plinth = new THREE.Mesh(new THREE.BoxGeometry(1.8, y - bh / 2, 0.95), stoneMat); plinth.position.set(x, (y - bh / 2) / 2, z); scene.add(plinth);
+    const plinthTop = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.1, 1.15), stoneDark); plinthTop.position.set(x, y - bh / 2, z); scene.add(plinthTop);
     // Decken-Strahler über der Tafel (Museums-Beleuchtung): Fixture + Spot auf die Tafel
     const fix = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.3), new THREE.MeshStandardMaterial({ color: tint(0.14, 0.3).getHex(), roughness: 0.8 }));
     fix.position.set(x, 5.32, z + 0.9); scene.add(fix);
@@ -176,28 +221,28 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
       scene.add(spot); scene.add(spot.target);
     }
     boards.push({ slide, pos: new THREE.Vector3(x, y, z) });
-    disposables.push(tex, board.geometry, frame.geometry, outline.geometry, post.geometry, fix.geometry, board.material, frame.material, outline.material, post.material, fix.material);
+    disposables.push(tex, board.geometry, frame.geometry, outline.geometry, plinth.geometry, plinthTop.geometry, fix.geometry, board.material, frame.material, outline.material, fix.material);
   }));
 
-  /* ----- Rückweg-Portal am Ende des Pfades ----- */
-  const portalPos = new THREE.Vector3(0, 1.9, -hallLen + 7);
+  /* ----- Rückweg-Portal am Ende des Pfades (großes, leuchtendes Tor) ----- */
+  const portalPos = new THREE.Vector3(0, 2.1, -hallLen + 7);
   const portalGrp = new THREE.Group(); portalGrp.position.copy(portalPos); scene.add(portalGrp);
-  const glowDisc = new THREE.Mesh(new THREE.CircleGeometry(1.5, 48), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.16 }));
-  portalGrp.add(glowDisc);
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.45, 0.08, 14, 64), new THREE.MeshBasicMaterial({ color: acc.getHex() }));
-  portalGrp.add(ring);
-  const portalLight = new THREE.PointLight(acc.getHex(), 0.8, 26, 1.6); portalLight.position.set(0, 0, 1.2); portalGrp.add(portalLight);
+  const door = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 4.8), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.12 })); door.position.z = -0.06; portalGrp.add(door);
+  const glowDisc = new THREE.Mesh(new THREE.CircleGeometry(1.95, 56), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.16 })); glowDisc.position.z = -0.03; portalGrp.add(glowDisc);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(2.0, 0.12, 16, 80), new THREE.MeshBasicMaterial({ color: acc.getHex() })); portalGrp.add(ring);
+  const floorRing = new THREE.Mesh(new THREE.RingGeometry(1.5, 2.3, 48), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.22, side: THREE.DoubleSide })); floorRing.rotation.x = -Math.PI / 2; floorRing.position.set(0, -2.08, 0.3); portalGrp.add(floorRing);
+  const portalLight = new THREE.PointLight(acc.getHex(), 1.2, 32, 1.5); portalLight.position.set(0, 0, 1.6); portalGrp.add(portalLight);
   // Schild „Zum Anfang"
   function makeSign(text) {
-    const cv = document.createElement("canvas"); cv.width = 512; cv.height = 128; const c = cv.getContext("2d");
-    c.fillStyle = accent; c.font = "700 56px " + fontTitle; c.textAlign = "center"; c.textBaseline = "middle";
-    c.fillText(text, 256, 70);
+    const cv = document.createElement("canvas"); cv.width = 640; cv.height = 140; const c = cv.getContext("2d");
+    c.fillStyle = accent; c.font = "700 64px " + fontTitle; c.textAlign = "center"; c.textBaseline = "middle";
+    c.fillText(text, 320, 78);
     const t = new THREE.CanvasTexture(cv); if ("colorSpace" in t) t.colorSpace = THREE.SRGBColorSpace; return t;
   }
   const signTex = makeSign("⟲  Zum Anfang");
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(3, 0.75), new THREE.MeshBasicMaterial({ map: signTex, transparent: true }));
-  sign.position.set(0, 2.0, 0); portalGrp.add(sign);
-  disposables.push(glowDisc.geometry, glowDisc.material, ring.geometry, ring.material, sign.geometry, sign.material, signTex);
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.79), new THREE.MeshBasicMaterial({ map: signTex, transparent: true }));
+  sign.position.set(0, 2.7, 0); portalGrp.add(sign);
+  disposables.push(door.geometry, door.material, glowDisc.geometry, glowDisc.material, ring.geometry, ring.material, floorRing.geometry, floorRing.material, sign.geometry, sign.material, signTex);
 
   /* ----- Steuerung ----- */
   const isTouch = window.matchMedia("(pointer: coarse)").matches;
@@ -311,7 +356,12 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
     if (onClose) onClose();
   }
   el("worldExit").onclick = close;
+  el("worldHome").onclick = () => { returnToStart(); if (!isTouch) lockPointer(); };
   active = { close };
+
+  // Debug-Hook nur für automatisierte Tests (window.__WD_DEBUG=true vor dem Import).
+  if (typeof window !== "undefined" && window.__WD_DEBUG)
+    window.__wd = { camera, returnToStart, portalPos, hint: () => hintEl.textContent, state: () => ({ z: +camera.position.z.toFixed(2), near: !!near, nearPortal, locked }) };
 
   loader.hidden = true;
   raf = requestAnimationFrame(loop);

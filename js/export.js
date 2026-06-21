@@ -232,6 +232,7 @@ function WORLD_RUNTIME(DECK, CFG, THREE) {
   const hintEl = mk("world__hint"); document.body.appendChild(hintEl);
   const panel = mk("world__panel"); panel.hidden = true; document.body.appendChild(panel);
   const joy = mk("world__joy"); joy.hidden = true; const nub = mk("world__nub"); joy.appendChild(nub); document.body.appendChild(joy);
+  const homeBtn = document.createElement("button"); homeBtn.className = "world__home"; homeBtn.textContent = "⟲ Anfang"; document.body.appendChild(homeBtn);
   panel.style.setProperty("--accent", accent); panel.style.setProperty("--ink", ink);
 
   function coverDraw(ctx, img, w, h) { const r = Math.max(w / img.width, h / img.height), iw = img.width * r, ih = img.height * r; ctx.drawImage(img, (w - iw) / 2, (h - ih) / 2, iw, ih); }
@@ -271,7 +272,7 @@ function WORLD_RUNTIME(DECK, CFG, THREE) {
     scene.add(new THREE.AmbientLight(tint(0.18, 0.35).getHex(), 0.7));
     const dir = new THREE.DirectionalLight(0xffffff, 0.75); dir.position.set(6, 18, 8); scene.add(dir);
 
-    const n = DECK.slides.length; const spacing = 6.4, halfW = 6, hallLen = n * spacing + 16;
+    const n = DECK.slides.length; const spacing = 7, halfW = 7.5, hallLen = n * spacing + 18;
     const glowEnd = new THREE.PointLight(acc.getHex(), 0.9, 80, 1.3); glowEnd.position.set(0, 3.6, -hallLen + 6); scene.add(glowEnd);
     const glowIn = new THREE.PointLight(acc.getHex(), 0.6, 40, 1.6); glowIn.position.set(0, 3.2, 2); scene.add(glowIn);
 
@@ -291,6 +292,34 @@ function WORLD_RUNTIME(DECK, CFG, THREE) {
     for (const [z, ry] of [[8, Math.PI], [-hallLen + 5, 0]]) { const w = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, 6.4), wallMat); w.position.set(0, 3.2, z); w.rotation.y = ry; scene.add(w); }
     const ceil = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshStandardMaterial({ color: tint(0.06, 0.35).getHex(), roughness: 1, side: THREE.DoubleSide })); ceil.rotation.x = Math.PI / 2; ceil.position.set(0, 5.4, floor.position.z); scene.add(ceil);
 
+    // Museums-Ausstattung: Säulen, Deckenbalken, Wandbilder, Bänke, Pflanzen
+    const stoneMat = new THREE.MeshStandardMaterial({ color: tint(0.2, 0.14).getHex(), roughness: 0.9 });
+    const stoneDark = new THREE.MeshStandardMaterial({ color: tint(0.12, 0.18).getHex(), roughness: 0.95 });
+    const woodMat = new THREE.MeshStandardMaterial({ color: tint(0.14, 0.3).getHex(), roughness: 0.6, metalness: 0.15 });
+    const frameMat = new THREE.MeshStandardMaterial({ color: tint(0.09, 0.2).getHex(), roughness: 0.8 });
+    const potMat = new THREE.MeshStandardMaterial({ color: tint(0.16, 0.22).getHex(), roughness: 0.9 });
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2f5a3a, roughness: 1 });
+    const colGeo = new THREE.CylinderGeometry(0.4, 0.46, 4.9, 18), fluteGeo = new THREE.BoxGeometry(1.1, 0.42, 1.1), capGeo = new THREE.BoxGeometry(1.0, 0.34, 1.0);
+    const beamGeo = new THREE.BoxGeometry(halfW * 2, 0.26, 0.4), artFrameGeo = new THREE.BoxGeometry(2.7, 3.5, 0.14), artFillGeo = new THREE.PlaneGeometry(2.2, 3.0);
+    const benchSeatGeo = new THREE.BoxGeometry(2.6, 0.18, 0.8), benchLegGeo = new THREE.BoxGeometry(0.18, 0.5, 0.7), potGeo = new THREE.CylinderGeometry(0.32, 0.24, 0.6, 14), leafGeo = new THREE.SphereGeometry(0.55, 12, 10);
+    const colXs = [-(halfW - 0.7), halfW - 0.7];
+    const colZs = []; for (let z = 1; z > -hallLen + 6; z -= 7) colZs.push(z);
+    for (const z of colZs) {
+      const beam = new THREE.Mesh(beamGeo, stoneDark); beam.position.set(0, 5.24, z); scene.add(beam);
+      for (const cx of colXs) { const col = new THREE.Mesh(colGeo, stoneMat); col.position.set(cx, 2.65, z); scene.add(col); const cb = new THREE.Mesh(fluteGeo, stoneDark); cb.position.set(cx, 0.21, z); scene.add(cb); const cc = new THREE.Mesh(capGeo, stoneDark); cc.position.set(cx, 5.02, z); scene.add(cc); }
+    }
+    const artZs = []; for (let z = -2.5; z > -hallLen + 6; z -= 7) artZs.push(z);
+    for (const z of artZs) for (const sx of [-1, 1]) {
+      const fr = new THREE.Mesh(artFrameGeo, frameMat); fr.position.set(sx * (halfW - 0.13), 2.7, z); fr.rotation.y = -sx * Math.PI / 2; scene.add(fr);
+      const fill = new THREE.Mesh(artFillGeo, new THREE.MeshBasicMaterial({ color: tint(0.16 + Math.random() * 0.16, 0.5).getHex() })); fill.position.set(sx * (halfW - 0.19), 2.7, z); fill.rotation.y = -sx * Math.PI / 2; scene.add(fill);
+    }
+    for (let i = 0, z = -5; z > -hallLen + 6; z -= 14, i++) for (const sx of [-1, 1]) {
+      const bx = sx * (halfW - 2.3);
+      const seat = new THREE.Mesh(benchSeatGeo, woodMat); seat.position.set(bx, 0.5, z); scene.add(seat);
+      for (const lz of [-0.7, 0.7]) { const leg = new THREE.Mesh(benchLegGeo, woodMat); leg.position.set(bx, 0.25, z + lz); scene.add(leg); }
+      if (i % 2 === 0) { const pot = new THREE.Mesh(potGeo, potMat); pot.position.set(sx * (halfW - 0.9), 0.3, z + 3.5); scene.add(pot); const leaf = new THREE.Mesh(leafGeo, leafMat); leaf.position.set(sx * (halfW - 0.9), 0.95, z + 3.5); leaf.scale.set(1, 1.3, 1); scene.add(leaf); }
+    }
+
     const boards = [];
     await Promise.all(DECK.slides.map(async (slide, i) => {
       const cv = await slideToCanvas(slide); const tex = new THREE.CanvasTexture(cv); tex.anisotropy = 4; if ("colorSpace" in tex) tex.colorSpace = THREE.SRGBColorSpace;
@@ -299,22 +328,25 @@ function WORLD_RUNTIME(DECK, CFG, THREE) {
       const outline = new THREE.Mesh(new THREE.PlaneGeometry(bw + 0.34, bh + 0.34), new THREE.MeshBasicMaterial({ color: acc.getHex() })); outline.position.z = -0.04; g.add(outline);
       const frame = new THREE.Mesh(new THREE.PlaneGeometry(bw + 0.14, bh + 0.14), new THREE.MeshBasicMaterial({ color: 0x0a0e16 })); frame.position.z = -0.02; g.add(frame);
       const board = new THREE.Mesh(new THREE.PlaneGeometry(bw, bh), new THREE.MeshBasicMaterial({ map: tex })); g.add(board);
-      const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, y - bh / 2, 0.12), new THREE.MeshStandardMaterial({ color: tint(0.1, 0.32).getHex(), roughness: 0.9 })); post.position.set(x, (y - bh / 2) / 2, z); scene.add(post);
+      const plinth = new THREE.Mesh(new THREE.BoxGeometry(1.8, y - bh / 2, 0.95), stoneMat); plinth.position.set(x, (y - bh / 2) / 2, z); scene.add(plinth);
+      const plinthTop = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.1, 1.15), stoneDark); plinthTop.position.set(x, y - bh / 2, z); scene.add(plinthTop);
       const fix = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.3), new THREE.MeshStandardMaterial({ color: tint(0.14, 0.3).getHex(), roughness: 0.8 })); fix.position.set(x, 5.32, z + 0.9); scene.add(fix);
       if (n <= 16) { const spot = new THREE.SpotLight(0xfff1dc, 26, 12, 0.5, 0.6, 1.4); spot.position.set(x, 5.2, z + 1.2); spot.target.position.set(x, y - 0.2, z); scene.add(spot); scene.add(spot.target); }
       boards.push({ slide, pos: new THREE.Vector3(x, y, z) });
     }));
 
-    // Rückweg-Portal am Ende des Pfades
-    const portalPos = new THREE.Vector3(0, 1.9, -hallLen + 7);
+    // Rückweg-Portal am Ende des Pfades (großes, leuchtendes Tor)
+    const portalPos = new THREE.Vector3(0, 2.1, -hallLen + 7);
     const portalGrp = new THREE.Group(); portalGrp.position.copy(portalPos); scene.add(portalGrp);
-    const glowDisc = new THREE.Mesh(new THREE.CircleGeometry(1.5, 48), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.16 })); portalGrp.add(glowDisc);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.45, 0.08, 14, 64), new THREE.MeshBasicMaterial({ color: acc.getHex() })); portalGrp.add(ring);
-    const portalLight = new THREE.PointLight(acc.getHex(), 0.8, 26, 1.6); portalLight.position.set(0, 0, 1.2); portalGrp.add(portalLight);
-    const signCv = document.createElement("canvas"); signCv.width = 512; signCv.height = 128; const sc = signCv.getContext("2d");
-    sc.fillStyle = accent; sc.font = "700 56px " + fontTitle; sc.textAlign = "center"; sc.textBaseline = "middle"; sc.fillText("⟲  Zum Anfang", 256, 70);
+    const door = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 4.8), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.12 })); door.position.z = -0.06; portalGrp.add(door);
+    const glowDisc = new THREE.Mesh(new THREE.CircleGeometry(1.95, 56), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.16 })); glowDisc.position.z = -0.03; portalGrp.add(glowDisc);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(2.0, 0.12, 16, 80), new THREE.MeshBasicMaterial({ color: acc.getHex() })); portalGrp.add(ring);
+    const floorRing = new THREE.Mesh(new THREE.RingGeometry(1.5, 2.3, 48), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.22, side: THREE.DoubleSide })); floorRing.rotation.x = -Math.PI / 2; floorRing.position.set(0, -2.08, 0.3); portalGrp.add(floorRing);
+    const portalLight = new THREE.PointLight(acc.getHex(), 1.2, 32, 1.5); portalLight.position.set(0, 0, 1.6); portalGrp.add(portalLight);
+    const signCv = document.createElement("canvas"); signCv.width = 640; signCv.height = 140; const sc = signCv.getContext("2d");
+    sc.fillStyle = accent; sc.font = "700 64px " + fontTitle; sc.textAlign = "center"; sc.textBaseline = "middle"; sc.fillText("⟲  Zum Anfang", 320, 78);
     const signTex = new THREE.CanvasTexture(signCv); if ("colorSpace" in signTex) signTex.colorSpace = THREE.SRGBColorSpace;
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(3, 0.75), new THREE.MeshBasicMaterial({ map: signTex, transparent: true })); sign.position.set(0, 2.0, 0); portalGrp.add(sign);
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.79), new THREE.MeshBasicMaterial({ map: signTex, transparent: true })); sign.position.set(0, 2.7, 0); portalGrp.add(sign);
 
     const isTouch = window.matchMedia("(pointer: coarse)").matches; cross.hidden = isTouch; joy.hidden = !isTouch;
     let yaw = 0, pitch = 0, locked = false, panelOpen = false, near = null, nearPortal = false, lastHint = "";
@@ -322,6 +354,7 @@ function WORLD_RUNTIME(DECK, CFG, THREE) {
     const setHint = (html) => { if (html !== lastHint) { hintEl.innerHTML = html; lastHint = html; } };
     const idleHint = isTouch ? "Joystick = gehen · ziehen = schauen" : "<b>Klick</b> zum Start · <b>WASD</b> gehen · <b>Maus</b> schauen";
     const returnToStart = () => { camera.position.set(0, 1.6, 6); yaw = 0; pitch = 0; closePanel(); };
+    homeBtn.onclick = () => { returnToStart(); if (!isTouch) lockPointer(); };
     const lockPointer = () => { if (!isTouch && !panelOpen && document.pointerLockElement !== stage) stage.requestPointerLock(); };
     const onPL = () => { locked = document.pointerLockElement === stage; };
     const onMouse = (e) => { if (!locked) return; yaw -= e.movementX * 0.0022; pitch = clamp(pitch - e.movementY * 0.0022, -1.2, 1.2); };
@@ -392,7 +425,8 @@ const WORLD_CSS = "*{margin:0;box-sizing:border-box}html,body{height:100%;overfl
   + ".world__panel p{font-size:15px;line-height:1.6;color:#dfe5ee;white-space:pre-wrap;margin:0 0 10px}"
   + ".world__panel .wp-close{margin-top:18px;background:var(--accent,#5aa6ff);color:#05060a;border:0;border-radius:999px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer}"
   + ".world__joy{position:fixed;left:26px;bottom:26px;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);z-index:9100;touch-action:none}.world__joy[hidden]{display:none}"
-  + ".world__nub{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4)}";
+  + ".world__nub{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4)}"
+  + ".world__home{position:fixed;top:18px;left:18px;z-index:9400;padding:9px 15px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:rgba(0,0,0,.42);color:#fff;font-size:13px;font-weight:600;cursor:pointer;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);opacity:.82}.world__home:hover{opacity:1;background:rgba(0,0,0,.6)}";
 
 function docHead(deck, css) {
   const tv = themeVars(deck.theme);
