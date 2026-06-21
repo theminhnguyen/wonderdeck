@@ -296,19 +296,31 @@ async function buildTeam() {
   return finalize("Team & Onboarding", "coral", slides, nav);
 }
 
-/* ---------- Galerie-Index ---------- */
+/* ---------- Galerie-Index ----------
+   Reihenfolge der Kategorien in der Galerie. Die 4 vom Nutzer gewünschten
+   Kategorien sind enthalten; "Schnellstart" und "Interaktiv & immersiv"
+   ergänzen sie sinnvoll, ohne sie zu ersetzen. */
+export const CATEGORIES = [
+  { key: "start", name: "Schnellstart", desc: "Zum Loslegen und Lernen." },
+  { key: "business", name: "Business & Projekte", desc: "Pitch, Status, Planung — sachlich und klar." },
+  { key: "team", name: "Team & intern", desc: "Für Kolleg:innen und Onboarding." },
+  { key: "keynote", name: "Keynote & Produkt", desc: "Große Bühne, starke Wirkung." },
+  { key: "story", name: "Story & kreativ", desc: "Erzählen mit Tiefe und Stil." },
+  { key: "immersiv", name: "Interaktiv & immersiv", desc: "Begehbare Welten zum Selbst-Erkunden." },
+];
+
 export const EXAMPLES = [
-  { key: "grundlagen", name: "Grundlagen-Demo", desc: "Der Schnellstart: Wonder-Hero plus geschichtete Snap-Szenen.", grad: "linear-gradient(135deg,#1d2f86,#a85fa0,#f4a071)", build: () => import("./seed.js").then((m) => m.buildSeedDeck()) },
-  { key: "swiss", name: "Landing · Snap-Scroll Website", desc: "Website-Look wie eine Landingpage (Swiss-Stil, wie reference.html): Kopfzeile + 3 Sektionen.", grad: "linear-gradient(135deg,#1c1b19,#5f574c)", build: buildSwiss },
-  { key: "pitch", name: "Projekt-Pitch", desc: "Business-Pitch: Problem · Lösung · Wirkung · Call-to-Action.", grad: "linear-gradient(135deg,#0a1230,#2f6f9e)", build: buildPitch },
-  { key: "update", name: "Quartals-Update", desc: "Status-Update: Highlights, Kennzahlen, Ausblick.", grad: "linear-gradient(135deg,#06231c,#3fd6a0)", build: buildUpdate },
-  { key: "roadmap", name: "Roadmap", desc: "Zeitachse mit Phasen (Q1–Q4) und Meilensteinen.", grad: "linear-gradient(135deg,#0a1230,#5aa6ff)", build: buildRoadmap },
-  { key: "team", name: "Team & Onboarding", desc: "Team-Vorstellung & Einstieg für Kolleg:innen.", grad: "linear-gradient(135deg,#ff6f61,#7a2e63)", build: buildTeam },
-  { key: "aurora", name: "Aurora · Keynote", desc: "Produkt-Launch im Keynote-Stil: Weltraum, leuchtender Orb, große Zahlen.", grad: "radial-gradient(circle at 50% 42%,#8aa0ff,#101636 72%)", build: buildAurora },
-  { key: "eon", name: "E.ON Expert Services", desc: "Markenvorlage aus dem PowerPoint-Master: E.ON-Rot, Brix-Sans-Schrift — cinematisch, Platzhalter zum Anpassen.", grad: "linear-gradient(135deg,#ea1b0a,#9d1207,#700e61)", build: buildEon },
-  { key: "journey", name: "Journey · Reise", desc: "Durchlaufbare 2.5D-Welt: ein Pfad, Stationen tauchen auf, während du gehst.", grad: "linear-gradient(135deg,#243a8a,#8aa0ff)", build: buildJourney },
-  { key: "world", name: "3D-Welt · Galerie", desc: "Echte begehbare 3D-Galerie (Three.js): Folien hängen als Tafeln an den Wänden, frei laufen mit WASD/Maus oder Joystick.", grad: "linear-gradient(135deg,#0a1230,#5a4bbf,#8aa0ff)", build: buildWorld },
-  { key: "wanderlust", name: "Wanderlust · Reise", desc: "Kreativ-Story mit echter Tiefe: Berge, Täler und Meer.", grad: "linear-gradient(135deg,#16244e,#c2738e,#f0a36a)", build: buildWanderlust },
-  { key: "nova", name: "Studio Nova · Portfolio", desc: "Knallige Kreativ-Agentur: Farb-Blobs und fette Typo.", grad: "linear-gradient(135deg,#ff5a8a,#7a5bff,#3cc8ff)", build: buildStudioNova },
-  { key: "stille", name: "Stille · Minimalismus", desc: "Poesie pur: viel Weißraum, ein Gedanke pro Folie.", grad: "linear-gradient(135deg,#2a2630,#46303c)", build: buildStille },
+  { key: "grundlagen", cat: "start", name: "Grundlagen-Demo", desc: "Der Schnellstart: Wonder-Hero plus geschichtete Snap-Szenen.", grad: "linear-gradient(135deg,#1d2f86,#a85fa0,#f4a071)", build: () => import("./seed.js").then((m) => m.buildSeedDeck()) },
+  { key: "swiss", cat: "business", name: "Landing · Snap-Scroll Website", desc: "Website-Look wie eine Landingpage (Swiss-Stil, wie reference.html): Kopfzeile + 3 Sektionen.", grad: "linear-gradient(135deg,#1c1b19,#5f574c)", build: buildSwiss },
+  { key: "pitch", cat: "business", name: "Projekt-Pitch", desc: "Business-Pitch: Problem · Lösung · Wirkung · Call-to-Action.", grad: "linear-gradient(135deg,#0a1230,#2f6f9e)", build: buildPitch },
+  { key: "update", cat: "business", name: "Quartals-Update", desc: "Status-Update: Highlights, Kennzahlen, Ausblick.", grad: "linear-gradient(135deg,#06231c,#3fd6a0)", build: buildUpdate },
+  { key: "roadmap", cat: "business", name: "Roadmap", desc: "Zeitachse mit Phasen (Q1–Q4) und Meilensteinen.", grad: "linear-gradient(135deg,#0a1230,#5aa6ff)", build: buildRoadmap },
+  { key: "eon", cat: "business", name: "E.ON Expert Services", desc: "Markenvorlage aus dem PowerPoint-Master: E.ON-Rot, Brix-Sans-Schrift — cinematisch, Platzhalter zum Anpassen.", grad: "linear-gradient(135deg,#ea1b0a,#9d1207,#700e61)", build: buildEon },
+  { key: "team", cat: "team", name: "Team & Onboarding", desc: "Team-Vorstellung & Einstieg für Kolleg:innen.", grad: "linear-gradient(135deg,#ff6f61,#7a2e63)", build: buildTeam },
+  { key: "aurora", cat: "keynote", name: "Aurora · Keynote", desc: "Produkt-Launch im Keynote-Stil: Weltraum, leuchtender Orb, große Zahlen.", grad: "radial-gradient(circle at 50% 42%,#8aa0ff,#101636 72%)", build: buildAurora },
+  { key: "wanderlust", cat: "story", name: "Wanderlust · Reise", desc: "Kreativ-Story mit echter Tiefe: Berge, Täler und Meer.", grad: "linear-gradient(135deg,#16244e,#c2738e,#f0a36a)", build: buildWanderlust },
+  { key: "nova", cat: "story", name: "Studio Nova · Portfolio", desc: "Knallige Kreativ-Agentur: Farb-Blobs und fette Typo.", grad: "linear-gradient(135deg,#ff5a8a,#7a5bff,#3cc8ff)", build: buildStudioNova },
+  { key: "stille", cat: "story", name: "Stille · Minimalismus", desc: "Poesie pur: viel Weißraum, ein Gedanke pro Folie.", grad: "linear-gradient(135deg,#2a2630,#46303c)", build: buildStille },
+  { key: "journey", cat: "immersiv", name: "Journey · Reise", desc: "Durchlaufbare 2.5D-Welt: ein Pfad, Stationen tauchen auf, während du gehst.", grad: "linear-gradient(135deg,#243a8a,#8aa0ff)", build: buildJourney },
+  { key: "world", cat: "immersiv", name: "3D-Welt · Galerie", desc: "Echte begehbare 3D-Galerie (Three.js): Folien hängen als Tafeln an den Wänden, frei laufen mit WASD/Maus oder Joystick.", grad: "linear-gradient(135deg,#0a1230,#5a4bbf,#8aa0ff)", build: buildWorld },
 ];

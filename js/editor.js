@@ -7,7 +7,7 @@ import { srcOf, curSlide, state } from "./state.js";
 import { createStage } from "./stage.js";
 import { openPresent } from "./present.js";
 import { openJourney } from "./journey.js";
-import { EXAMPLES } from "./examples.js";
+import { EXAMPLES, CATEGORIES } from "./examples.js";
 import { LAYOUTS } from "./layouts.js";
 import { exportStandaloneHTML } from "./export.js";
 import { THEMES, applyTheme } from "./themes.js";
@@ -243,7 +243,8 @@ function renderInspector() {
   const insp = el("inspector");
   insp.innerHTML = "";
   insp.appendChild(deckSection());
-  insp.appendChild(navSection());
+  // Website-Kopfzeile gibt es nur im klassischen Folien-Modus (Journey/3D-Welt zeigen keine Nav).
+  if ((state.deck.mode || "deck") === "deck") insp.appendChild(navSection());
   insp.appendChild(slideSection());
   if (state.sel.type === "layer") insp.appendChild(layerSection(S.findLayer(state.sel.id)));
   else if (state.sel.type === "text") insp.appendChild(textSection(S.findText(state.sel.id)));
@@ -252,41 +253,50 @@ function renderInspector() {
 
 function slideSection() {
   const slide = curSlide();
+  const mode = state.deck.mode || "deck";
   const sec = h("div", { class: "insp-section" }, [h("h3", { text: "Folie" })]);
 
-  // Stil
-  const seg = h("div", { class: "seg" });
-  ["wonder", "snap"].forEach((st) => {
-    seg.appendChild(h("button", {
-      class: slide.style === st ? "is-on" : "",
-      text: st === "wonder" ? "✦ Wonder" : "▦ Snap",
-      onclick: () => S.setSlideStyle(st),
-    }));
-  });
-  sec.appendChild(field("Stil dieser Folie", seg));
+  // Stil — nur im Folien-Modus wirksam (Journey/3D-Welt ignorieren ihn).
+  if (mode === "deck") {
+    const seg = h("div", { class: "seg" });
+    ["wonder", "snap"].forEach((st) => {
+      seg.appendChild(h("button", {
+        class: slide.style === st ? "is-on" : "",
+        text: st === "wonder" ? "✦ Wonder" : "▦ Snap",
+        onclick: () => S.setSlideStyle(st),
+      }));
+    });
+    sec.appendChild(field("Stil dieser Folie", seg));
+  }
 
-  // Hintergrundfarbe
+  // Hintergrundfarbe (wirkt in allen Modi: hinter Ebenen / als Tafel-Hintergrund)
   sec.appendChild(field("Hintergrundfarbe (hinter Ebenen)",
     h("input", { type: "color", value: slide.bg || "#0a1118", oninput: (e) => S.setSlideBg(e.target.value) })));
 
-  // Übergang zu dieser Folie
-  const tsel = h("select", { onchange: (e) => S.setSlideTransition(e.target.value) });
-  TRANSITIONS.forEach((tr) =>
-    tsel.appendChild(h("option", { value: tr.key, ...((slide.transition || "snap") === tr.key ? { selected: "selected" } : {}), text: tr.name })));
-  sec.appendChild(field("Übergang zu dieser Folie", tsel));
+  // Übergang zu dieser Folie — nur im Folien-Modus.
+  if (mode === "deck") {
+    const tsel = h("select", { onchange: (e) => S.setSlideTransition(e.target.value) });
+    TRANSITIONS.forEach((tr) =>
+      tsel.appendChild(h("option", { value: tr.key, ...((slide.transition || "snap") === tr.key ? { selected: "selected" } : {}), text: tr.name })));
+    sec.appendChild(field("Übergang zu dieser Folie", tsel));
+  }
 
-  // Textfarbe dieser Folie (überschreibt das Theme — für helle Sektionen)
-  const inkSeg = h("div", { class: "seg" });
-  const curInk = slide.ink || "auto";
-  [["auto", "Auto"], ["#f4f1ea", "Hell"], ["#1a1a1a", "Dunkel"]].forEach(([val, lab]) =>
-    inkSeg.appendChild(h("button", { class: curInk === val ? "is-on" : "", text: lab, onclick: () => S.setSlideInk(val === "auto" ? null : val) })));
-  sec.appendChild(field("Textfarbe (diese Folie)", inkSeg));
+  // Textfarbe dieser Folie (überschreibt das Theme) — Folien- & Journey-Modus.
+  if (mode !== "world") {
+    const inkSeg = h("div", { class: "seg" });
+    const curInk = slide.ink || "auto";
+    [["auto", "Auto"], ["#f4f1ea", "Hell"], ["#1a1a1a", "Dunkel"]].forEach(([val, lab]) =>
+      inkSeg.appendChild(h("button", { class: curInk === val ? "is-on" : "", text: lab, onclick: () => S.setSlideInk(val === "auto" ? null : val) })));
+    sec.appendChild(field("Textfarbe (diese Folie)", inkSeg));
+  }
 
-  // Kopfzeile auf dieser Folie ausblenden
-  sec.appendChild(field(null, h("label", { class: "toggle" }, [
-    h("input", { type: "checkbox", ...(slide.hideNav ? { checked: "checked" } : {}), onchange: (e) => S.setSlideHideNav(e.target.checked) }),
-    "Kopfzeile auf dieser Folie ausblenden",
-  ])));
+  // Kopfzeile auf dieser Folie ausblenden — nur im Folien-Modus (nur dort gibt es eine Kopfzeile).
+  if (mode === "deck") {
+    sec.appendChild(field(null, h("label", { class: "toggle" }, [
+      h("input", { type: "checkbox", ...(slide.hideNav ? { checked: "checked" } : {}), onchange: (e) => S.setSlideHideNav(e.target.checked) }),
+      "Kopfzeile auf dieser Folie ausblenden",
+    ])));
+  }
 
   // Ebenen-Liste
   const list = h("div", { class: "layerlist" });
@@ -316,6 +326,7 @@ function slideSection() {
 
 function layerSection(layer) {
   if (!layer) return h("div");
+  const mode = state.deck.mode || "deck";
   const sec = h("div", { class: "insp-section" }, [h("h3", { text: "Bild-Ebene" })]);
   sec.appendChild(field("Name", h("input", {
     type: "text", value: layer.name,
@@ -324,20 +335,26 @@ function layerSection(layer) {
   sec.appendChild(field("Bild",
     h("button", { class: "btn btn-block", text: "⭯ Bild ersetzen", onclick: () => { imageMode = { mode: "replace", layerId: layer.id }; el("fileImage").click(); } })));
 
-  sec.appendChild(slider("Parallax (Maus-Tiefe)", layer.parallax, 0, 60, 1,
-    (v) => { layer.parallax = v; S.touchSave(); }, (v) => v + "px"));
-  sec.appendChild(slider("Grundgröße", layer.scale, 1, 1.6, 0.01,
-    (v) => { layer.scale = v; layerEls[layer.id] && (layerEls[layer.id].style.transform = `scale(${v})`); S.touchSave(); }, (v) => v.toFixed(2) + "×"));
-  sec.appendChild(slider("Langsamer Zoom (Ken-Burns)", layer.kenburns, 0, 0.3, 0.01,
-    (v) => { layer.kenburns = v; S.touchSave(); }, (v) => (v === 0 ? "aus" : "+" + Math.round(v * 100) + "%")));
-  sec.appendChild(slider("Deckkraft", layer.opacity ?? 1, 0.1, 1, 0.05,
-    (v) => { layer.opacity = v; layerEls[layer.id] && (layerEls[layer.id].style.opacity = v); S.touchSave(); }, (v) => Math.round(v * 100) + "%"));
+  // Parallax/Zoom/Reaktiv wirken nur im Folien-Modus (Journey/3D-Welt nutzen
+  // nur das Bild selbst). Sonst hier ausblenden, damit keine toten Regler entstehen.
+  if (mode === "deck") {
+    sec.appendChild(slider("Parallax (Maus-Tiefe)", layer.parallax, 0, 60, 1,
+      (v) => { layer.parallax = v; S.touchSave(); }, (v) => v + "px"));
+    sec.appendChild(slider("Grundgröße", layer.scale, 1, 1.6, 0.01,
+      (v) => { layer.scale = v; layerEls[layer.id] && (layerEls[layer.id].style.transform = `scale(${v})`); S.touchSave(); }, (v) => v.toFixed(2) + "×"));
+    sec.appendChild(slider("Langsamer Zoom (Ken-Burns)", layer.kenburns, 0, 0.3, 0.01,
+      (v) => { layer.kenburns = v; S.touchSave(); }, (v) => (v === 0 ? "aus" : "+" + Math.round(v * 100) + "%")));
+    sec.appendChild(slider("Deckkraft", layer.opacity ?? 1, 0.1, 1, 0.05,
+      (v) => { layer.opacity = v; layerEls[layer.id] && (layerEls[layer.id].style.opacity = v); S.touchSave(); }, (v) => Math.round(v * 100) + "%"));
 
-  const tog = h("label", { class: "toggle" }, [
-    h("input", { type: "checkbox", ...(layer.reactive ? { checked: "checked" } : {}), onchange: (e) => { layer.reactive = e.target.checked; S.touchSave(); renderInspector(); } }),
-    "Reaktiv (weicht vom Cursor weg)",
-  ]);
-  sec.appendChild(field(null, tog));
+    const tog = h("label", { class: "toggle" }, [
+      h("input", { type: "checkbox", ...(layer.reactive ? { checked: "checked" } : {}), onchange: (e) => { layer.reactive = e.target.checked; S.touchSave(); renderInspector(); } }),
+      "Reaktiv (weicht vom Cursor weg)",
+    ]);
+    sec.appendChild(field(null, tog));
+  } else {
+    sec.appendChild(h("p", { class: "insp-empty", text: mode === "world" ? "In der 3D-Welt wird dieses Bild als Tafel gezeigt. Parallax/Zoom/Reaktiv haben hier keine Wirkung." : "Im Journey-Modus wird dieses Bild als Station gezeigt. Parallax/Zoom/Reaktiv haben hier keine Wirkung." }));
+  }
 
   sec.appendChild(h("button", { class: "btn btn-block btn-danger", text: "Ebene löschen", onclick: () => S.deleteSelected() }));
   return sec;
@@ -355,14 +372,23 @@ function textSection(t) {
     .forEach(([v, lab]) => roleSel.appendChild(h("option", { value: v, ...(t.role === v ? { selected: "selected" } : {}), text: lab })));
   sec.appendChild(field("Art", roleSel));
 
-  const seg = h("div", { class: "seg" });
-  [["left", "⫷"], ["center", "≡"], ["right", "⫸"]].forEach(([v, sym]) =>
-    seg.appendChild(h("button", { class: t.align === v ? "is-on" : "", text: sym, onclick: () => S.updateText(t.id, { align: v }) })));
-  sec.appendChild(field("Ausrichtung", seg));
+  const mode = state.deck.mode || "deck";
+  // Ausrichtung wirkt im Folien- & Journey-Modus (3D-Welt setzt Text fest).
+  if (mode !== "world") {
+    const seg = h("div", { class: "seg" });
+    [["left", "⫷"], ["center", "≡"], ["right", "⫸"]].forEach(([v, sym]) =>
+      seg.appendChild(h("button", { class: t.align === v ? "is-on" : "", text: sym, onclick: () => S.updateText(t.id, { align: v }) })));
+    sec.appendChild(field("Ausrichtung", seg));
+  }
 
-  sec.appendChild(slider("Position X", t.x, 0, 92, 1, (v) => { t.x = v; const n = el("stageFrame").querySelector(`.wd-text[data-id="${t.id}"]`); if (n) n.style.left = v + "%"; S.touchSave(); }, (v) => v + "%"));
-  sec.appendChild(slider("Position Y", t.y, 0, 92, 1, (v) => { t.y = v; const n = el("stageFrame").querySelector(`.wd-text[data-id="${t.id}"]`); if (n) n.style.top = v + "%"; S.touchSave(); }, (v) => v + "%"));
-  sec.appendChild(slider("Breite", t.w, 15, 92, 1, (v) => { t.w = v; const n = el("stageFrame").querySelector(`.wd-text[data-id="${t.id}"]`); if (n) n.style.width = v + "%"; S.touchSave(); }, (v) => v + "%"));
+  // Freie Position/Breite nur im Folien-Modus (Journey/3D-Welt setzen Text automatisch).
+  if (mode === "deck") {
+    sec.appendChild(slider("Position X", t.x, 0, 92, 1, (v) => { t.x = v; const n = el("stageFrame").querySelector(`.wd-text[data-id="${t.id}"]`); if (n) n.style.left = v + "%"; S.touchSave(); }, (v) => v + "%"));
+    sec.appendChild(slider("Position Y", t.y, 0, 92, 1, (v) => { t.y = v; const n = el("stageFrame").querySelector(`.wd-text[data-id="${t.id}"]`); if (n) n.style.top = v + "%"; S.touchSave(); }, (v) => v + "%"));
+    sec.appendChild(slider("Breite", t.w, 15, 92, 1, (v) => { t.w = v; const n = el("stageFrame").querySelector(`.wd-text[data-id="${t.id}"]`); if (n) n.style.width = v + "%"; S.touchSave(); }, (v) => v + "%"));
+  } else {
+    sec.appendChild(h("p", { class: "insp-empty", text: "Position & Breite werden in diesem Modus automatisch gesetzt." }));
+  }
 
   sec.appendChild(h("button", { class: "btn btn-block btn-danger", text: "Text löschen", onclick: () => S.deleteSelected() }));
   return sec;
@@ -455,32 +481,47 @@ export function init() {
   // Beispiel-Galerie
   const gallery = el("gallery");
   const closeGallery = () => (gallery.hidden = true);
+  function makeCard(ex) {
+    const card = h("button", { class: "gcard" }, [
+      h("div", { class: "gcard__banner", style: `background:${ex.grad}` }),
+      h("div", { class: "gcard__body" }, [
+        h("p", { class: "gcard__name", text: ex.name }),
+        h("p", { class: "gcard__desc", text: ex.desc }),
+      ]),
+    ]);
+    card.addEventListener("click", async () => {
+      if (card.dataset.busy) return;
+      card.dataset.busy = "1";
+      card.querySelector(".gcard__body").appendChild(h("p", { class: "gcard__busy", text: "Lädt …" }));
+      try {
+        const deck = await ex.build();
+        await S.loadDeckObject(deck);
+        closeGallery();
+      } catch (err) {
+        alert("Beispiel konnte nicht geladen werden: " + err.message);
+      } finally {
+        delete card.dataset.busy;
+      }
+    });
+    return card;
+  }
   function renderGallery() {
     const grid = el("galleryGrid");
     grid.innerHTML = "";
-    EXAMPLES.forEach((ex) => {
-      const card = h("button", { class: "gcard" }, [
-        h("div", { class: "gcard__banner", style: `background:${ex.grad}` }),
-        h("div", { class: "gcard__body" }, [
-          h("p", { class: "gcard__name", text: ex.name }),
-          h("p", { class: "gcard__desc", text: ex.desc }),
-        ]),
-      ]);
-      card.addEventListener("click", async () => {
-        if (card.dataset.busy) return;
-        card.dataset.busy = "1";
-        card.querySelector(".gcard__body").appendChild(h("p", { class: "gcard__busy", text: "Lädt …" }));
-        try {
-          const deck = await ex.build();
-          await S.loadDeckObject(deck);
-          closeGallery();
-        } catch (err) {
-          alert("Beispiel konnte nicht geladen werden: " + err.message);
-        } finally {
-          delete card.dataset.busy;
-        }
-      });
-      grid.appendChild(card);
+    // Nach Kategorien gruppiert; unbekannte Kategorien landen am Ende.
+    const groups = CATEGORIES.map((c) => ({ cat: c, items: EXAMPLES.filter((e) => e.cat === c.key) }))
+      .filter((g) => g.items.length);
+    const known = new Set(CATEGORIES.map((c) => c.key));
+    const rest = EXAMPLES.filter((e) => !known.has(e.cat));
+    if (rest.length) groups.push({ cat: { name: "Weitere", desc: "" }, items: rest });
+    groups.forEach((g) => {
+      grid.appendChild(h("div", { class: "gcat" }, [
+        h("h3", { class: "gcat__name", text: g.cat.name }),
+        g.cat.desc ? h("p", { class: "gcat__desc", text: g.cat.desc }) : null,
+      ]));
+      const row = h("div", { class: "gcat__grid" });
+      g.items.forEach((ex) => row.appendChild(makeCard(ex)));
+      grid.appendChild(row);
     });
   }
   const openGallery = () => { renderGallery(); gallery.hidden = false; };

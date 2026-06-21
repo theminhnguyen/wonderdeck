@@ -351,7 +351,12 @@ html, body {
 }
 
 /* ===================== Beispiel-Galerie ===================== */
-.gallery__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 6px; }
+.gallery__grid { display: block; margin-top: 6px; }
+.gcat { margin: 20px 0 0; }
+.gcat:first-child { margin-top: 4px; }
+.gcat__name { font-size: 12px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--wd-accent); margin: 0; }
+.gcat__desc { font-size: 12px; color: var(--wd-text-dim); margin: 3px 0 0; }
+.gcat__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 11px; }
 .gcard {
   text-align: left; padding: 0; overflow: hidden; cursor: pointer;
   background: var(--wd-panel-2); border: 1px solid var(--wd-line);
@@ -363,7 +368,7 @@ html, body {
 .gcard__name { font-size: 14px; font-weight: 600; margin: 0 0 4px; }
 .gcard__desc { font-size: 12px; line-height: 1.45; color: var(--wd-text-dim); margin: 0; }
 .gcard__busy { font-size: 12px; color: var(--wd-accent); margin: 6px 0 0; }
-@media (max-width: 560px) { .gallery__grid { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .gcat__grid { grid-template-columns: 1fr; } }
 
 /* ===================== Layout-Vorlagen ===================== */
 .layout__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px; }
