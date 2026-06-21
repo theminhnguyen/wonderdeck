@@ -36,6 +36,16 @@ function h(tag, props = {}, kids = []) {
   return e;
 }
 
+/* Kurze Einblendung unten (Feedback z. B. nach Einfügen). */
+let toastTimer = null;
+function toast(msg) {
+  let t = el("wdToast");
+  if (!t) { t = h("div", { class: "wd-toast", id: "wdToast" }); document.body.appendChild(t); }
+  t.textContent = msg; t.classList.add("is-on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("is-on"), 2600);
+}
+
 let layerEls = {}; // id -> Ebenen-Element der aktuellen Bühne (für Live-Updates)
 let imageMode = { mode: "add", layerId: null };
 let deckList = []; // Cache aller Präsentationen (für Nav-Ziele & Bibliothek)
@@ -439,6 +449,22 @@ export function init() {
     if (!f) return;
     try { await S.importDeck(JSON.parse(await f.text())); }
     catch (err) { alert("Konnte Datei nicht laden: " + err.message); }
+  });
+
+  // Einfügen (Cmd/Strg+V): kopierte PowerPoint-Folie oder ein Bild aus der
+  // Zwischenablage wird als NEUE Folie eingefügt (Bild als vollflächige Ebene).
+  document.addEventListener("paste", async (e) => {
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.isContentEditable)) return; // Text normal einfügen
+    if (!el("present").hidden || !el("journey").hidden || !el("world").hidden) return; // nicht während Präsentation
+    const items = (e.clipboardData && e.clipboardData.items) || [];
+    const files = [];
+    for (const it of items) if (it.type && it.type.indexOf("image/") === 0) { const f = it.getAsFile(); if (f) files.push(f); }
+    if (!files.length) return;
+    e.preventDefault();
+    let count = 0;
+    for (const f of files) { try { await S.addSlideFromImage(await readFile(f), "Eingefügte Folie"); count++; } catch (err) { console.error(err); } }
+    if (count) toast(count === 1 ? "Folie aus Zwischenablage eingefügt." : count + " Folien eingefügt.");
   });
 
   // Drag-and-drop von Bildern auf die Bühne

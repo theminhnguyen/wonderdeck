@@ -132,11 +132,17 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
     // Akzent-Leiste oben an jeder Wand (Galerie-Beleuchtung)
     const strip = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 0.14), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.55 }));
     strip.position.set(sx * (halfW - 0.01), 4.7, floor.position.z); strip.rotation.y = -sx * Math.PI / 2; scene.add(strip);
+    // Sockelleiste unten -> wirkt wie ein echter Museumssaal
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.34, hallLen + 24), new THREE.MeshStandardMaterial({ color: tint(0.13, 0.3).getHex(), roughness: 0.9 }));
+    base.position.set(sx * (halfW - 0.08), 0.17, floor.position.z); scene.add(base);
   }
   for (const [z, ry] of [[8, Math.PI], [-hallLen + 5, 0]]) {
     const w = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, 6.4), wallMat);
     w.position.set(0, 3.2, z); w.rotation.y = ry; scene.add(w);
   }
+  // Decke -> Raum wirkt geschlossen wie ein Saal
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshStandardMaterial({ color: tint(0.06, 0.35).getHex(), roughness: 1, side: THREE.DoubleSide }));
+  ceil.rotation.x = Math.PI / 2; ceil.position.set(0, 5.4, floor.position.z); scene.add(ceil);
 
   const boards = [];
   const disposables = [];
@@ -159,29 +165,59 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
     const board = new THREE.Mesh(new THREE.PlaneGeometry(bw, bh), new THREE.MeshBasicMaterial({ map: tex }));
     g.add(board);
     // schlanker Standfuß, damit die Tafel im Raum „steht"
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, y - bh / 2, 0.12), new THREE.MeshStandardMaterial({ color: 0x141a27, roughness: 0.9 }));
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, y - bh / 2, 0.12), new THREE.MeshStandardMaterial({ color: tint(0.1, 0.32).getHex(), roughness: 0.9 }));
     post.position.set(x, (y - bh / 2) / 2, z); scene.add(post);
+    // Decken-Strahler über der Tafel (Museums-Beleuchtung): Fixture + Spot auf die Tafel
+    const fix = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.3), new THREE.MeshStandardMaterial({ color: tint(0.14, 0.3).getHex(), roughness: 0.8 }));
+    fix.position.set(x, 5.32, z + 0.9); scene.add(fix);
+    if (n <= 16) {
+      const spot = new THREE.SpotLight(0xfff1dc, 26, 12, 0.5, 0.6, 1.4);
+      spot.position.set(x, 5.2, z + 1.2); spot.target.position.set(x, y - 0.2, z);
+      scene.add(spot); scene.add(spot.target);
+    }
     boards.push({ slide, pos: new THREE.Vector3(x, y, z) });
-    disposables.push(tex, board.geometry, frame.geometry, outline.geometry, post.geometry, board.material, frame.material, outline.material, post.material);
+    disposables.push(tex, board.geometry, frame.geometry, outline.geometry, post.geometry, fix.geometry, board.material, frame.material, outline.material, post.material, fix.material);
   }));
+
+  /* ----- Rückweg-Portal am Ende des Pfades ----- */
+  const portalPos = new THREE.Vector3(0, 1.9, -hallLen + 7);
+  const portalGrp = new THREE.Group(); portalGrp.position.copy(portalPos); scene.add(portalGrp);
+  const glowDisc = new THREE.Mesh(new THREE.CircleGeometry(1.5, 48), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.16 }));
+  portalGrp.add(glowDisc);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.45, 0.08, 14, 64), new THREE.MeshBasicMaterial({ color: acc.getHex() }));
+  portalGrp.add(ring);
+  const portalLight = new THREE.PointLight(acc.getHex(), 0.8, 26, 1.6); portalLight.position.set(0, 0, 1.2); portalGrp.add(portalLight);
+  // Schild „Zum Anfang"
+  function makeSign(text) {
+    const cv = document.createElement("canvas"); cv.width = 512; cv.height = 128; const c = cv.getContext("2d");
+    c.fillStyle = accent; c.font = "700 56px " + fontTitle; c.textAlign = "center"; c.textBaseline = "middle";
+    c.fillText(text, 256, 70);
+    const t = new THREE.CanvasTexture(cv); if ("colorSpace" in t) t.colorSpace = THREE.SRGBColorSpace; return t;
+  }
+  const signTex = makeSign("⟲  Zum Anfang");
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(3, 0.75), new THREE.MeshBasicMaterial({ map: signTex, transparent: true }));
+  sign.position.set(0, 2.0, 0); portalGrp.add(sign);
+  disposables.push(glowDisc.geometry, glowDisc.material, ring.geometry, ring.material, sign.geometry, sign.material, signTex);
 
   /* ----- Steuerung ----- */
   const isTouch = window.matchMedia("(pointer: coarse)").matches;
   el("worldCross").hidden = isTouch;
   el("worldJoy").hidden = !isTouch;
-  let yaw = 0, pitch = 0, locked = false, panelOpen = false, near = null, lastHint = "";
+  let yaw = 0, pitch = 0, locked = false, panelOpen = false, near = null, nearPortal = false, lastHint = "";
   const keys = {};
   const clock = new THREE.Clock();
 
   function setHint(html) { if (html !== lastHint) { hintEl.innerHTML = html; lastHint = html; } }
   const idleHint = isTouch ? "Joystick = gehen · ziehen = schauen" : "<b>Klick</b> zum Start · <b>WASD</b> gehen · <b>Maus</b> schauen";
+  // Zum Anfang zurückspringen (Portal am Ende des Pfades).
+  function returnToStart() { camera.position.set(0, 1.6, 6); yaw = 0; pitch = 0; closePanel(); }
 
   function lockPointer() { if (!isTouch && !panelOpen && document.pointerLockElement !== stage) stage.requestPointerLock(); }
   function onPL() { locked = document.pointerLockElement === stage; }
   function onMouse(e) { if (!locked) return; yaw -= e.movementX * 0.0022; pitch = clamp(pitch - e.movementY * 0.0022, -1.2, 1.2); }
   function onKeyDown(e) {
     const k = e.key.toLowerCase(); keys[k] = true;
-    if (k === "e") { e.preventDefault(); panelOpen ? closePanel() : (near && openPanel(near.slide)); }
+    if (k === "e") { e.preventDefault(); if (panelOpen) closePanel(); else if (near) openPanel(near.slide); else if (nearPortal) returnToStart(); }
     if (k === "escape" && panelOpen) closePanel();
   }
   function onKeyUp(e) { keys[e.key.toLowerCase()] = false; }
@@ -207,7 +243,7 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
     joyEl.addEventListener("touchend", joyEnd); joyEl.addEventListener("touchcancel", joyEnd);
     stage.addEventListener("touchstart", (e) => { const t = e.changedTouches[0]; lookId = t.identifier; lx = t.clientX; ly = t.clientY; tapMove = 0; });
     stage.addEventListener("touchmove", (e) => { for (const t of e.changedTouches) { if (t.identifier !== lookId) continue; yaw -= (t.clientX - lx) * 0.005; pitch = clamp(pitch - (t.clientY - ly) * 0.005, -1.2, 1.2); tapMove += Math.abs(t.clientX - lx) + Math.abs(t.clientY - ly); lx = t.clientX; ly = t.clientY; } }, { passive: true });
-    stage.addEventListener("touchend", () => { if (tapMove < 12 && near && !panelOpen) openPanel(near.slide); lookId = null; });
+    stage.addEventListener("touchend", () => { if (tapMove < 12 && !panelOpen) { if (near) openPanel(near.slide); else if (nearPortal) returnToStart(); } lookId = null; });
   }
 
   /* ----- Detail-Overlay ----- */
@@ -248,10 +284,14 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
       camera.position.y = 1.6;
       near = null; let best = 5.4;
       for (const b of boards) { const d = camera.position.distanceTo(b.pos); if (d < best) { best = d; near = b; } }
+      nearPortal = !near && camera.position.distanceTo(portalPos) < 4.4;
       if (near) setHint("<b>" + (isTouch ? "Tippen" : "E") + "</b> für Details");
+      else if (nearPortal) setHint("<b>" + (isTouch ? "Tippen" : "E") + "</b> · zurück zum Anfang");
       else if (!locked && !isTouch) setHint(idleHint);
       else setHint("");
     }
+    ring.rotation.z += dt * 0.6; // Portal lebt
+    glowDisc.material.opacity = 0.12 + 0.06 * (1 + Math.sin(clock.elapsedTime * 2)) / 2;
     renderer.render(scene, camera);
     raf = requestAnimationFrame(loop);
   }

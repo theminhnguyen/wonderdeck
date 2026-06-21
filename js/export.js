@@ -286,8 +286,10 @@ function WORLD_RUNTIME(DECK, CFG, THREE) {
     for (const sx of [-1, 1]) {
       const wall = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 6.4), wallMat); wall.position.set(sx * halfW, 3.2, floor.position.z); wall.rotation.y = -sx * Math.PI / 2; scene.add(wall);
       const strip = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 0.14), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.55 })); strip.position.set(sx * (halfW - 0.01), 4.7, floor.position.z); strip.rotation.y = -sx * Math.PI / 2; scene.add(strip);
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.34, hallLen + 24), new THREE.MeshStandardMaterial({ color: tint(0.13, 0.3).getHex(), roughness: 0.9 })); base.position.set(sx * (halfW - 0.08), 0.17, floor.position.z); scene.add(base);
     }
     for (const [z, ry] of [[8, Math.PI], [-hallLen + 5, 0]]) { const w = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, 6.4), wallMat); w.position.set(0, 3.2, z); w.rotation.y = ry; scene.add(w); }
+    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshStandardMaterial({ color: tint(0.06, 0.35).getHex(), roughness: 1, side: THREE.DoubleSide })); ceil.rotation.x = Math.PI / 2; ceil.position.set(0, 5.4, floor.position.z); scene.add(ceil);
 
     const boards = [];
     await Promise.all(DECK.slides.map(async (slide, i) => {
@@ -297,19 +299,33 @@ function WORLD_RUNTIME(DECK, CFG, THREE) {
       const outline = new THREE.Mesh(new THREE.PlaneGeometry(bw + 0.34, bh + 0.34), new THREE.MeshBasicMaterial({ color: acc.getHex() })); outline.position.z = -0.04; g.add(outline);
       const frame = new THREE.Mesh(new THREE.PlaneGeometry(bw + 0.14, bh + 0.14), new THREE.MeshBasicMaterial({ color: 0x0a0e16 })); frame.position.z = -0.02; g.add(frame);
       const board = new THREE.Mesh(new THREE.PlaneGeometry(bw, bh), new THREE.MeshBasicMaterial({ map: tex })); g.add(board);
-      const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, y - bh / 2, 0.12), new THREE.MeshStandardMaterial({ color: tint(0.075, 0.32).getHex(), roughness: 0.9 })); post.position.set(x, (y - bh / 2) / 2, z); scene.add(post);
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, y - bh / 2, 0.12), new THREE.MeshStandardMaterial({ color: tint(0.1, 0.32).getHex(), roughness: 0.9 })); post.position.set(x, (y - bh / 2) / 2, z); scene.add(post);
+      const fix = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.3), new THREE.MeshStandardMaterial({ color: tint(0.14, 0.3).getHex(), roughness: 0.8 })); fix.position.set(x, 5.32, z + 0.9); scene.add(fix);
+      if (n <= 16) { const spot = new THREE.SpotLight(0xfff1dc, 26, 12, 0.5, 0.6, 1.4); spot.position.set(x, 5.2, z + 1.2); spot.target.position.set(x, y - 0.2, z); scene.add(spot); scene.add(spot.target); }
       boards.push({ slide, pos: new THREE.Vector3(x, y, z) });
     }));
 
+    // Rückweg-Portal am Ende des Pfades
+    const portalPos = new THREE.Vector3(0, 1.9, -hallLen + 7);
+    const portalGrp = new THREE.Group(); portalGrp.position.copy(portalPos); scene.add(portalGrp);
+    const glowDisc = new THREE.Mesh(new THREE.CircleGeometry(1.5, 48), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.16 })); portalGrp.add(glowDisc);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.45, 0.08, 14, 64), new THREE.MeshBasicMaterial({ color: acc.getHex() })); portalGrp.add(ring);
+    const portalLight = new THREE.PointLight(acc.getHex(), 0.8, 26, 1.6); portalLight.position.set(0, 0, 1.2); portalGrp.add(portalLight);
+    const signCv = document.createElement("canvas"); signCv.width = 512; signCv.height = 128; const sc = signCv.getContext("2d");
+    sc.fillStyle = accent; sc.font = "700 56px " + fontTitle; sc.textAlign = "center"; sc.textBaseline = "middle"; sc.fillText("⟲  Zum Anfang", 256, 70);
+    const signTex = new THREE.CanvasTexture(signCv); if ("colorSpace" in signTex) signTex.colorSpace = THREE.SRGBColorSpace;
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(3, 0.75), new THREE.MeshBasicMaterial({ map: signTex, transparent: true })); sign.position.set(0, 2.0, 0); portalGrp.add(sign);
+
     const isTouch = window.matchMedia("(pointer: coarse)").matches; cross.hidden = isTouch; joy.hidden = !isTouch;
-    let yaw = 0, pitch = 0, locked = false, panelOpen = false, near = null, lastHint = "";
+    let yaw = 0, pitch = 0, locked = false, panelOpen = false, near = null, nearPortal = false, lastHint = "";
     const keys = {}; const clock = new THREE.Clock();
     const setHint = (html) => { if (html !== lastHint) { hintEl.innerHTML = html; lastHint = html; } };
     const idleHint = isTouch ? "Joystick = gehen · ziehen = schauen" : "<b>Klick</b> zum Start · <b>WASD</b> gehen · <b>Maus</b> schauen";
+    const returnToStart = () => { camera.position.set(0, 1.6, 6); yaw = 0; pitch = 0; closePanel(); };
     const lockPointer = () => { if (!isTouch && !panelOpen && document.pointerLockElement !== stage) stage.requestPointerLock(); };
     const onPL = () => { locked = document.pointerLockElement === stage; };
     const onMouse = (e) => { if (!locked) return; yaw -= e.movementX * 0.0022; pitch = clamp(pitch - e.movementY * 0.0022, -1.2, 1.2); };
-    const onKeyDown = (e) => { const k = e.key.toLowerCase(); keys[k] = true; if (k === "e") { e.preventDefault(); panelOpen ? closePanel() : (near && openPanel(near.slide)); } if (k === "escape" && panelOpen) closePanel(); if (k === "f") { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}); } };
+    const onKeyDown = (e) => { const k = e.key.toLowerCase(); keys[k] = true; if (k === "e") { e.preventDefault(); if (panelOpen) closePanel(); else if (near) openPanel(near.slide); else if (nearPortal) returnToStart(); } if (k === "escape" && panelOpen) closePanel(); if (k === "f") { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}); } };
     const onKeyUp = (e) => { keys[e.key.toLowerCase()] = false; };
     const onResize = () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
     stage.addEventListener("click", lockPointer); document.addEventListener("pointerlockchange", onPL); document.addEventListener("mousemove", onMouse);
@@ -323,7 +339,7 @@ function WORLD_RUNTIME(DECK, CFG, THREE) {
       joy.addEventListener("touchend", je); joy.addEventListener("touchcancel", je);
       stage.addEventListener("touchstart", (e) => { const t = e.changedTouches[0]; lookId = t.identifier; lx = t.clientX; ly = t.clientY; tapMove = 0; });
       stage.addEventListener("touchmove", (e) => { for (const t of e.changedTouches) { if (t.identifier !== lookId) continue; yaw -= (t.clientX - lx) * 0.005; pitch = clamp(pitch - (t.clientY - ly) * 0.005, -1.2, 1.2); tapMove += Math.abs(t.clientX - lx) + Math.abs(t.clientY - ly); lx = t.clientX; ly = t.clientY; } }, { passive: true });
-      stage.addEventListener("touchend", () => { if (tapMove < 12 && near && !panelOpen) openPanel(near.slide); lookId = null; });
+      stage.addEventListener("touchend", () => { if (tapMove < 12 && !panelOpen) { if (near) openPanel(near.slide); else if (nearPortal) returnToStart(); } lookId = null; });
     }
 
     function openPanel(slide) {
@@ -351,8 +367,10 @@ function WORLD_RUNTIME(DECK, CFG, THREE) {
         camera.position.x += (-sy * fwd + cy * str) * spd; camera.position.z += (-cy * fwd - sy * str) * spd;
         camera.position.x = clamp(camera.position.x, -halfW + 0.6, halfW - 0.6); camera.position.z = clamp(camera.position.z, -hallLen + 5, 6); camera.position.y = 1.6;
         near = null; let best = 5.4; for (const b of boards) { const d = camera.position.distanceTo(b.pos); if (d < best) { best = d; near = b; } }
-        if (near) setHint("<b>" + (isTouch ? "Tippen" : "E") + "</b> für Details"); else if (!locked && !isTouch) setHint(idleHint); else setHint("");
+        nearPortal = !near && camera.position.distanceTo(portalPos) < 4.4;
+        if (near) setHint("<b>" + (isTouch ? "Tippen" : "E") + "</b> für Details"); else if (nearPortal) setHint("<b>" + (isTouch ? "Tippen" : "E") + "</b> · zurück zum Anfang"); else if (!locked && !isTouch) setHint(idleHint); else setHint("");
       }
+      ring.rotation.z += dt * 0.6; glowDisc.material.opacity = 0.12 + 0.06 * (1 + Math.sin(clock.elapsedTime * 2)) / 2;
       renderer.render(scene, camera); requestAnimationFrame(loop);
     }
     loader.hidden = true; requestAnimationFrame(loop);

@@ -165,6 +165,26 @@ export function addSlideFromSpec(spec) {
   commit();
 }
 
+/** Neue Folie aus einem eingefügten/abgelegten Bild — Bild als vollflächige,
+    flache Ebene (z. B. kopierte PowerPoint-Folie). Wird nach der aktuellen
+    Folie eingefügt. */
+export async function addSlideFromImage(dataURL, name = "Eingefügt") {
+  const imageId = uid();
+  await db.putImage(imageId, dataURL);
+  state.images[imageId] = dataURL;
+  const s = createSlide({ style: "snap" });
+  s.bg = "#0a0e16";
+  const layer = createLayer({ imageId, name });
+  layer.parallax = 0; // importierte Folie soll flach/originalgetreu wirken
+  s.layers = [layer];
+  s.texts = [];
+  state.deck.slides.splice(state.current + 1, 0, s);
+  state.current += 1;
+  state.sel = { type: "layer", id: layer.id };
+  commit();
+  return s;
+}
+
 export function deleteSlide(index) {
   if (state.deck.slides.length <= 1) return;
   state.deck.slides.splice(index, 1);
