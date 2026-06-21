@@ -60,6 +60,9 @@ function renderAll() {
   renderInspector();
   const title = el("deckTitle");
   if (document.activeElement !== title) title.value = state.deck.title;
+  // Präsentieren-Button zeigt den Modus, damit klar ist, was passiert
+  const mode = state.deck.mode || "deck";
+  el("btnPresent").textContent = mode === "world" ? "▶ 3D-Welt betreten" : mode === "journey" ? "▶ Journey starten" : "▶ Präsentieren";
 }
 
 /* =================== Folien-Leiste =================== */
@@ -435,7 +438,7 @@ export function init() {
   el("btnAddLayer").addEventListener("click", () => { imageMode = { mode: "add", layerId: null }; el("fileImage").click(); });
   el("btnAddText").addEventListener("click", () => S.addText("body"));
   const present = (idx) => {
-    if (state.deck.mode === "world") import("./world.js").then((m) => m.openWorld(state.deck, srcOf, () => {}));
+    if (state.deck.mode === "world") import("./world.js?v=" + Date.now()).then((m) => m.openWorld(state.deck, srcOf, () => {}));
     else if (state.deck.mode === "journey") openJourney(state.deck, srcOf, () => {});
     else openPresent(state.deck, srcOf, idx == null ? state.current : idx, (i) => S.selectSlide(i), onDeckNav);
   };
