@@ -12,6 +12,13 @@ import { themeVars } from "./themes.js";
 const el = (id) => document.getElementById(id);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const esc = (s) => String(s == null ? "" : s).replace(/[<&>]/g, (c) => ({ "<": "&lt;", "&": "&amp;", ">": "&gt;" }[c]));
+// Hex-Farbe (#rgb / #rrggbb) + Alpha -> rgba(); Fallback: helles Weiß
+function hexA(hex, a) {
+  let h = String(hex || "").trim().replace("#", "");
+  if (h.length === 3) h = h.split("").map((x) => x + x).join("");
+  if (h.length !== 6 || /[^0-9a-f]/i.test(h)) return "rgba(255,255,255," + a + ")";
+  return "rgba(" + parseInt(h.slice(0, 2), 16) + "," + parseInt(h.slice(2, 4), 16) + "," + parseInt(h.slice(4, 6), 16) + "," + a + ")";
+}
 
 let active = null; // aktuell offene Welt (für sauberes Schließen / Re-Entrancy)
 
@@ -44,6 +51,14 @@ function slideToCanvas(slide, c, resolveSrc) {
         const g = ctx.createLinearGradient(0, 576, 0, 0);
         g.addColorStop(0, "rgba(0,0,0,0.82)"); g.addColorStop(0.55, "rgba(0,0,0,0.2)"); g.addColorStop(1, "rgba(0,0,0,0)");
         ctx.fillStyle = g; ctx.fillRect(0, 0, 1024, 576);
+      } else {
+        // Ohne Bild: sanfter Akzent-Schein + Aufhellung, damit die Tafel nicht flach/dunkel wirkt
+        const rg = ctx.createRadialGradient(330, 250, 40, 330, 250, 760);
+        rg.addColorStop(0, hexA(c.accent, 0.26)); rg.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = rg; ctx.fillRect(0, 0, 1024, 576);
+        const lg = ctx.createLinearGradient(0, 0, 0, 576);
+        lg.addColorStop(0, "rgba(255,255,255,0.08)"); lg.addColorStop(0.6, "rgba(255,255,255,0)");
+        ctx.fillStyle = lg; ctx.fillRect(0, 0, 1024, 576);
       }
       ctx.textBaseline = "alphabetic";
       const pad = 60;
@@ -79,36 +94,44 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   if ("outputColorSpace" in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
   stage.innerHTML = ""; stage.appendChild(renderer.domElement);
 
+  const acc = new THREE.Color(accent);
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x05060a);
-  scene.fog = new THREE.Fog(0x05060a, 14, 64);
+  scene.background = new THREE.Color(0x0a0f1a);
+  scene.fog = new THREE.Fog(0x0a0f1a, 26, 110);
 
-  const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 220);
-  camera.position.set(0, 1.6, 5);
+  const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 240);
+  camera.position.set(0, 1.6, 6);
 
-  scene.add(new THREE.HemisphereLight(0x9fb4d6, 0x0a0c12, 0.75));
-  const dir = new THREE.DirectionalLight(0xffffff, 0.55); dir.position.set(6, 16, 6); scene.add(dir);
+  scene.add(new THREE.HemisphereLight(0xd2ddf2, 0x141a26, 1.2));
+  scene.add(new THREE.AmbientLight(0x2b3650, 0.7));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.75); dir.position.set(6, 18, 8); scene.add(dir);
 
   const n = deck.slides.length;
-  const spacing = 7, halfW = 6, hallLen = n * spacing + 16;
+  const spacing = 6.4, halfW = 6, hallLen = n * spacing + 16;
 
-  const acc = new THREE.Color(accent);
-  const glow = new THREE.PointLight(acc.getHex(), 0.6, 60, 1.4);
-  glow.position.set(0, 3.5, -hallLen + 6); scene.add(glow);
+  // Akzent-Licht am Eingang + am Ende -> Tiefe & Farbe
+  const glowEnd = new THREE.PointLight(acc.getHex(), 0.9, 80, 1.3); glowEnd.position.set(0, 3.6, -hallLen + 6); scene.add(glowEnd);
+  const glowIn = new THREE.PointLight(acc.getHex(), 0.6, 40, 1.6); glowIn.position.set(0, 3.2, 2); scene.add(glowIn);
 
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshStandardMaterial({ color: 0x0b0d13, roughness: 1, metalness: 0 }));
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshStandardMaterial({ color: 0x161c2a, roughness: 0.82, metalness: 0.12 }));
   floor.rotation.x = -Math.PI / 2; floor.position.z = -hallLen / 2 + 6; scene.add(floor);
-  const grid = new THREE.GridHelper(hallLen + 24, Math.max(8, Math.round((hallLen + 24) / 2)), 0x2a3550, 0x141a28);
-  grid.position.set(0, 0.01, floor.position.z); scene.add(grid);
+  const grid = new THREE.GridHelper(hallLen + 24, Math.max(8, Math.round((hallLen + 24) / 2)), 0x44557a, 0x232c42);
+  grid.position.set(0, 0.012, floor.position.z); scene.add(grid);
+  // leuchtender Pfad in der Mitte (führt den Blick nach vorn)
+  const runner = new THREE.Mesh(new THREE.PlaneGeometry(1.2, hallLen + 24), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.16 }));
+  runner.rotation.x = -Math.PI / 2; runner.position.set(0, 0.02, floor.position.z); scene.add(runner);
 
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x0a0c12, roughness: 1, side: THREE.DoubleSide });
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x141a27, roughness: 0.95, side: THREE.DoubleSide });
   for (const sx of [-1, 1]) {
-    const wall = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 6), wallMat);
-    wall.position.set(sx * halfW, 3, floor.position.z); wall.rotation.y = -sx * Math.PI / 2; scene.add(wall);
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 6.4), wallMat);
+    wall.position.set(sx * halfW, 3.2, floor.position.z); wall.rotation.y = -sx * Math.PI / 2; scene.add(wall);
+    // Akzent-Leiste oben an jeder Wand (Galerie-Beleuchtung)
+    const strip = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 0.14), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.55 }));
+    strip.position.set(sx * (halfW - 0.01), 4.7, floor.position.z); strip.rotation.y = -sx * Math.PI / 2; scene.add(strip);
   }
-  for (const [z, ry] of [[7, Math.PI], [-hallLen + 5, 0]]) {
-    const w = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, 6), wallMat);
-    w.position.set(0, 3, z); w.rotation.y = ry; scene.add(w);
+  for (const [z, ry] of [[8, Math.PI], [-hallLen + 5, 0]]) {
+    const w = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, 6.4), wallMat);
+    w.position.set(0, 3.2, z); w.rotation.y = ry; scene.add(w);
   }
 
   const boards = [];
@@ -117,15 +140,25 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
     const cv = await slideToCanvas(slide, { accent, ink, fontTitle, fontBody }, resolveSrc);
     const tex = new THREE.CanvasTexture(cv); tex.anisotropy = 4;
     if ("colorSpace" in tex) tex.colorSpace = THREE.SRGBColorSpace;
-    const bw = 6, bh = (bw * 9) / 16;
-    const sx = i % 2 === 0 ? -1 : 1;
-    const x = sx * (halfW - 0.2), z = -(9 + i * spacing), y = 2.15;
-    const frame = new THREE.Mesh(new THREE.PlaneGeometry(bw + 0.5, bh + 0.5), new THREE.MeshBasicMaterial({ color: 0x05070c }));
-    frame.position.set(x + sx * 0.03, y, z); frame.rotation.y = -sx * Math.PI / 2; scene.add(frame);
+    const bw = 5.4, bh = (bw * 9) / 16;
+    // Tafeln stehen versetzt links/rechts der Mittelachse und sind dem Eingang
+    // zugewandt (leicht zur Mitte gedreht) -> beim Reinlaufen sofort lesbar.
+    const side = i % 2 === 0 ? -1 : 1;
+    const x = side * 2.9, z = -(7 + i * spacing), y = 2.0;
+    const ry = -side * 0.26;
+    const g = new THREE.Group();
+    g.position.set(x, y, z); g.rotation.y = ry; scene.add(g);
+    const outline = new THREE.Mesh(new THREE.PlaneGeometry(bw + 0.34, bh + 0.34), new THREE.MeshBasicMaterial({ color: acc.getHex() }));
+    outline.position.z = -0.04; g.add(outline);
+    const frame = new THREE.Mesh(new THREE.PlaneGeometry(bw + 0.14, bh + 0.14), new THREE.MeshBasicMaterial({ color: 0x0a0e16 }));
+    frame.position.z = -0.02; g.add(frame);
     const board = new THREE.Mesh(new THREE.PlaneGeometry(bw, bh), new THREE.MeshBasicMaterial({ map: tex }));
-    board.position.set(x, y, z); board.rotation.y = -sx * Math.PI / 2; scene.add(board);
+    g.add(board);
+    // schlanker Standfuß, damit die Tafel im Raum „steht"
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, y - bh / 2, 0.12), new THREE.MeshStandardMaterial({ color: 0x141a27, roughness: 0.9 }));
+    post.position.set(x, (y - bh / 2) / 2, z); scene.add(post);
     boards.push({ slide, pos: new THREE.Vector3(x, y, z) });
-    disposables.push(tex, board.geometry, frame.geometry, board.material, frame.material);
+    disposables.push(tex, board.geometry, frame.geometry, outline.geometry, post.geometry, board.material, frame.material, outline.material, post.material);
   }));
 
   /* ----- Steuerung ----- */

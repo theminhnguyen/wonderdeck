@@ -462,12 +462,14 @@ html, body {
 .world__stage canvas { display: block; }
 .world__cross { position: fixed; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.7); z-index: 9100; pointer-events: none; }
 .world__load { position: fixed; inset: 0; z-index: 9200; display: grid; place-items: center; align-content: center; gap: 16px; background: #05060a; color: #cdd3dd; font-size: 14px; }
+.world__load[hidden] { display: none; }
 .world__load p { margin: 0; }
 .world__spinner { width: 40px; height: 40px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.15); border-top-color: var(--wd-accent); animation: wspin 0.9s linear infinite; }
 @keyframes wspin { to { transform: rotate(360deg); } }
 .world__hint { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 9100; font-size: 13px; color: rgba(255,255,255,0.78); background: rgba(0,0,0,0.42); padding: 8px 16px; border-radius: 999px; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 .world__hint b { color: #fff; }
 .world__panel { position: fixed; inset: 0; z-index: 9300; display: grid; place-items: center; background: rgba(5,6,10,0.72); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); padding: 24px; }
+.world__panel[hidden] { display: none; }
 .world__panel .wp { width: min(720px, 92vw); max-height: 86vh; overflow-y: auto; background: var(--wd-panel); border: 1px solid var(--wd-line); border-radius: 18px; padding: 28px 30px; box-shadow: 0 30px 80px rgba(0,0,0,0.6); }
 .world__panel img { width: 100%; border-radius: 12px; margin-bottom: 18px; display: block; }
 .world__panel h2 { font-family: var(--font-title, var(--serif)); font-weight: 600; font-size: 30px; line-height: 1.05; margin: 0 0 8px; color: var(--ink, var(--wd-text)); white-space: pre-wrap; }
