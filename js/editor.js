@@ -169,11 +169,13 @@ function deckSection() {
 
   // Modus: klassisches Folien-Deck vs. durchlaufbare Journey-Welt
   const modeSeg = h("div", { class: "seg" });
-  [["deck", "▦ Folien"], ["journey", "🚶 Journey"]].forEach(([val, lab]) =>
+  [["deck", "▦ Folien"], ["journey", "🚶 Journey"], ["world", "🌐 3D-Welt"]].forEach(([val, lab]) =>
     modeSeg.appendChild(h("button", { class: (state.deck.mode || "deck") === val ? "is-on" : "", text: lab, onclick: () => S.setDeckMode(val) })));
   sec.appendChild(field("Modus", modeSeg));
   if ((state.deck.mode || "deck") === "journey")
     sec.appendChild(h("p", { class: "insp-empty", text: "Journey: Folien werden zu Stationen auf einem Pfad. Stil, Übergang & Kopfzeile haben hier keine Wirkung." }));
+  if ((state.deck.mode || "deck") === "world")
+    sec.appendChild(h("p", { class: "insp-empty", text: "3D-Welt: Folien werden zu Ausstellungs-Tafeln in einer begehbaren Galerie (WASD/Maus, am Handy Joystick). Nah herangehen + E/Tippen öffnet die Details." }));
 
   const grid = h("div", { class: "themes" });
   THEMES.forEach((t) => {
@@ -397,7 +399,8 @@ export function init() {
   el("btnAddLayer").addEventListener("click", () => { imageMode = { mode: "add", layerId: null }; el("fileImage").click(); });
   el("btnAddText").addEventListener("click", () => S.addText("body"));
   const present = (idx) => {
-    if (state.deck.mode === "journey") openJourney(state.deck, srcOf, () => {});
+    if (state.deck.mode === "world") import("./world.js").then((m) => m.openWorld(state.deck, srcOf, () => {}));
+    else if (state.deck.mode === "journey") openJourney(state.deck, srcOf, () => {});
     else openPresent(state.deck, srcOf, idx == null ? state.current : idx, (i) => S.selectSlide(i), onDeckNav);
   };
   async function onDeckNav(deckId) { const d = await S.openDeckById(deckId); if (d) present(0); }

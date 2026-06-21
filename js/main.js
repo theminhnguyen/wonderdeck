@@ -28,7 +28,8 @@ async function boot() {
     if (location.hash.includes("layouts")) document.getElementById("btnAddSlide").click();
     if (location.hash.includes("decks")) document.getElementById("btnDecks").click();
     if (location.hash.includes("present") || params.has("present")) {
-      if (state.deck.mode === "journey") openJourney(state.deck, srcOf, null, start);
+      if (state.deck.mode === "world") import("./world.js").then((m) => m.openWorld(state.deck, srcOf, null));
+      else if (state.deck.mode === "journey") openJourney(state.deck, srcOf, null, start);
       else openPresent(state.deck, srcOf, start);
     }
   } catch (err) {

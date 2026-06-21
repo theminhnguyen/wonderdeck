@@ -455,6 +455,28 @@ html, body {
 .jr-trail path { stroke: var(--accent, #c9a25b); stroke-opacity: 0.55; }
 .jr-arcs { position: absolute; inset: 0; pointer-events: none; }
 .jr-arcs span { position: absolute; width: 44vmin; height: 44vmin; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--accent, #c9a25b) 20%, transparent); will-change: transform; }
+
+/* ===================== 3D-Welt (begehbar) ===================== */
+.world { position: fixed; inset: 0; z-index: 9000; background: #05060a; }
+.world__stage { position: absolute; inset: 0; }
+.world__stage canvas { display: block; }
+.world__cross { position: fixed; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.7); z-index: 9100; pointer-events: none; }
+.world__load { position: fixed; inset: 0; z-index: 9200; display: grid; place-items: center; align-content: center; gap: 16px; background: #05060a; color: #cdd3dd; font-size: 14px; }
+.world__load p { margin: 0; }
+.world__spinner { width: 40px; height: 40px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.15); border-top-color: var(--wd-accent); animation: wspin 0.9s linear infinite; }
+@keyframes wspin { to { transform: rotate(360deg); } }
+.world__hint { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 9100; font-size: 13px; color: rgba(255,255,255,0.78); background: rgba(0,0,0,0.42); padding: 8px 16px; border-radius: 999px; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.world__hint b { color: #fff; }
+.world__panel { position: fixed; inset: 0; z-index: 9300; display: grid; place-items: center; background: rgba(5,6,10,0.72); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); padding: 24px; }
+.world__panel .wp { width: min(720px, 92vw); max-height: 86vh; overflow-y: auto; background: var(--wd-panel); border: 1px solid var(--wd-line); border-radius: 18px; padding: 28px 30px; box-shadow: 0 30px 80px rgba(0,0,0,0.6); }
+.world__panel img { width: 100%; border-radius: 12px; margin-bottom: 18px; display: block; }
+.world__panel h2 { font-family: var(--font-title, var(--serif)); font-weight: 600; font-size: 30px; line-height: 1.05; margin: 0 0 8px; color: var(--ink, var(--wd-text)); white-space: pre-wrap; }
+.world__panel .k { font-size: 12px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent, var(--wd-accent)); margin: 0 0 10px; }
+.world__panel p { font-size: 15px; line-height: 1.6; color: var(--wd-text); white-space: pre-wrap; margin: 0 0 10px; }
+.world__exit { z-index: 9400; opacity: 0.75; }
+.world:hover .world__exit { opacity: 1; }
+.world__joy { position: fixed; left: 26px; bottom: 26px; width: 110px; height: 110px; border-radius: 50%; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); z-index: 9100; touch-action: none; }
+.world__nub { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.4); }
 .jr-stations { position: absolute; inset: 0; }
 .jr-station { position: absolute; left: 50%; top: 50%; width: min(74%, 780px); text-align: center; container-type: inline-size; will-change: transform, opacity; }
 .jr-station__img { width: 100%; max-height: 42vh; object-fit: cover; border-radius: 16px; margin: 0 auto 26px; display: block; box-shadow: 0 36px 90px rgba(0,0,0,0.55); }

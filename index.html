@@ -12,6 +12,15 @@
     href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;600;700&family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&display=swap"
     rel="stylesheet"
   />
+  <!-- Three.js (3D-Welt) ohne Build: via CDN + Import-Map; wird nur geladen, wenn man die Welt betritt -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+      }
+    }
+  </script>
   <link rel="stylesheet" href="css/stage.css" />
   <link rel="stylesheet" href="css/editor.css" />
 </head>
@@ -96,6 +105,17 @@
     <div class="jr-counter" id="journeyCounter"></div>
     <div class="jr-hint">Scrollen oder ziehen, um zu gehen · Esc beendet</div>
     <button class="present__exit" id="journeyExit" aria-label="Beenden (Esc)">✕</button>
+  </div>
+
+  <!-- ============ 3D-Welt (begehbar) ============ -->
+  <div id="world" class="world" hidden>
+    <div id="worldStage" class="world__stage"></div>
+    <div class="world__cross" id="worldCross" hidden></div>
+    <div class="world__load" id="worldLoad"><div class="world__spinner"></div><p>3D-Welt wird geladen …</p></div>
+    <div class="world__hint" id="worldHint"><b>Klick</b> zum Start · <b>WASD</b> bewegen · <b>Maus</b> schauen · <b>E</b> Details · <b>Esc</b> Maus frei</div>
+    <div class="world__panel" id="worldPanel" hidden></div>
+    <div class="world__joy" id="worldJoy" hidden><span class="world__nub" id="worldNub"></span></div>
+    <button class="world__exit present__exit" id="worldExit" aria-label="Beenden">✕</button>
   </div>
 
   <!-- ============ Hilfe-Fenster ============ -->

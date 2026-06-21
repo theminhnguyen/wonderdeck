@@ -185,6 +185,23 @@ async function buildJourney() {
   return finalize("Journey · Eine Reise", "sky", slides, [], "journey");
 }
 
+/* ---------- 3D-Welt (begehbare Galerie) ---------- */
+async function buildWorld() {
+  const a = await img(G.skyGrad(["#0a1230", "#243a8a", "#5a4bbf"], { cx: 0.5, cy: 0.4, r: 0.5, color: "#bcd0ff" }));
+  const b = await img(G.orbGlow("#101838", "#06070f", "#8aa0ff"));
+  const c = await img(G.gradientScene("#0b2a3a", "#13506b", "#1f8a8a", "#a7f0d8"));
+  const d = await img(G.gradientScene("#2a1640", "#7a2e63", "#e06a4e", "#ffd28a"));
+  const e = await img(G.skyGrad(["#0a0708", "#1a0a0c", "#2a0c0a"]));
+  const slides = [
+    Slide("snap", "#0a1230", [L(a, "Tafel", 0)], [T("kicker", "WILLKOMMEN"), T("title", "Die Galerie"), T("subtitle", "Geh mit WASD & Maus durch den Raum. Am Handy: Joystick & Wischen.")]),
+    Slide("snap", "#101838", [L(b, "Tafel", 0)], [T("kicker", "TAFEL 1"), T("title", "Jede Folie wird zur Tafel"), T("body", "Deine bestehenden Inhalte hängen automatisch an den Wänden — kein Extra-Aufwand.")]),
+    Slide("snap", "#0b2a3a", [L(c, "Tafel", 0)], [T("kicker", "TAFEL 2"), T("title", "Nah herangehen"), T("body", "Trittst du an eine Tafel, erscheint unten der Hinweis. E (oder Tippen) öffnet die Details gestochen scharf.")]),
+    Slide("snap", "#2a1640", [L(d, "Tafel", 0)], [T("kicker", "TAFEL 3"), T("title", "Frei begehbar"), T("body", "Keine feste Reihenfolge — die Betrachter:innen entscheiden ihren eigenen Weg durch deine Story.")]),
+    Slide("snap", "#0a0708", [L(e, "Tafel", 0)], [T("title", "Ende der Galerie"), T("subtitle", "Dreh dich um und geh zurück — oder schließe mit Esc / ✕.")]),
+  ];
+  return finalize("3D-Welt · Galerie", "sky", slides, [], "world");
+}
+
 /* ---------- Projekt-Pitch (Business) ---------- */
 async function buildPitch() {
   const bg1 = await img(G.skyGrad(["#0a1230", "#1b3a6b", "#2f6f9e"], { cx: 0.5, cy: 0.68, r: 0.45, color: "#bcd0ff" }));
@@ -290,6 +307,7 @@ export const EXAMPLES = [
   { key: "aurora", name: "Aurora · Keynote", desc: "Produkt-Launch im Keynote-Stil: Weltraum, leuchtender Orb, große Zahlen.", grad: "radial-gradient(circle at 50% 42%,#8aa0ff,#101636 72%)", build: buildAurora },
   { key: "eon", name: "E.ON Expert Services", desc: "Markenvorlage aus dem PowerPoint-Master: E.ON-Rot, Brix-Sans-Schrift — cinematisch, Platzhalter zum Anpassen.", grad: "linear-gradient(135deg,#ea1b0a,#9d1207,#700e61)", build: buildEon },
   { key: "journey", name: "Journey · Reise", desc: "Durchlaufbare 2.5D-Welt: ein Pfad, Stationen tauchen auf, während du gehst.", grad: "linear-gradient(135deg,#243a8a,#8aa0ff)", build: buildJourney },
+  { key: "world", name: "3D-Welt · Galerie", desc: "Echte begehbare 3D-Galerie (Three.js): Folien hängen als Tafeln an den Wänden, frei laufen mit WASD/Maus oder Joystick.", grad: "linear-gradient(135deg,#0a1230,#5a4bbf,#8aa0ff)", build: buildWorld },
   { key: "wanderlust", name: "Wanderlust · Reise", desc: "Kreativ-Story mit echter Tiefe: Berge, Täler und Meer.", grad: "linear-gradient(135deg,#16244e,#c2738e,#f0a36a)", build: buildWanderlust },
   { key: "nova", name: "Studio Nova · Portfolio", desc: "Knallige Kreativ-Agentur: Farb-Blobs und fette Typo.", grad: "linear-gradient(135deg,#ff5a8a,#7a5bff,#3cc8ff)", build: buildStudioNova },
   { key: "stille", name: "Stille · Minimalismus", desc: "Poesie pur: viel Weißraum, ein Gedanke pro Folie.", grad: "linear-gradient(135deg,#2a2630,#46303c)", build: buildStille },
