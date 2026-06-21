@@ -265,40 +265,42 @@ function WORLD_RUNTIME(DECK, CFG, THREE) {
 
     const acc = new THREE.Color(accent); const hsl = {}; acc.getHSL(hsl);
     const tint = (l, s) => new THREE.Color().setHSL(hsl.h, Math.min(hsl.s, s == null ? 0.4 : s), l);
-    const bgCol = tint(0.045, 0.5);
-    const scene = new THREE.Scene(); scene.background = bgCol; scene.fog = new THREE.Fog(bgCol, 26, 110);
+    const bgCol = tint(0.5, 0.12);
+    const scene = new THREE.Scene(); scene.background = bgCol; scene.fog = new THREE.Fog(bgCol, 34, 130);
     const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 240); camera.position.set(0, 1.6, 6);
-    scene.add(new THREE.HemisphereLight(tint(0.62, 0.25).getHex(), tint(0.08, 0.3).getHex(), 1.2));
-    scene.add(new THREE.AmbientLight(tint(0.18, 0.35).getHex(), 0.7));
-    const dir = new THREE.DirectionalLight(0xffffff, 0.75); dir.position.set(6, 18, 8); scene.add(dir);
+    scene.add(new THREE.HemisphereLight(tint(0.92, 0.08).getHex(), tint(0.4, 0.16).getHex(), 1.5));
+    scene.add(new THREE.AmbientLight(tint(0.6, 0.12).getHex(), 0.95));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.7); dir.position.set(6, 18, 8); scene.add(dir);
 
     const n = DECK.slides.length; const spacing = 7, halfW = 7.5, hallLen = n * spacing + 18;
     const glowEnd = new THREE.PointLight(acc.getHex(), 0.9, 80, 1.3); glowEnd.position.set(0, 3.6, -hallLen + 6); scene.add(glowEnd);
-    const glowIn = new THREE.PointLight(acc.getHex(), 0.6, 40, 1.6); glowIn.position.set(0, 3.2, 2); scene.add(glowIn);
+    const glowIn = new THREE.PointLight(acc.getHex(), 0.5, 40, 1.6); glowIn.position.set(0, 3.2, 2); scene.add(glowIn);
 
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshStandardMaterial({ color: tint(0.10, 0.32).getHex(), roughness: 0.82, metalness: 0.12 }));
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshStandardMaterial({ color: tint(0.36, 0.1).getHex(), roughness: 0.45, metalness: 0.25 }));
     floor.rotation.x = -Math.PI / 2; floor.position.z = -hallLen / 2 + 6; scene.add(floor);
-    const grid = new THREE.GridHelper(hallLen + 24, Math.max(8, Math.round((hallLen + 24) / 2)), tint(0.32, 0.4).getHex(), tint(0.16, 0.3).getHex());
+    const grid = new THREE.GridHelper(hallLen + 24, Math.max(8, Math.round((hallLen + 24) / 2)), tint(0.48, 0.12).getHex(), tint(0.28, 0.1).getHex());
     grid.position.set(0, 0.012, floor.position.z); scene.add(grid);
-    const runner = new THREE.Mesh(new THREE.PlaneGeometry(1.2, hallLen + 24), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.16 }));
+    const runner = new THREE.Mesh(new THREE.PlaneGeometry(1.6, hallLen + 24), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.3 }));
     runner.rotation.x = -Math.PI / 2; runner.position.set(0, 0.02, floor.position.z); scene.add(runner);
 
-    const wallMat = new THREE.MeshStandardMaterial({ color: tint(0.075, 0.32).getHex(), roughness: 0.95, side: THREE.DoubleSide });
+    const wallMat = new THREE.MeshStandardMaterial({ color: tint(0.54, 0.08).getHex(), roughness: 0.92, side: THREE.DoubleSide });
     for (const sx of [-1, 1]) {
       const wall = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 6.4), wallMat); wall.position.set(sx * halfW, 3.2, floor.position.z); wall.rotation.y = -sx * Math.PI / 2; scene.add(wall);
-      const strip = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 0.14), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.55 })); strip.position.set(sx * (halfW - 0.01), 4.7, floor.position.z); strip.rotation.y = -sx * Math.PI / 2; scene.add(strip);
-      const base = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.34, hallLen + 24), new THREE.MeshStandardMaterial({ color: tint(0.13, 0.3).getHex(), roughness: 0.9 })); base.position.set(sx * (halfW - 0.08), 0.17, floor.position.z); scene.add(base);
+      const strip = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 0.14), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.7 })); strip.position.set(sx * (halfW - 0.01), 4.7, floor.position.z); strip.rotation.y = -sx * Math.PI / 2; scene.add(strip);
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.4, hallLen + 24), new THREE.MeshStandardMaterial({ color: tint(0.28, 0.14).getHex(), roughness: 0.85 })); base.position.set(sx * (halfW - 0.08), 0.2, floor.position.z); scene.add(base);
     }
     for (const [z, ry] of [[8, Math.PI], [-hallLen + 5, 0]]) { const w = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, 6.4), wallMat); w.position.set(0, 3.2, z); w.rotation.y = ry; scene.add(w); }
-    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshStandardMaterial({ color: tint(0.06, 0.35).getHex(), roughness: 1, side: THREE.DoubleSide })); ceil.rotation.x = Math.PI / 2; ceil.position.set(0, 5.4, floor.position.z); scene.add(ceil);
+    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshStandardMaterial({ color: tint(0.44, 0.1).getHex(), roughness: 1, side: THREE.DoubleSide })); ceil.rotation.x = Math.PI / 2; ceil.position.set(0, 5.4, floor.position.z); scene.add(ceil);
+    const skylight = new THREE.Mesh(new THREE.PlaneGeometry(2.4, hallLen + 20), new THREE.MeshBasicMaterial({ color: 0xfff4e2 })); skylight.rotation.x = Math.PI / 2; skylight.position.set(0, 5.36, floor.position.z); scene.add(skylight);
+    for (let z = -2; z > -hallLen + 6; z -= 12) { const sl = new THREE.PointLight(0xfff2e0, 0.5, 26, 1.8); sl.position.set(0, 5.0, z); scene.add(sl); }
 
     // Museums-Ausstattung: Säulen, Deckenbalken, Wandbilder, Bänke, Pflanzen
-    const stoneMat = new THREE.MeshStandardMaterial({ color: tint(0.2, 0.14).getHex(), roughness: 0.9 });
-    const stoneDark = new THREE.MeshStandardMaterial({ color: tint(0.12, 0.18).getHex(), roughness: 0.95 });
-    const woodMat = new THREE.MeshStandardMaterial({ color: tint(0.14, 0.3).getHex(), roughness: 0.6, metalness: 0.15 });
-    const frameMat = new THREE.MeshStandardMaterial({ color: tint(0.09, 0.2).getHex(), roughness: 0.8 });
-    const potMat = new THREE.MeshStandardMaterial({ color: tint(0.16, 0.22).getHex(), roughness: 0.9 });
-    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2f5a3a, roughness: 1 });
+    const stoneMat = new THREE.MeshStandardMaterial({ color: tint(0.6, 0.07).getHex(), roughness: 0.85 });
+    const stoneDark = new THREE.MeshStandardMaterial({ color: tint(0.42, 0.1).getHex(), roughness: 0.9 });
+    const woodMat = new THREE.MeshStandardMaterial({ color: tint(0.22, 0.28).getHex(), roughness: 0.55, metalness: 0.2 });
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0xb89b5e, roughness: 0.45, metalness: 0.5 });
+    const potMat = new THREE.MeshStandardMaterial({ color: tint(0.3, 0.16).getHex(), roughness: 0.8 });
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x3a7a4a, roughness: 1 });
     const colGeo = new THREE.CylinderGeometry(0.4, 0.46, 4.9, 18), fluteGeo = new THREE.BoxGeometry(1.1, 0.42, 1.1), capGeo = new THREE.BoxGeometry(1.0, 0.34, 1.0);
     const beamGeo = new THREE.BoxGeometry(halfW * 2, 0.26, 0.4), artFrameGeo = new THREE.BoxGeometry(2.7, 3.5, 0.14), artFillGeo = new THREE.PlaneGeometry(2.2, 3.0);
     const benchSeatGeo = new THREE.BoxGeometry(2.6, 0.18, 0.8), benchLegGeo = new THREE.BoxGeometry(0.18, 0.5, 0.7), potGeo = new THREE.CylinderGeometry(0.32, 0.24, 0.6, 14), leafGeo = new THREE.SphereGeometry(0.55, 12, 10);
@@ -311,7 +313,7 @@ function WORLD_RUNTIME(DECK, CFG, THREE) {
     const artZs = []; for (let z = -2.5; z > -hallLen + 6; z -= 7) artZs.push(z);
     for (const z of artZs) for (const sx of [-1, 1]) {
       const fr = new THREE.Mesh(artFrameGeo, frameMat); fr.position.set(sx * (halfW - 0.13), 2.7, z); fr.rotation.y = -sx * Math.PI / 2; scene.add(fr);
-      const fill = new THREE.Mesh(artFillGeo, new THREE.MeshBasicMaterial({ color: tint(0.16 + Math.random() * 0.16, 0.5).getHex() })); fill.position.set(sx * (halfW - 0.19), 2.7, z); fill.rotation.y = -sx * Math.PI / 2; scene.add(fill);
+      const fill = new THREE.Mesh(artFillGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color().setHSL(Math.random(), 0.45, 0.45).getHex() })); fill.position.set(sx * (halfW - 0.19), 2.7, z); fill.rotation.y = -sx * Math.PI / 2; scene.add(fill);
     }
     for (let i = 0, z = -5; z > -hallLen + 6; z -= 14, i++) for (const sx of [-1, 1]) {
       const bx = sx * (halfW - 2.3);
