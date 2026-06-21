@@ -1,10 +1,12 @@
 /* ===================================================================
-   world.js — "3D-Welt"-Modus: eine begehbare Galerie (Three.js).
-   - First-Person: Pointer-Lock-API + WASD/Maus (Desktop), Joystick+Drag (Touch)
-   - Folien werden zu Ausstellungs-Tafeln entlang eines Korridors
-   - Nähe zu einer Tafel + E/Tippen -> fokussiertes Detail-Overlay
-   - Kollision: leichte Korridor-Begrenzung (keine Physik-Engine nötig)
-   Three.js wird ohne Build via Import-Map (CDN) geladen.
+   world.js — "3D-Welt": begehbares Comic-Museum (Three.js).
+   - DRITTE PERSON: eine Figur, gesteuert NUR mit Tastatur (WASD/Pfeile),
+     keine Maus. Kamera folgt der Figur (Diorama-Blick).
+   - Comic/Toon-Look + koreanische Museums-Elemente (Papierlaternen,
+     Dancheong-Balken, Steinlaternen, Eingangstor).
+   - Folien werden zu Ausstellungs-Tafeln; Nähe + E öffnet Details.
+   - Sprechblasen-Tutorial am Anfang erklärt die Steuerung.
+   Three.js via Import-Map (CDN), kein Build.
    =================================================================== */
 import * as THREE from "three";
 import { themeVars } from "./themes.js";
@@ -12,7 +14,6 @@ import { themeVars } from "./themes.js";
 const el = (id) => document.getElementById(id);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const esc = (s) => String(s == null ? "" : s).replace(/[<&>]/g, (c) => ({ "<": "&lt;", "&": "&amp;", ">": "&gt;" }[c]));
-// Hex-Farbe (#rgb / #rrggbb) + Alpha -> rgba(); Fallback: helles Weiß
 function hexA(hex, a) {
   let h = String(hex || "").trim().replace("#", "");
   if (h.length === 3) h = h.split("").map((x) => x + x).join("");
@@ -20,7 +21,7 @@ function hexA(hex, a) {
   return "rgba(" + parseInt(h.slice(0, 2), 16) + "," + parseInt(h.slice(2, 4), 16) + "," + parseInt(h.slice(4, 6), 16) + "," + a + ")";
 }
 
-let active = null; // aktuell offene Welt (für sauberes Schließen / Re-Entrancy)
+let active = null;
 
 /* ---------- Folie -> Canvas-Textur (für die Tafel) ---------- */
 function coverDraw(ctx, img, w, h) {
@@ -52,7 +53,6 @@ function slideToCanvas(slide, c, resolveSrc) {
         g.addColorStop(0, "rgba(0,0,0,0.82)"); g.addColorStop(0.55, "rgba(0,0,0,0.2)"); g.addColorStop(1, "rgba(0,0,0,0)");
         ctx.fillStyle = g; ctx.fillRect(0, 0, 1024, 576);
       } else {
-        // Ohne Bild: sanfter Akzent-Schein + Aufhellung, damit die Tafel nicht flach/dunkel wirkt
         const rg = ctx.createRadialGradient(330, 250, 40, 330, 250, 760);
         rg.addColorStop(0, hexA(c.accent, 0.26)); rg.addColorStop(1, "rgba(0,0,0,0)");
         ctx.fillStyle = rg; ctx.fillRect(0, 0, 1024, 576);
@@ -76,11 +76,62 @@ function slideToCanvas(slide, c, resolveSrc) {
   });
 }
 
+/* ---------- Dancheong-Muster (koreanische Bemalung) als Textur ---------- */
+function dancheongTexture(THREE) {
+  const cv = document.createElement("canvas"); cv.width = 256; cv.height = 48; const c = cv.getContext("2d");
+  c.fillStyle = "#1f6f4a"; c.fillRect(0, 0, 256, 48);
+  const cols = ["#c0392b", "#2e6fb0", "#e8c33a", "#f4f1ea"];
+  for (let x = 0, i = 0; x < 256; x += 32, i++) { c.fillStyle = cols[i % cols.length]; c.fillRect(x + 6, 8, 20, 32); }
+  c.fillStyle = "#102a1c"; c.fillRect(0, 0, 256, 5); c.fillRect(0, 43, 256, 5);
+  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  if ("colorSpace" in t) t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/* ---------- Comic-Figur mit koreanischem Gat-Hut ---------- */
+function makeHero(THREE, accentHex) {
+  const g = new THREE.Group();
+  const skin = new THREE.MeshToonMaterial({ color: 0xf2c6a0 });
+  const robe = new THREE.MeshToonMaterial({ color: accentHex });
+  const white = new THREE.MeshToonMaterial({ color: 0xf6f2ea });
+  const black = new THREE.MeshToonMaterial({ color: 0x1b1b1b });
+  const out = new THREE.MeshBasicMaterial({ color: 0x14140f, side: THREE.BackSide });
+  const add = (geo, mat, x, y, z, sx, sy, sz) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); if (sx != null) m.scale.set(sx, sy, sz); g.add(m); return m; };
+  const outline = (geo, x, y, z, s, sy, sz) => { const m = new THREE.Mesh(geo, out); m.position.set(x, y, z); m.scale.set(s, sy == null ? s : sy, sz == null ? s : sz); g.add(m); };
+
+  const skirtGeo = new THREE.ConeGeometry(0.44, 0.78, 18);
+  const torsoGeo = new THREE.SphereGeometry(0.3, 18, 14);
+  const headGeo = new THREE.SphereGeometry(0.27, 20, 16);
+  outline(skirtGeo, 0, 0.39, 0, 1.08);
+  outline(torsoGeo, 0, 0.82, 0, 1.12, 1.0, 1.12);
+  outline(headGeo, 0, 1.22, 0, 1.09);
+  add(skirtGeo, robe, 0, 0.39, 0);
+  add(torsoGeo, white, 0, 0.82, 0, 1.0, 0.92, 1.0);
+  add(headGeo, skin, 0, 1.22, 0);
+  // Gat-Hut (schwarz): Krempe + Dom
+  add(new THREE.CylinderGeometry(0.36, 0.36, 0.03, 20), black, 0, 1.4, 0);
+  add(new THREE.CylinderGeometry(0.15, 0.18, 0.24, 16), black, 0, 1.52, 0);
+  // kleiner Knoten oben
+  add(new THREE.SphereGeometry(0.05, 8, 8), black, 0, 1.66, 0);
+  // Augen (Gesicht zeigt +Z)
+  const eyeGeo = new THREE.SphereGeometry(0.038, 8, 8);
+  add(eyeGeo, black, -0.1, 1.25, 0.235); add(eyeGeo, black, 0.1, 1.25, 0.235);
+  // Wangen-Tupfer
+  const cheek = new THREE.MeshToonMaterial({ color: 0xe8907a });
+  add(new THREE.SphereGeometry(0.05, 8, 8), cheek, -0.17, 1.18, 0.21, 1, 0.6, 0.4);
+  add(new THREE.SphereGeometry(0.05, 8, 8), cheek, 0.17, 1.18, 0.21, 1, 0.6, 0.4);
+  // Ärmchen
+  for (const sx of [-1, 1]) add(new THREE.CapsuleGeometry(0.07, 0.22, 4, 8), white, sx * 0.3, 0.8, 0, 1, 1, 1);
+  return g;
+}
+
 /* ---------- Welt öffnen ---------- */
 export async function openWorld(deck, resolveSrc, onClose = null) {
   if (active) active.close();
-  const overlay = el("world"), stage = el("worldStage"), loader = el("worldLoad"), hintEl = el("worldHint");
+  const overlay = el("world"), stage = el("worldStage"), loader = el("worldLoad"), hintEl = el("worldHint"), bubbleEl = el("worldBubble");
   overlay.hidden = false; loader.hidden = false; el("worldPanel").hidden = true;
+  el("worldCross").hidden = true;
+  if (bubbleEl) bubbleEl.hidden = true;
 
   const tv = themeVars(deck.theme);
   const accent = tv["--accent"], ink = tv["--ink"], fontTitle = tv["--font-title"], fontBody = tv["--font-body"];
@@ -95,211 +146,249 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   stage.innerHTML = ""; stage.appendChild(renderer.domElement);
 
   const acc = new THREE.Color(accent);
-  // Umgebungsfarben aus dem Theme-Akzent ableiten -> Raum passt zur Präsentation.
   const hsl = {}; acc.getHSL(hsl);
   const tint = (l, s) => new THREE.Color().setHSL(hsl.h, Math.min(hsl.s, s == null ? 0.4 : s), l);
-  // Heller Galeriesaal: Wände/Boden/Decke hell (mit Theme-Tönung), Akzent als Highlight.
-  const bgCol = tint(0.5, 0.12);
+  const bgCol = tint(0.52, 0.14);
   const scene = new THREE.Scene();
   scene.background = bgCol;
   scene.fog = new THREE.Fog(bgCol, 34, 130);
 
-  const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 240);
-  camera.position.set(0, 1.6, 6);
+  const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 240);
 
-  scene.add(new THREE.HemisphereLight(tint(0.92, 0.08).getHex(), tint(0.4, 0.16).getHex(), 1.5));
-  scene.add(new THREE.AmbientLight(tint(0.6, 0.12).getHex(), 0.95));
-  const dir = new THREE.DirectionalLight(0xffffff, 0.7); dir.position.set(6, 18, 8); scene.add(dir);
+  scene.add(new THREE.HemisphereLight(tint(0.95, 0.06).getHex(), tint(0.42, 0.16).getHex(), 1.45));
+  scene.add(new THREE.AmbientLight(tint(0.62, 0.1).getHex(), 0.9));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.75); dir.position.set(6, 18, 8); scene.add(dir);
 
   const n = deck.slides.length;
   const spacing = 7, halfW = 7.5, hallLen = n * spacing + 18;
+  const FRONT_Z = 13;
 
-  // Akzent-Licht am Eingang + am Ende -> Tiefe & Farbe
   const glowEnd = new THREE.PointLight(acc.getHex(), 0.9, 80, 1.3); glowEnd.position.set(0, 3.6, -hallLen + 6); scene.add(glowEnd);
-  const glowIn = new THREE.PointLight(acc.getHex(), 0.5, 40, 1.6); glowIn.position.set(0, 3.2, 2); scene.add(glowIn);
 
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshStandardMaterial({ color: tint(0.36, 0.1).getHex(), roughness: 0.45, metalness: 0.25 }));
+  const disposables = [];
+  const obstacles = []; // {x,z,r} für einfache Kollision
+  const place = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); return m; };
+
+  /* ----- Boden, Wände, Decke (Toon = Comic) ----- */
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshToonMaterial({ color: tint(0.4, 0.1).getHex() }));
   floor.rotation.x = -Math.PI / 2; floor.position.z = -hallLen / 2 + 6; scene.add(floor);
-  const grid = new THREE.GridHelper(hallLen + 24, Math.max(8, Math.round((hallLen + 24) / 2)), tint(0.48, 0.12).getHex(), tint(0.28, 0.1).getHex());
+  const grid = new THREE.GridHelper(hallLen + 24, Math.max(8, Math.round((hallLen + 24) / 2)), tint(0.5, 0.12).getHex(), tint(0.3, 0.1).getHex());
   grid.position.set(0, 0.012, floor.position.z); scene.add(grid);
-  // Akzent-Teppich in der Mitte (führt den Blick nach vorn)
-  const runner = new THREE.Mesh(new THREE.PlaneGeometry(1.6, hallLen + 24), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.3 }));
+  const runner = new THREE.Mesh(new THREE.PlaneGeometry(1.8, hallLen + 24), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.32 }));
   runner.rotation.x = -Math.PI / 2; runner.position.set(0, 0.02, floor.position.z); scene.add(runner);
 
-  const wallMat = new THREE.MeshStandardMaterial({ color: tint(0.54, 0.08).getHex(), roughness: 0.92, side: THREE.DoubleSide });
+  const wallMat = new THREE.MeshToonMaterial({ color: tint(0.56, 0.07).getHex(), side: THREE.DoubleSide });
   for (const sx of [-1, 1]) {
     const wall = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 6.4), wallMat);
     wall.position.set(sx * halfW, 3.2, floor.position.z); wall.rotation.y = -sx * Math.PI / 2; scene.add(wall);
-    // Akzent-Leiste oben an jeder Wand (Galerie-Beleuchtung)
     const strip = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 0.14), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.7 }));
     strip.position.set(sx * (halfW - 0.01), 4.7, floor.position.z); strip.rotation.y = -sx * Math.PI / 2; scene.add(strip);
-    // dunkle Sockelleiste unten -> Kontrast wie im echten Saal
-    const base = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.4, hallLen + 24), new THREE.MeshStandardMaterial({ color: tint(0.28, 0.14).getHex(), roughness: 0.85 }));
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.4, hallLen + 24), new THREE.MeshToonMaterial({ color: tint(0.3, 0.14).getHex() }));
     base.position.set(sx * (halfW - 0.08), 0.2, floor.position.z); scene.add(base);
   }
-  for (const [z, ry] of [[8, Math.PI], [-hallLen + 5, 0]]) {
+  for (const [z, ry] of [[FRONT_Z, Math.PI], [-hallLen + 5, 0]]) {
     const w = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, 6.4), wallMat);
     w.position.set(0, 3.2, z); w.rotation.y = ry; scene.add(w);
   }
-  // helle Decke + leuchtendes Oberlicht in der Mitte (wie Tageslicht im Saal)
-  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshStandardMaterial({ color: tint(0.44, 0.1).getHex(), roughness: 1, side: THREE.DoubleSide }));
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshToonMaterial({ color: tint(0.46, 0.1).getHex(), side: THREE.DoubleSide }));
   ceil.rotation.x = Math.PI / 2; ceil.position.set(0, 5.4, floor.position.z); scene.add(ceil);
   const skylight = new THREE.Mesh(new THREE.PlaneGeometry(2.4, hallLen + 20), new THREE.MeshBasicMaterial({ color: 0xfff4e2 }));
   skylight.rotation.x = Math.PI / 2; skylight.position.set(0, 5.36, floor.position.z); scene.add(skylight);
-  for (let z = -2; z > -hallLen + 6; z -= 12) { const sl = new THREE.PointLight(0xfff2e0, 0.5, 26, 1.8); sl.position.set(0, 5.0, z); scene.add(sl); }
+  for (let z = -4; z > -hallLen + 6; z -= 16) { const sl = new THREE.PointLight(0xfff2e0, 0.45, 26, 1.8); sl.position.set(0, 5.0, z); scene.add(sl); }
 
-  const boards = [];
-  const disposables = [];
+  /* ----- Materialien Ausstattung ----- */
+  const stoneMat = new THREE.MeshToonMaterial({ color: tint(0.62, 0.06).getHex() });
+  const stoneDark = new THREE.MeshToonMaterial({ color: tint(0.44, 0.1).getHex() });
+  const woodMat = new THREE.MeshToonMaterial({ color: tint(0.24, 0.28).getHex() });
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0xb89b5e, roughness: 0.45, metalness: 0.5 });
+  const leafMat = new THREE.MeshToonMaterial({ color: 0x3a7a4a });
+  const potMat = new THREE.MeshToonMaterial({ color: 0xc0392b });
+  const dancheong = dancheongTexture(THREE); dancheong.repeat.set(10, 1);
+  const beamMat = new THREE.MeshBasicMaterial({ map: dancheong });
+  disposables.push(stoneMat, stoneDark, woodMat, frameMat, leafMat, potMat, beamMat, dancheong, floor.geometry, floor.material, wallMat, ceil.material, runner.material, skylight.material);
 
-  /* ===== Museums-Ausstattung: Säulen, Deckenbalken, Wandbilder, Bänke, Pflanzen ===== */
-  const stoneMat = new THREE.MeshStandardMaterial({ color: tint(0.6, 0.07).getHex(), roughness: 0.85 });  // helle Säulen (Marmor)
-  const stoneDark = new THREE.MeshStandardMaterial({ color: tint(0.42, 0.1).getHex(), roughness: 0.9 });
-  const woodMat = new THREE.MeshStandardMaterial({ color: tint(0.22, 0.28).getHex(), roughness: 0.55, metalness: 0.2 }); // dunkles Holz (Bänke)
-  const frameMat = new THREE.MeshStandardMaterial({ color: 0xb89b5e, roughness: 0.45, metalness: 0.5 }); // Goldrahmen
-  const potMat = new THREE.MeshStandardMaterial({ color: tint(0.3, 0.16).getHex(), roughness: 0.8 });
-  const leafMat = new THREE.MeshStandardMaterial({ color: 0x3a7a4a, roughness: 1 });
   const colGeo = new THREE.CylinderGeometry(0.4, 0.46, 4.9, 18);
   const fluteGeo = new THREE.BoxGeometry(1.1, 0.42, 1.1);
   const capGeo = new THREE.BoxGeometry(1.0, 0.34, 1.0);
-  const beamGeo = new THREE.BoxGeometry(halfW * 2, 0.26, 0.4);
-  const artFrameGeo = new THREE.BoxGeometry(2.7, 3.5, 0.14);
-  const artFillGeo = new THREE.PlaneGeometry(2.2, 3.0);
-  const benchSeatGeo = new THREE.BoxGeometry(2.6, 0.18, 0.8);
-  const benchLegGeo = new THREE.BoxGeometry(0.18, 0.5, 0.7);
-  const potGeo = new THREE.CylinderGeometry(0.32, 0.24, 0.6, 14);
-  const leafGeo = new THREE.SphereGeometry(0.55, 12, 10);
-  disposables.push(stoneMat, stoneDark, woodMat, frameMat, potMat, leafMat, colGeo, fluteGeo, capGeo, beamGeo, artFrameGeo, artFillGeo, benchSeatGeo, benchLegGeo, potGeo, leafGeo);
+  const beamGeo = new THREE.BoxGeometry(halfW * 2, 0.3, 0.42);
+  disposables.push(colGeo, fluteGeo, capGeo, beamGeo);
 
   const colXs = [-(halfW - 0.7), halfW - 0.7];
   const colZs = []; for (let z = 1; z > -hallLen + 6; z -= 7) colZs.push(z);
   for (const z of colZs) {
-    const beam = new THREE.Mesh(beamGeo, stoneDark); beam.position.set(0, 5.24, z); scene.add(beam); // Deckenbalken
+    const beam = new THREE.Mesh(beamGeo, beamMat); beam.position.set(0, 5.22, z); scene.add(beam); // Dancheong-Balken
     for (const cx of colXs) {
       const col = new THREE.Mesh(colGeo, stoneMat); col.position.set(cx, 2.65, z); scene.add(col);
-      const cb = new THREE.Mesh(fluteGeo, stoneDark); cb.position.set(cx, 0.21, z); scene.add(cb);
-      const cc = new THREE.Mesh(capGeo, stoneDark); cc.position.set(cx, 5.02, z); scene.add(cc);
+      scene.add(place(fluteGeo, stoneDark, cx, 0.21, z));
+      scene.add(place(capGeo, stoneDark, cx, 5.02, z));
+      obstacles.push({ x: cx, z, r: 0.6 });
     }
   }
-  // Wandbilder zwischen den Säulen (dekorative gerahmte „Gemälde")
+  // Wandbilder (Goldrahmen + farbiges Gemälde)
+  const artFrameGeo = new THREE.BoxGeometry(2.7, 3.5, 0.14), artFillGeo = new THREE.PlaneGeometry(2.2, 3.0);
+  disposables.push(artFrameGeo, artFillGeo);
   const artZs = []; for (let z = -2.5; z > -hallLen + 6; z -= 7) artZs.push(z);
   for (const z of artZs) for (const sx of [-1, 1]) {
     const fr = new THREE.Mesh(artFrameGeo, frameMat); fr.position.set(sx * (halfW - 0.13), 2.7, z); fr.rotation.y = -sx * Math.PI / 2; scene.add(fr);
-    // farbiges „Gemälde" (variierende Farbtöne) -> Wände wirken belebt
-    const fillMat = new THREE.MeshBasicMaterial({ color: new THREE.Color().setHSL(Math.random(), 0.45, 0.45).getHex() });
+    const fillMat = new THREE.MeshBasicMaterial({ color: new THREE.Color().setHSL(Math.random(), 0.5, 0.5).getHex() });
     const fill = new THREE.Mesh(artFillGeo, fillMat); fill.position.set(sx * (halfW - 0.19), 2.7, z); fill.rotation.y = -sx * Math.PI / 2; scene.add(fill);
     disposables.push(fillMat);
   }
-  // Bänke in den Seitengängen (nicht im Laufweg) + ein paar Pflanzen
+  // Bänke + Pflanzen (Seitengänge)
+  const benchSeatGeo = new THREE.BoxGeometry(2.6, 0.18, 0.8), benchLegGeo = new THREE.BoxGeometry(0.18, 0.5, 0.7), potGeo = new THREE.CylinderGeometry(0.34, 0.26, 0.6, 14), leafGeo = new THREE.SphereGeometry(0.58, 12, 10);
+  disposables.push(benchSeatGeo, benchLegGeo, potGeo, leafGeo);
   for (let i = 0, z = -5; z > -hallLen + 6; z -= 14, i++) for (const sx of [-1, 1]) {
     const bx = sx * (halfW - 2.3);
-    const seat = new THREE.Mesh(benchSeatGeo, woodMat); seat.position.set(bx, 0.5, z); scene.add(seat);
-    for (const lz of [-0.7, 0.7]) { const leg = new THREE.Mesh(benchLegGeo, woodMat); leg.position.set(bx, 0.25, z + lz); scene.add(leg); }
-    if (i % 2 === 0) { const pot = new THREE.Mesh(potGeo, potMat); pot.position.set(sx * (halfW - 0.9), 0.3, z + 3.5); scene.add(pot); const leaf = new THREE.Mesh(leafGeo, leafMat); leaf.position.set(sx * (halfW - 0.9), 0.95, z + 3.5); leaf.scale.set(1, 1.3, 1); scene.add(leaf); }
+    scene.add(place(benchSeatGeo, woodMat, bx, 0.5, z));
+    for (const lz of [-0.7, 0.7]) scene.add(place(benchLegGeo, woodMat, bx, 0.25, z + lz));
+    if (i % 2 === 0) {
+      const px = sx * (halfW - 0.95);
+      scene.add(place(potGeo, potMat, px, 0.3, z + 3.5));
+      const leaf = new THREE.Mesh(leafGeo, leafMat); leaf.position.set(px, 0.95, z + 3.5); leaf.scale.set(1, 1.3, 1); scene.add(leaf);
+      obstacles.push({ x: px, z: z + 3.5, r: 0.6 });
+    }
   }
+
+  /* ----- Koreanische Papierlaternen (hängend, leuchtend) ----- */
+  const lampCols = [0xc0392b, 0x2e6fb0, 0xe8c33a];
+  for (let i = 0, z = -3; z > -hallLen + 6; z -= 9, i++) {
+    const col = lampCols[i % lampCols.length];
+    const g = new THREE.Group(); g.position.set((i % 2 ? 1 : -1) * 1.7, 0, z); scene.add(g);
+    g.add(place(new THREE.CylinderGeometry(0.012, 0.012, 1.0, 6), new THREE.MeshBasicMaterial({ color: 0x222222 }), 0, 4.75, 0));
+    g.add(place(new THREE.CylinderGeometry(0.27, 0.27, 0.46, 16), new THREE.MeshBasicMaterial({ color: col }), 0, 4.06, 0));
+    g.add(place(new THREE.CylinderGeometry(0.16, 0.2, 0.07, 16), new THREE.MeshBasicMaterial({ color: 0x141414 }), 0, 4.32, 0));
+    g.add(place(new THREE.CylinderGeometry(0.2, 0.16, 0.07, 16), new THREE.MeshBasicMaterial({ color: 0x141414 }), 0, 3.79, 0));
+    const tas = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.18, 8), new THREE.MeshBasicMaterial({ color: 0xe8c33a })); tas.position.set(0, 3.68, 0); tas.rotation.x = Math.PI; g.add(tas);
+    if (i % 2 === 0) { const pl = new THREE.PointLight(col, 0.5, 9, 2); pl.position.set(0, 3.9, 0); g.add(pl); }
+  }
+
+  /* ----- Steinlaternen (seokdeung) in den Seitengängen ----- */
+  function stoneLantern(x, z) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
+    g.add(place(new THREE.BoxGeometry(0.7, 0.2, 0.7), stoneMat, 0, 0.1, 0));
+    g.add(place(new THREE.CylinderGeometry(0.14, 0.16, 0.9, 10), stoneMat, 0, 0.6, 0));
+    g.add(place(new THREE.BoxGeometry(0.5, 0.45, 0.5), stoneMat, 0, 1.25, 0));
+    g.add(place(new THREE.BoxGeometry(0.36, 0.4, 0.36), new THREE.MeshBasicMaterial({ color: 0xffd98a }), 0, 1.25, 0));
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.35, 4), stoneDark); roof.position.set(0, 1.66, 0); roof.rotation.y = Math.PI / 4; g.add(roof);
+    g.add(place(new THREE.SphereGeometry(0.08, 8, 8), stoneDark, 0, 1.88, 0));
+    const pl = new THREE.PointLight(0xffcf80, 0.4, 7, 2); pl.position.set(0, 1.25, 0); g.add(pl);
+    obstacles.push({ x, z, r: 0.7 });
+  }
+  for (let z = -10; z > -hallLen + 8; z -= 22) { stoneLantern(-(halfW - 1.5), z); stoneLantern(halfW - 1.5, z); }
+
+  /* ----- Koreanisches Eingangstor (dancheong + Ziegeldach) ----- */
+  (function gate() {
+    const z = FRONT_Z - 2.2;
+    const postGeo = new THREE.BoxGeometry(0.5, 4.2, 0.5);
+    for (const sx of [-1, 1]) { scene.add(place(postGeo, new THREE.MeshToonMaterial({ color: 0xc0392b }), sx * (halfW - 1.4), 2.1, z)); obstacles.push({ x: sx * (halfW - 1.4), z, r: 0.5 }); }
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry((halfW - 1.4) * 2 + 0.6, 0.6, 0.7), beamMat); lintel.position.set(0, 4.3, z); scene.add(lintel);
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(halfW + 0.5, 0.9, 4), new THREE.MeshToonMaterial({ color: tint(0.32, 0.18).getHex() })); roof.position.set(0, 5.05, z); roof.rotation.y = Math.PI / 4; roof.scale.set(1, 1, 0.5); scene.add(roof);
+    disposables.push(postGeo);
+  })();
+
+  /* ----- Folien -> Tafeln ----- */
+  const boards = [];
   await Promise.all(deck.slides.map(async (slide, i) => {
     const cv = await slideToCanvas(slide, { accent, ink, fontTitle, fontBody }, resolveSrc);
     const tex = new THREE.CanvasTexture(cv); tex.anisotropy = 4;
     if ("colorSpace" in tex) tex.colorSpace = THREE.SRGBColorSpace;
     const bw = 5.4, bh = (bw * 9) / 16;
-    // Tafeln stehen versetzt links/rechts der Mittelachse und sind dem Eingang
-    // zugewandt (leicht zur Mitte gedreht) -> beim Reinlaufen sofort lesbar.
     const side = i % 2 === 0 ? -1 : 1;
-    const x = side * 2.9, z = -(7 + i * spacing), y = 2.0;
-    const ry = -side * 0.26;
-    const g = new THREE.Group();
-    g.position.set(x, y, z); g.rotation.y = ry; scene.add(g);
-    const outline = new THREE.Mesh(new THREE.PlaneGeometry(bw + 0.34, bh + 0.34), new THREE.MeshBasicMaterial({ color: acc.getHex() }));
-    outline.position.z = -0.04; g.add(outline);
-    const frame = new THREE.Mesh(new THREE.PlaneGeometry(bw + 0.14, bh + 0.14), new THREE.MeshBasicMaterial({ color: 0x0a0e16 }));
-    frame.position.z = -0.02; g.add(frame);
-    const board = new THREE.Mesh(new THREE.PlaneGeometry(bw, bh), new THREE.MeshBasicMaterial({ map: tex }));
-    g.add(board);
-    // Sockel/Plinthe, auf dem die Tafel „steht" (Museums-Look)
+    const x = side * 2.9, z = -(7 + i * spacing), y = 2.0, ry = -side * 0.26;
+    const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; scene.add(g);
+    const outline = new THREE.Mesh(new THREE.PlaneGeometry(bw + 0.34, bh + 0.34), new THREE.MeshBasicMaterial({ color: acc.getHex() })); outline.position.z = -0.04; g.add(outline);
+    const frame = new THREE.Mesh(new THREE.PlaneGeometry(bw + 0.14, bh + 0.14), new THREE.MeshBasicMaterial({ color: 0x14140f })); frame.position.z = -0.02; g.add(frame);
+    const board = new THREE.Mesh(new THREE.PlaneGeometry(bw, bh), new THREE.MeshBasicMaterial({ map: tex })); g.add(board);
     const plinth = new THREE.Mesh(new THREE.BoxGeometry(1.8, y - bh / 2, 0.95), stoneMat); plinth.position.set(x, (y - bh / 2) / 2, z); scene.add(plinth);
-    const plinthTop = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.1, 1.15), stoneDark); plinthTop.position.set(x, y - bh / 2, z); scene.add(plinthTop);
-    // Decken-Strahler über der Tafel (Museums-Beleuchtung): Fixture + Spot auf die Tafel
-    const fix = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.3), new THREE.MeshStandardMaterial({ color: tint(0.14, 0.3).getHex(), roughness: 0.8 }));
-    fix.position.set(x, 5.32, z + 0.9); scene.add(fix);
-    if (n <= 16) {
-      const spot = new THREE.SpotLight(0xfff1dc, 26, 12, 0.5, 0.6, 1.4);
-      spot.position.set(x, 5.2, z + 1.2); spot.target.position.set(x, y - 0.2, z);
-      scene.add(spot); scene.add(spot.target);
-    }
-    boards.push({ slide, pos: new THREE.Vector3(x, y, z) });
-    disposables.push(tex, board.geometry, frame.geometry, outline.geometry, plinth.geometry, plinthTop.geometry, fix.geometry, board.material, frame.material, outline.material, fix.material);
+    scene.add(place(new THREE.BoxGeometry(2.0, 0.1, 1.15), stoneDark, x, y - bh / 2, z));
+    const fix = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.3), stoneDark); fix.position.set(x, 5.32, z + 0.9); scene.add(fix);
+    if (n <= 10) { const spot = new THREE.SpotLight(0xfff1dc, 22, 12, 0.5, 0.6, 1.4); spot.position.set(x, 5.2, z + 1.2); spot.target.position.set(x, y - 0.2, z); scene.add(spot); scene.add(spot.target); }
+    boards.push({ slide, x, z });
+    obstacles.push({ x, z, r: 1.25 });
+    disposables.push(tex, board.geometry, frame.geometry, outline.geometry, plinth.geometry, board.material, frame.material, outline.material);
   }));
 
-  /* ----- Rückweg-Portal am Ende des Pfades (großes, leuchtendes Tor) ----- */
-  const portalPos = new THREE.Vector3(0, 2.1, -hallLen + 7);
-  const portalGrp = new THREE.Group(); portalGrp.position.copy(portalPos); scene.add(portalGrp);
+  /* ----- Rückweg-Portal ----- */
+  const portalX = 0, portalZ = -hallLen + 7, portalY = 2.1;
+  const portalGrp = new THREE.Group(); portalGrp.position.set(portalX, portalY, portalZ); scene.add(portalGrp);
   const door = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 4.8), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.12 })); door.position.z = -0.06; portalGrp.add(door);
   const glowDisc = new THREE.Mesh(new THREE.CircleGeometry(1.95, 56), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.16 })); glowDisc.position.z = -0.03; portalGrp.add(glowDisc);
   const ring = new THREE.Mesh(new THREE.TorusGeometry(2.0, 0.12, 16, 80), new THREE.MeshBasicMaterial({ color: acc.getHex() })); portalGrp.add(ring);
   const floorRing = new THREE.Mesh(new THREE.RingGeometry(1.5, 2.3, 48), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.22, side: THREE.DoubleSide })); floorRing.rotation.x = -Math.PI / 2; floorRing.position.set(0, -2.08, 0.3); portalGrp.add(floorRing);
-  const portalLight = new THREE.PointLight(acc.getHex(), 1.2, 32, 1.5); portalLight.position.set(0, 0, 1.6); portalGrp.add(portalLight);
-  // Schild „Zum Anfang"
-  function makeSign(text) {
+  portalGrp.add(new THREE.PointLight(acc.getHex(), 1.0, 30, 1.5));
+  (function () {
     const cv = document.createElement("canvas"); cv.width = 640; cv.height = 140; const c = cv.getContext("2d");
-    c.fillStyle = accent; c.font = "700 64px " + fontTitle; c.textAlign = "center"; c.textBaseline = "middle";
-    c.fillText(text, 320, 78);
-    const t = new THREE.CanvasTexture(cv); if ("colorSpace" in t) t.colorSpace = THREE.SRGBColorSpace; return t;
-  }
-  const signTex = makeSign("⟲  Zum Anfang");
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.79), new THREE.MeshBasicMaterial({ map: signTex, transparent: true }));
-  sign.position.set(0, 2.7, 0); portalGrp.add(sign);
-  disposables.push(door.geometry, door.material, glowDisc.geometry, glowDisc.material, ring.geometry, ring.material, floorRing.geometry, floorRing.material, sign.geometry, sign.material, signTex);
+    c.fillStyle = accent; c.font = "700 60px " + fontTitle; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("⟲  Zum Anfang", 320, 78);
+    const t = new THREE.CanvasTexture(cv); if ("colorSpace" in t) t.colorSpace = THREE.SRGBColorSpace;
+    const s = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.79), new THREE.MeshBasicMaterial({ map: t, transparent: true })); s.position.set(0, 2.7, 0); portalGrp.add(s);
+    disposables.push(t, s.geometry, s.material);
+  })();
+  disposables.push(door.geometry, door.material, glowDisc.geometry, glowDisc.material, ring.geometry, ring.material, floorRing.geometry, floorRing.material);
 
-  /* ----- Steuerung ----- */
+  /* ----- Figur ----- */
+  const hero = makeHero(THREE, acc.getHex());
+  const START = new THREE.Vector3(0, 0, 3);
+  hero.position.copy(START); scene.add(hero);
+  let heading = Math.PI; hero.rotation.y = heading; // schaut in den Saal (-Z)
+  // Schatten-Tupfer unter der Figur
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.5, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22 }));
+  shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.02; scene.add(shadow);
+
+  /* ----- Steuerung (nur Tastatur / Touch-Joystick) ----- */
   const isTouch = window.matchMedia("(pointer: coarse)").matches;
-  el("worldCross").hidden = isTouch;
   el("worldJoy").hidden = !isTouch;
-  let yaw = 0, pitch = 0, locked = false, panelOpen = false, near = null, nearPortal = false, lastHint = "";
+  let panelOpen = false, near = null, nearPortal = false, lastHint = "", tutorialDone = false;
   const keys = {};
   const clock = new THREE.Clock();
+  const setHint = (h) => { if (h !== lastHint) { hintEl.innerHTML = h; lastHint = h; } };
+  const idleHint = isTouch ? "Joystick = gehen · nah an eine Tafel + tippen" : "<b>WASD</b> / <b>Pfeiltasten</b> gehen · <b>E</b> für Details";
 
-  function setHint(html) { if (html !== lastHint) { hintEl.innerHTML = html; lastHint = html; } }
-  const idleHint = isTouch ? "Joystick = gehen · ziehen = schauen" : "<b>Klick</b> zum Start · <b>WASD</b> gehen · <b>Maus</b> schauen";
-  // Zum Anfang zurückspringen (Portal am Ende des Pfades).
-  function returnToStart() { camera.position.set(0, 1.6, 6); yaw = 0; pitch = 0; closePanel(); }
+  function returnToStart() { hero.position.copy(START); heading = Math.PI; closePanel(); }
 
-  function lockPointer() { if (!isTouch && !panelOpen && document.pointerLockElement !== stage) stage.requestPointerLock(); }
-  function onPL() { locked = document.pointerLockElement === stage; }
-  function onMouse(e) { if (!locked) return; yaw -= e.movementX * 0.0022; pitch = clamp(pitch - e.movementY * 0.0022, -1.2, 1.2); }
+  /* Sprechblasen-Tutorial */
+  const guide = "🧑‍🎓";
+  const msgs = [
+    "Annyeong! 👋 Willkommen in der Galerie.",
+    "Du steuerst die Figur nur mit der Tastatur: <b>WASD</b> oder die <b>Pfeiltasten</b> — ganz ohne Maus.",
+    "Geh nah an eine leuchtende Tafel und drücke <b>E</b>, um die Details groß zu sehen.",
+    "Am Ende des Saals führt dich das <b>Tor</b> zurück zum Anfang. Viel Spaß beim Entdecken! ✦",
+  ];
+  let bi = 0, bubbleTimer = null;
+  function showBubble() {
+    if (!bubbleEl) { tutorialDone = true; return; }
+    if (bi >= msgs.length) { bubbleEl.hidden = true; tutorialDone = true; return; }
+    bubbleEl.innerHTML = '<span class="wb-av">' + guide + '</span><span class="wb-tx">' + msgs[bi] + '</span><span class="wb-next">' + (isTouch ? "Tippen ▸" : "Weiter ▸ (Leertaste)") + "</span>";
+    bubbleEl.hidden = false;
+    clearTimeout(bubbleTimer); bubbleTimer = setTimeout(nextBubble, 6000);
+  }
+  function nextBubble() { bi++; showBubble(); }
+  if (bubbleEl) bubbleEl.onclick = nextBubble;
+
   function onKeyDown(e) {
     const k = e.key.toLowerCase(); keys[k] = true;
+    if (k === " " || k === "enter") { if (!tutorialDone) { e.preventDefault(); nextBubble(); return; } }
     if (k === "e") { e.preventDefault(); if (panelOpen) closePanel(); else if (near) openPanel(near.slide); else if (nearPortal) returnToStart(); }
     if (k === "escape" && panelOpen) closePanel();
   }
   function onKeyUp(e) { keys[e.key.toLowerCase()] = false; }
   function onResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
-
-  stage.addEventListener("click", lockPointer);
-  document.addEventListener("pointerlockchange", onPL);
-  document.addEventListener("mousemove", onMouse);
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("resize", onResize);
 
   const joy = { x: 0, y: 0, id: null };
-  let lookId = null, lx = 0, ly = 0, tapMove = 0;
   if (isTouch) {
     const joyEl = el("worldJoy"), nub = el("worldNub");
     joyEl.addEventListener("touchstart", (e) => { joy.id = e.changedTouches[0].identifier; e.preventDefault(); }, { passive: false });
-    joyEl.addEventListener("touchmove", (e) => {
-      for (const t of e.changedTouches) { if (t.identifier !== joy.id) continue; const r = joyEl.getBoundingClientRect(); let dx = t.clientX - (r.left + r.width / 2), dy = t.clientY - (r.top + r.height / 2); const m = 50, d = Math.hypot(dx, dy) || 1; if (d > m) { dx *= m / d; dy *= m / d; } nub.style.transform = `translate(${dx}px,${dy}px)`; joy.x = dx / m; joy.y = dy / m; }
-      e.preventDefault();
-    }, { passive: false });
-    const joyEnd = (e) => { for (const t of e.changedTouches) if (t.identifier === joy.id) { joy.id = null; joy.x = joy.y = 0; nub.style.transform = ""; } };
-    joyEl.addEventListener("touchend", joyEnd); joyEl.addEventListener("touchcancel", joyEnd);
-    stage.addEventListener("touchstart", (e) => { const t = e.changedTouches[0]; lookId = t.identifier; lx = t.clientX; ly = t.clientY; tapMove = 0; });
-    stage.addEventListener("touchmove", (e) => { for (const t of e.changedTouches) { if (t.identifier !== lookId) continue; yaw -= (t.clientX - lx) * 0.005; pitch = clamp(pitch - (t.clientY - ly) * 0.005, -1.2, 1.2); tapMove += Math.abs(t.clientX - lx) + Math.abs(t.clientY - ly); lx = t.clientX; ly = t.clientY; } }, { passive: true });
-    stage.addEventListener("touchend", () => { if (tapMove < 12 && !panelOpen) { if (near) openPanel(near.slide); else if (nearPortal) returnToStart(); } lookId = null; });
+    joyEl.addEventListener("touchmove", (e) => { for (const t of e.changedTouches) { if (t.identifier !== joy.id) continue; const r = joyEl.getBoundingClientRect(); let dx = t.clientX - (r.left + r.width / 2), dy = t.clientY - (r.top + r.height / 2); const m = 50, d = Math.hypot(dx, dy) || 1; if (d > m) { dx *= m / d; dy *= m / d; } nub.style.transform = `translate(${dx}px,${dy}px)`; joy.x = dx / m; joy.y = dy / m; } e.preventDefault(); }, { passive: false });
+    const end = (e) => { for (const t of e.changedTouches) if (t.identifier === joy.id) { joy.id = null; joy.x = joy.y = 0; nub.style.transform = ""; } };
+    joyEl.addEventListener("touchend", end); joyEl.addEventListener("touchcancel", end);
+    stage.addEventListener("touchend", () => { if (!tutorialDone) { nextBubble(); return; } if (!panelOpen) { if (near) openPanel(near.slide); else if (nearPortal) returnToStart(); } });
   }
 
   /* ----- Detail-Overlay ----- */
   function openPanel(slide) {
     panelOpen = true;
-    if (document.pointerLockElement) document.exitPointerLock();
     const layer = (slide.layers || []).find((l) => resolveSrc(l));
     const t = (role) => (slide.texts || []).find((x) => x.role === role);
     let html = '<div class="wp">';
@@ -315,65 +404,85 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   function closePanel() { panelOpen = false; el("worldPanel").hidden = true; }
 
   /* ----- Loop ----- */
+  const camPos = new THREE.Vector3(0, 4.6, 5 + 7), camLook = new THREE.Vector3();
+  const xMin = -(halfW - 1.3), xMax = halfW - 1.3, zMin = -hallLen + 4, zMax = 5;
   let raf = 0;
   function loop() {
     const dt = Math.min(clock.getDelta(), 0.05);
-    camera.rotation.set(pitch, yaw, 0, "YXZ");
     if (!panelOpen) {
-      let fwd = 0, str = 0;
-      if (keys["w"] || keys["arrowup"]) fwd += 1;
-      if (keys["s"] || keys["arrowdown"]) fwd -= 1;
-      if (keys["d"] || keys["arrowright"]) str += 1;
-      if (keys["a"] || keys["arrowleft"]) str -= 1;
-      if (isTouch) { str += joy.x; fwd -= joy.y; }
-      const spd = 4.4 * dt, sy = Math.sin(yaw), cy = Math.cos(yaw);
-      camera.position.x += (-sy * fwd + cy * str) * spd;
-      camera.position.z += (-cy * fwd - sy * str) * spd;
-      camera.position.x = clamp(camera.position.x, -halfW + 0.6, halfW - 0.6);
-      camera.position.z = clamp(camera.position.z, -hallLen + 5, 6);
-      camera.position.y = 1.6;
-      near = null; let best = 5.4;
-      for (const b of boards) { const d = camera.position.distanceTo(b.pos); if (d < best) { best = d; near = b; } }
-      nearPortal = !near && camera.position.distanceTo(portalPos) < 4.4;
-      if (near) setHint("<b>" + (isTouch ? "Tippen" : "E") + "</b> für Details");
+      let mx = 0, mz = 0;
+      if (keys["w"] || keys["arrowup"]) mz -= 1;
+      if (keys["s"] || keys["arrowdown"]) mz += 1;
+      if (keys["a"] || keys["arrowleft"]) mx -= 1;
+      if (keys["d"] || keys["arrowright"]) mx += 1;
+      if (isTouch) { mx += joy.x; mz += joy.y; }
+      const len = Math.hypot(mx, mz);
+      if (len > 0.01) {
+        mx /= len; mz /= len;
+        const spd = 5 * dt;
+        hero.position.x += mx * spd; hero.position.z += mz * spd;
+        // Kollision: aus Hindernissen herausschieben
+        for (const o of obstacles) { const dx = hero.position.x - o.x, dz = hero.position.z - o.z, dd = Math.hypot(dx, dz), rr = o.r + 0.45; if (dd < rr && dd > 0.001) { hero.position.x = o.x + (dx / dd) * rr; hero.position.z = o.z + (dz / dd) * rr; } }
+        hero.position.x = clamp(hero.position.x, xMin, xMax);
+        hero.position.z = clamp(hero.position.z, zMin, zMax);
+        const targetH = Math.atan2(mx, mz);
+        let d = targetH - heading; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+        heading += d * Math.min(1, dt * 12);
+        hero.rotation.y = heading;
+        hero.position.y = Math.abs(Math.sin(clock.elapsedTime * 11)) * 0.06; // Hüpfen
+      } else { hero.position.y += (0 - hero.position.y) * 0.2; }
+      shadow.position.set(hero.position.x, 0.02, hero.position.z);
+
+      // Kamera folgt (fester Diorama-Blick)
+      camPos.set(hero.position.x, 4.6, hero.position.z + 7);
+      camera.position.lerp(camPos, 1 - Math.pow(0.001, dt));
+      camLook.set(hero.position.x, 1.3, hero.position.z - 1.2);
+      camera.lookAt(camLook);
+
+      // Nähe zu Tafeln / Portal (horizontal)
+      near = null; let best = 3.4;
+      for (const b of boards) { const d2 = Math.hypot(hero.position.x - b.x, hero.position.z - b.z); if (d2 < best) { best = d2; near = b; } }
+      nearPortal = !near && Math.hypot(hero.position.x - portalX, hero.position.z - portalZ) < 4.2;
+      if (!tutorialDone) setHint("");
+      else if (near) setHint("<b>" + (isTouch ? "Tippen" : "E") + "</b> für Details");
       else if (nearPortal) setHint("<b>" + (isTouch ? "Tippen" : "E") + "</b> · zurück zum Anfang");
-      else if (!locked && !isTouch) setHint(idleHint);
-      else setHint("");
+      else setHint(idleHint);
     }
-    ring.rotation.z += dt * 0.6; // Portal lebt
+    ring.rotation.z += dt * 0.6;
     glowDisc.material.opacity = 0.12 + 0.06 * (1 + Math.sin(clock.elapsedTime * 2)) / 2;
     renderer.render(scene, camera);
     raf = requestAnimationFrame(loop);
   }
 
   function close() {
-    cancelAnimationFrame(raf);
-    stage.removeEventListener("click", lockPointer);
-    document.removeEventListener("pointerlockchange", onPL);
-    document.removeEventListener("mousemove", onMouse);
+    cancelAnimationFrame(raf); clearTimeout(bubbleTimer);
     window.removeEventListener("keydown", onKeyDown);
     window.removeEventListener("keyup", onKeyUp);
     window.removeEventListener("resize", onResize);
-    if (document.pointerLockElement) document.exitPointerLock();
-    try { disposables.forEach((d) => d.dispose && d.dispose()); floor.geometry.dispose(); floor.material.dispose(); renderer.dispose(); } catch (e) {}
+    if (bubbleEl) { bubbleEl.hidden = true; bubbleEl.onclick = null; }
+    try { disposables.forEach((d) => d && d.dispose && d.dispose()); renderer.dispose(); } catch (e) {}
     stage.innerHTML = ""; overlay.hidden = true; el("worldPanel").hidden = true;
     active = null;
     if (onClose) onClose();
   }
   el("worldExit").onclick = close;
-  el("worldHome").onclick = () => { returnToStart(); if (!isTouch) lockPointer(); };
+  el("worldHome").onclick = returnToStart;
   active = { close };
 
-  // Debug-Hook nur für automatisierte Tests (window.__WD_DEBUG=true vor dem Import).
+  // Kamera initial setzen
+  camera.position.set(hero.position.x, 4.6, hero.position.z + 7);
+  camera.lookAt(hero.position.x, 1.3, hero.position.z - 1.2);
+
   if (typeof window !== "undefined" && window.__WD_DEBUG)
     window.__wd = {
-      camera, returnToStart, portalPos, hallLen, halfW,
-      setPos: (x, yy, z) => camera.position.set(x, yy, z),
-      setView: (y, p) => { yaw = y; pitch = p; },
+      camera, hero, returnToStart, hallLen, halfW,
+      setPos: (x, _y, z) => hero.position.set(x, 0, z),
       hint: () => hintEl.textContent,
-      state: () => ({ z: +camera.position.z.toFixed(2), near: !!near, nearPortal, locked }),
+      skipTutorial: () => { bi = msgs.length; showBubble(); },
+      state: () => ({ x: +hero.position.x.toFixed(2), z: +hero.position.z.toFixed(2), near: !!near, nearPortal, tutorialDone, heading: +heading.toFixed(2) }),
     };
 
   loader.hidden = true;
+  showBubble();
   raf = requestAnimationFrame(loop);
 }

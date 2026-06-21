@@ -484,6 +484,15 @@ html, body {
 .world:hover .world__exit { opacity: 1; }
 .world__home { position: fixed; top: 18px; left: 18px; z-index: 9400; display: inline-flex; align-items: center; gap: 6px; padding: 9px 15px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.22); background: rgba(0,0,0,0.42); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); opacity: 0.82; transition: opacity 0.15s, background 0.15s; }
 .world__home:hover { opacity: 1; background: rgba(0,0,0,0.6); }
+/* Comic-Sprechblase (Tutorial) */
+.world__bubble { position: fixed; left: 50%; bottom: 92px; transform: translateX(-50%); z-index: 9350; display: flex; align-items: center; gap: 12px; max-width: min(680px, 92vw); padding: 16px 20px; background: #fffef8; color: #1a1a1a; border: 3px solid #1a1a1a; border-radius: 20px; box-shadow: 0 10px 0 rgba(26,26,26,0.18), 0 18px 44px rgba(0,0,0,0.4); font-family: var(--font-body, "Bricolage Grotesque", "Inter", sans-serif); cursor: pointer; animation: wbPop 0.25s cubic-bezier(0.22,1,0.36,1); }
+.world__bubble[hidden] { display: none; }
+.world__bubble::after { content: ""; position: absolute; left: 46px; bottom: -16px; width: 26px; height: 26px; background: #fffef8; border-right: 3px solid #1a1a1a; border-bottom: 3px solid #1a1a1a; transform: rotate(45deg); }
+.world__bubble .wb-av { font-size: 34px; line-height: 1; flex: 0 0 auto; }
+.world__bubble .wb-tx { font-size: 15.5px; line-height: 1.5; font-weight: 500; }
+.world__bubble .wb-tx b { font-weight: 800; }
+.world__bubble .wb-next { flex: 0 0 auto; align-self: flex-end; font-size: 12px; font-weight: 700; color: var(--accent, #5aa6ff); white-space: nowrap; }
+@keyframes wbPop { from { transform: translateX(-50%) translateY(8px) scale(0.96); opacity: 0; } to { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; } }
 .world__joy { position: fixed; left: 26px; bottom: 26px; width: 110px; height: 110px; border-radius: 50%; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); z-index: 9100; touch-action: none; }
 .world__nub { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.4); }
 .jr-stations { position: absolute; inset: 0; }
