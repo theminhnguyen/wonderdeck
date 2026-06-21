@@ -215,6 +215,167 @@ const JOURNEY_CSS = "*{margin:0;box-sizing:border-box}html,body{height:100%;over
   + ".jr-counter{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:100;font-size:13px;letter-spacing:.1em;color:rgba(255,255,255,.7);font-variant-numeric:tabular-nums}"
   + ".jr-hint{position:fixed;bottom:16px;right:20px;z-index:100;font-size:12px;color:rgba(255,255,255,.5)}";
 
+/* Eigenständige, begehbare 3D-Welt (Three.js via CDN-Import-Map) für den Export.
+   Wird als type="module" eingebettet, das THREE importiert und dann diese
+   Funktion mit (DECK, CFG, THREE) aufruft. Spiegelt js/world.js. */
+function WORLD_RUNTIME(DECK, CFG, THREE) {
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+  const esc = (s) => String(s == null ? "" : s).replace(/[<&>]/g, (c) => ({ "<": "&lt;", "&": "&amp;", ">": "&gt;" }[c]));
+  const hexA = (hex, a) => { let h = String(hex || "").trim().replace("#", ""); if (h.length === 3) h = h.split("").map((x) => x + x).join(""); if (h.length !== 6 || /[^0-9a-f]/i.test(h)) return "rgba(255,255,255," + a + ")"; return "rgba(" + parseInt(h.slice(0, 2), 16) + "," + parseInt(h.slice(2, 4), 16) + "," + parseInt(h.slice(4, 6), 16) + "," + a + ")"; };
+  const accent = CFG.accent, ink = CFG.ink, fontTitle = CFG.fontTitle, fontBody = CFG.fontBody;
+  const resolveSrc = (l) => (l && l.src) || null;
+
+  const mk = (cls) => { const d = document.createElement("div"); if (cls) d.className = cls; return d; };
+  const stage = mk("world__stage"); document.body.appendChild(stage);
+  const cross = mk("world__cross"); cross.hidden = true; document.body.appendChild(cross);
+  const loader = mk("world__load"); loader.innerHTML = '<div class="world__spinner"></div><p>3D-Welt wird geladen …</p>'; document.body.appendChild(loader);
+  const hintEl = mk("world__hint"); document.body.appendChild(hintEl);
+  const panel = mk("world__panel"); panel.hidden = true; document.body.appendChild(panel);
+  const joy = mk("world__joy"); joy.hidden = true; const nub = mk("world__nub"); joy.appendChild(nub); document.body.appendChild(joy);
+  panel.style.setProperty("--accent", accent); panel.style.setProperty("--ink", ink);
+
+  function coverDraw(ctx, img, w, h) { const r = Math.max(w / img.width, h / img.height), iw = img.width * r, ih = img.height * r; ctx.drawImage(img, (w - iw) / 2, (h - ih) / 2, iw, ih); }
+  function wrapText(ctx, text, x, y, maxW, lh) { const words = String(text).split(/\s+/); let line = ""; for (const w of words) { const t = line ? line + " " + w : w; if (ctx.measureText(t).width > maxW && line) { ctx.fillText(line, x, y); y += lh; line = w; } else line = t; } if (line) { ctx.fillText(line, x, y); y += lh; } return y; }
+  function slideToCanvas(slide) {
+    return new Promise((resolve) => {
+      const cv = document.createElement("canvas"); cv.width = 1024; cv.height = 576; const ctx = cv.getContext("2d");
+      const text = (role) => (slide.texts || []).find((t) => t.role === role);
+      const draw = (img) => {
+        ctx.fillStyle = slide.bg || "#0a0e16"; ctx.fillRect(0, 0, 1024, 576);
+        if (img) { coverDraw(ctx, img, 1024, 576); const g = ctx.createLinearGradient(0, 576, 0, 0); g.addColorStop(0, "rgba(0,0,0,0.82)"); g.addColorStop(0.55, "rgba(0,0,0,0.2)"); g.addColorStop(1, "rgba(0,0,0,0)"); ctx.fillStyle = g; ctx.fillRect(0, 0, 1024, 576); }
+        else { const rg = ctx.createRadialGradient(330, 250, 40, 330, 250, 760); rg.addColorStop(0, hexA(accent, 0.26)); rg.addColorStop(1, "rgba(0,0,0,0)"); ctx.fillStyle = rg; ctx.fillRect(0, 0, 1024, 576); const lg = ctx.createLinearGradient(0, 0, 0, 576); lg.addColorStop(0, "rgba(255,255,255,0.08)"); lg.addColorStop(0.6, "rgba(255,255,255,0)"); ctx.fillStyle = lg; ctx.fillRect(0, 0, 1024, 576); }
+        ctx.textBaseline = "alphabetic"; const pad = 60;
+        const k = text("kicker"), ti = text("title"), su = text("subtitle") || text("body"); let y = 372;
+        if (k) { ctx.fillStyle = accent; ctx.font = "600 22px " + fontBody; ctx.fillText((k.text || "").toUpperCase().replace(/\n/g, " "), pad, y); }
+        if (ti) { ctx.fillStyle = ink; ctx.font = "700 62px " + fontTitle; y = wrapText(ctx, (ti.text || "").replace(/\n/g, " "), pad, 452, 904, 62); }
+        if (su) { ctx.fillStyle = ink; ctx.globalAlpha = 0.85; ctx.font = "300 26px " + fontBody; wrapText(ctx, (su.text || "").replace(/\n/g, " "), pad, y + 18, 884, 32); ctx.globalAlpha = 1; }
+        resolve(cv);
+      };
+      const layer = (slide.layers || []).find((l) => resolveSrc(l)); const src = layer ? resolveSrc(layer) : null;
+      if (src) { const img = new Image(); img.onload = () => draw(img); img.onerror = () => draw(null); img.src = src; } else draw(null);
+    });
+  }
+
+  async function boot() {
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.setSize(window.innerWidth, window.innerHeight);
+    if ("outputColorSpace" in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
+    stage.innerHTML = ""; stage.appendChild(renderer.domElement);
+
+    const acc = new THREE.Color(accent); const hsl = {}; acc.getHSL(hsl);
+    const tint = (l, s) => new THREE.Color().setHSL(hsl.h, Math.min(hsl.s, s == null ? 0.4 : s), l);
+    const bgCol = tint(0.045, 0.5);
+    const scene = new THREE.Scene(); scene.background = bgCol; scene.fog = new THREE.Fog(bgCol, 26, 110);
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 240); camera.position.set(0, 1.6, 6);
+    scene.add(new THREE.HemisphereLight(tint(0.62, 0.25).getHex(), tint(0.08, 0.3).getHex(), 1.2));
+    scene.add(new THREE.AmbientLight(tint(0.18, 0.35).getHex(), 0.7));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.75); dir.position.set(6, 18, 8); scene.add(dir);
+
+    const n = DECK.slides.length; const spacing = 6.4, halfW = 6, hallLen = n * spacing + 16;
+    const glowEnd = new THREE.PointLight(acc.getHex(), 0.9, 80, 1.3); glowEnd.position.set(0, 3.6, -hallLen + 6); scene.add(glowEnd);
+    const glowIn = new THREE.PointLight(acc.getHex(), 0.6, 40, 1.6); glowIn.position.set(0, 3.2, 2); scene.add(glowIn);
+
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshStandardMaterial({ color: tint(0.10, 0.32).getHex(), roughness: 0.82, metalness: 0.12 }));
+    floor.rotation.x = -Math.PI / 2; floor.position.z = -hallLen / 2 + 6; scene.add(floor);
+    const grid = new THREE.GridHelper(hallLen + 24, Math.max(8, Math.round((hallLen + 24) / 2)), tint(0.32, 0.4).getHex(), tint(0.16, 0.3).getHex());
+    grid.position.set(0, 0.012, floor.position.z); scene.add(grid);
+    const runner = new THREE.Mesh(new THREE.PlaneGeometry(1.2, hallLen + 24), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.16 }));
+    runner.rotation.x = -Math.PI / 2; runner.position.set(0, 0.02, floor.position.z); scene.add(runner);
+
+    const wallMat = new THREE.MeshStandardMaterial({ color: tint(0.075, 0.32).getHex(), roughness: 0.95, side: THREE.DoubleSide });
+    for (const sx of [-1, 1]) {
+      const wall = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 6.4), wallMat); wall.position.set(sx * halfW, 3.2, floor.position.z); wall.rotation.y = -sx * Math.PI / 2; scene.add(wall);
+      const strip = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 0.14), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.55 })); strip.position.set(sx * (halfW - 0.01), 4.7, floor.position.z); strip.rotation.y = -sx * Math.PI / 2; scene.add(strip);
+    }
+    for (const [z, ry] of [[8, Math.PI], [-hallLen + 5, 0]]) { const w = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, 6.4), wallMat); w.position.set(0, 3.2, z); w.rotation.y = ry; scene.add(w); }
+
+    const boards = [];
+    await Promise.all(DECK.slides.map(async (slide, i) => {
+      const cv = await slideToCanvas(slide); const tex = new THREE.CanvasTexture(cv); tex.anisotropy = 4; if ("colorSpace" in tex) tex.colorSpace = THREE.SRGBColorSpace;
+      const bw = 5.4, bh = (bw * 9) / 16; const side = i % 2 === 0 ? -1 : 1; const x = side * 2.9, z = -(7 + i * spacing), y = 2.0; const ry = -side * 0.26;
+      const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; scene.add(g);
+      const outline = new THREE.Mesh(new THREE.PlaneGeometry(bw + 0.34, bh + 0.34), new THREE.MeshBasicMaterial({ color: acc.getHex() })); outline.position.z = -0.04; g.add(outline);
+      const frame = new THREE.Mesh(new THREE.PlaneGeometry(bw + 0.14, bh + 0.14), new THREE.MeshBasicMaterial({ color: 0x0a0e16 })); frame.position.z = -0.02; g.add(frame);
+      const board = new THREE.Mesh(new THREE.PlaneGeometry(bw, bh), new THREE.MeshBasicMaterial({ map: tex })); g.add(board);
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, y - bh / 2, 0.12), new THREE.MeshStandardMaterial({ color: tint(0.075, 0.32).getHex(), roughness: 0.9 })); post.position.set(x, (y - bh / 2) / 2, z); scene.add(post);
+      boards.push({ slide, pos: new THREE.Vector3(x, y, z) });
+    }));
+
+    const isTouch = window.matchMedia("(pointer: coarse)").matches; cross.hidden = isTouch; joy.hidden = !isTouch;
+    let yaw = 0, pitch = 0, locked = false, panelOpen = false, near = null, lastHint = "";
+    const keys = {}; const clock = new THREE.Clock();
+    const setHint = (html) => { if (html !== lastHint) { hintEl.innerHTML = html; lastHint = html; } };
+    const idleHint = isTouch ? "Joystick = gehen · ziehen = schauen" : "<b>Klick</b> zum Start · <b>WASD</b> gehen · <b>Maus</b> schauen";
+    const lockPointer = () => { if (!isTouch && !panelOpen && document.pointerLockElement !== stage) stage.requestPointerLock(); };
+    const onPL = () => { locked = document.pointerLockElement === stage; };
+    const onMouse = (e) => { if (!locked) return; yaw -= e.movementX * 0.0022; pitch = clamp(pitch - e.movementY * 0.0022, -1.2, 1.2); };
+    const onKeyDown = (e) => { const k = e.key.toLowerCase(); keys[k] = true; if (k === "e") { e.preventDefault(); panelOpen ? closePanel() : (near && openPanel(near.slide)); } if (k === "escape" && panelOpen) closePanel(); if (k === "f") { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}); } };
+    const onKeyUp = (e) => { keys[e.key.toLowerCase()] = false; };
+    const onResize = () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
+    stage.addEventListener("click", lockPointer); document.addEventListener("pointerlockchange", onPL); document.addEventListener("mousemove", onMouse);
+    window.addEventListener("keydown", onKeyDown); window.addEventListener("keyup", onKeyUp); window.addEventListener("resize", onResize);
+
+    const jstate = { x: 0, y: 0, id: null }; let lookId = null, lx = 0, ly = 0, tapMove = 0;
+    if (isTouch) {
+      joy.addEventListener("touchstart", (e) => { jstate.id = e.changedTouches[0].identifier; e.preventDefault(); }, { passive: false });
+      joy.addEventListener("touchmove", (e) => { for (const t of e.changedTouches) { if (t.identifier !== jstate.id) continue; const r = joy.getBoundingClientRect(); let dx = t.clientX - (r.left + r.width / 2), dy = t.clientY - (r.top + r.height / 2); const m = 50, d = Math.hypot(dx, dy) || 1; if (d > m) { dx *= m / d; dy *= m / d; } nub.style.transform = "translate(" + dx + "px," + dy + "px)"; jstate.x = dx / m; jstate.y = dy / m; } e.preventDefault(); }, { passive: false });
+      const je = (e) => { for (const t of e.changedTouches) if (t.identifier === jstate.id) { jstate.id = null; jstate.x = jstate.y = 0; nub.style.transform = ""; } };
+      joy.addEventListener("touchend", je); joy.addEventListener("touchcancel", je);
+      stage.addEventListener("touchstart", (e) => { const t = e.changedTouches[0]; lookId = t.identifier; lx = t.clientX; ly = t.clientY; tapMove = 0; });
+      stage.addEventListener("touchmove", (e) => { for (const t of e.changedTouches) { if (t.identifier !== lookId) continue; yaw -= (t.clientX - lx) * 0.005; pitch = clamp(pitch - (t.clientY - ly) * 0.005, -1.2, 1.2); tapMove += Math.abs(t.clientX - lx) + Math.abs(t.clientY - ly); lx = t.clientX; ly = t.clientY; } }, { passive: true });
+      stage.addEventListener("touchend", () => { if (tapMove < 12 && near && !panelOpen) openPanel(near.slide); lookId = null; });
+    }
+
+    function openPanel(slide) {
+      panelOpen = true; if (document.pointerLockElement) document.exitPointerLock();
+      const layer = (slide.layers || []).find((l) => resolveSrc(l)); const t = (role) => (slide.texts || []).find((x) => x.role === role);
+      let html = '<div class="wp">';
+      if (layer) html += '<img src="' + resolveSrc(layer) + '" alt="">';
+      if (t("kicker")) html += '<p class="k">' + esc(t("kicker").text) + "</p>";
+      if (t("title")) html += "<h2>" + esc(t("title").text) + "</h2>";
+      (slide.texts || []).filter((x) => x.role === "subtitle" || x.role === "body").forEach((x) => (html += "<p>" + esc(x.text) + "</p>"));
+      html += '<button class="wp-close">Schließen (E)</button></div>';
+      panel.innerHTML = html; panel.hidden = false; panel.querySelector(".wp-close").onclick = closePanel;
+      panel.onclick = (e) => { if (e.target === panel) closePanel(); };
+    }
+    function closePanel() { panelOpen = false; panel.hidden = true; }
+
+    function loop() {
+      const dt = Math.min(clock.getDelta(), 0.05); camera.rotation.set(pitch, yaw, 0, "YXZ");
+      if (!panelOpen) {
+        let fwd = 0, str = 0;
+        if (keys["w"] || keys["arrowup"]) fwd += 1; if (keys["s"] || keys["arrowdown"]) fwd -= 1;
+        if (keys["d"] || keys["arrowright"]) str += 1; if (keys["a"] || keys["arrowleft"]) str -= 1;
+        if (isTouch) { str += jstate.x; fwd -= jstate.y; }
+        const spd = 4.4 * dt, sy = Math.sin(yaw), cy = Math.cos(yaw);
+        camera.position.x += (-sy * fwd + cy * str) * spd; camera.position.z += (-cy * fwd - sy * str) * spd;
+        camera.position.x = clamp(camera.position.x, -halfW + 0.6, halfW - 0.6); camera.position.z = clamp(camera.position.z, -hallLen + 5, 6); camera.position.y = 1.6;
+        near = null; let best = 5.4; for (const b of boards) { const d = camera.position.distanceTo(b.pos); if (d < best) { best = d; near = b; } }
+        if (near) setHint("<b>" + (isTouch ? "Tippen" : "E") + "</b> für Details"); else if (!locked && !isTouch) setHint(idleHint); else setHint("");
+      }
+      renderer.render(scene, camera); requestAnimationFrame(loop);
+    }
+    loader.hidden = true; requestAnimationFrame(loop);
+  }
+  (document.fonts ? document.fonts.ready.catch(() => {}) : Promise.resolve()).then(boot);
+}
+
+const WORLD_CSS = "*{margin:0;box-sizing:border-box}html,body{height:100%;overflow:hidden;background:#05060a;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#eef2f7}"
+  + ".world__stage{position:fixed;inset:0}.world__stage canvas{display:block}"
+  + ".world__cross{position:fixed;left:50%;top:50%;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;border:1.5px solid rgba(255,255,255,.7);z-index:9100;pointer-events:none}.world__cross[hidden]{display:none}"
+  + ".world__load{position:fixed;inset:0;z-index:9200;display:grid;place-items:center;align-content:center;gap:16px;background:#05060a;color:#cdd3dd;font-size:14px}.world__load[hidden]{display:none}.world__load p{margin:0}"
+  + ".world__spinner{width:40px;height:40px;border-radius:50%;border:3px solid rgba(255,255,255,.15);border-top-color:var(--accent,#5aa6ff);animation:wspin .9s linear infinite}@keyframes wspin{to{transform:rotate(360deg)}}"
+  + ".world__hint{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:9100;font-size:13px;color:rgba(255,255,255,.78);background:rgba(0,0,0,.42);padding:8px 16px;border-radius:999px;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}.world__hint b{color:#fff}"
+  + ".world__panel{position:fixed;inset:0;z-index:9300;display:grid;place-items:center;background:rgba(5,6,10,.72);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);padding:24px}.world__panel[hidden]{display:none}"
+  + ".world__panel .wp{width:min(720px,92vw);max-height:86vh;overflow-y:auto;background:#11151c;border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:28px 30px;box-shadow:0 30px 80px rgba(0,0,0,.6)}"
+  + ".world__panel img{width:100%;border-radius:12px;margin-bottom:18px;display:block}"
+  + ".world__panel h2{font-family:var(--font-title,'Space Grotesk',sans-serif);font-weight:600;font-size:30px;line-height:1.05;margin:0 0 8px;color:var(--ink,#eef4ff);white-space:pre-wrap}"
+  + ".world__panel .k{font-size:12px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--accent,#5aa6ff);margin:0 0 10px}"
+  + ".world__panel p{font-size:15px;line-height:1.6;color:#dfe5ee;white-space:pre-wrap;margin:0 0 10px}"
+  + ".world__panel .wp-close{margin-top:18px;background:var(--accent,#5aa6ff);color:#05060a;border:0;border-radius:999px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer}"
+  + ".world__joy{position:fixed;left:26px;bottom:26px;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);z-index:9100;touch-action:none}.world__joy[hidden]{display:none}"
+  + ".world__nub{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4)}";
+
 function docHead(deck, css) {
   const tv = themeVars(deck.theme);
   const rootVars = ":root{" + Object.keys(tv).map((k) => k + ":" + tv[k]).join(";") + "}";
@@ -228,6 +389,15 @@ function docHead(deck, css) {
 
 function buildDoc(deck) {
   const json = JSON.stringify(deck).replace(/</g, "\\u003c");
+  if (deck.mode === "world") {
+    const tv = themeVars(deck.theme);
+    const cfg = { accent: tv["--accent"], ink: tv["--ink"], fontTitle: tv["--font-title"], fontBody: tv["--font-body"] };
+    return docHead(deck, WORLD_CSS)
+      + "<body>"
+      + "<script type=\"importmap\">{\"imports\":{\"three\":\"https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js\"}}<\/script>"
+      + "<script type=\"module\">import * as THREE from \"three\";(" + WORLD_RUNTIME.toString() + ")(" + json + "," + JSON.stringify(cfg) + ",THREE);<\/script>"
+      + "</body></html>";
+  }
   if (deck.mode === "journey") {
     return docHead(deck, JOURNEY_CSS)
       + "<body><div id=\"jworld\" class=\"jr-world\"></div><nav id=\"jdots\" class=\"jr-dots\"></nav>"

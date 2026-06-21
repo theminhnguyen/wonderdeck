@@ -95,15 +95,19 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   stage.innerHTML = ""; stage.appendChild(renderer.domElement);
 
   const acc = new THREE.Color(accent);
+  // Umgebungsfarben aus dem Theme-Akzent ableiten -> Raum passt zur Präsentation.
+  const hsl = {}; acc.getHSL(hsl);
+  const tint = (l, s) => new THREE.Color().setHSL(hsl.h, Math.min(hsl.s, s == null ? 0.4 : s), l);
+  const bgCol = tint(0.045, 0.5);
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a0f1a);
-  scene.fog = new THREE.Fog(0x0a0f1a, 26, 110);
+  scene.background = bgCol;
+  scene.fog = new THREE.Fog(bgCol, 26, 110);
 
   const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 240);
   camera.position.set(0, 1.6, 6);
 
-  scene.add(new THREE.HemisphereLight(0xd2ddf2, 0x141a26, 1.2));
-  scene.add(new THREE.AmbientLight(0x2b3650, 0.7));
+  scene.add(new THREE.HemisphereLight(tint(0.62, 0.25).getHex(), tint(0.08, 0.3).getHex(), 1.2));
+  scene.add(new THREE.AmbientLight(tint(0.18, 0.35).getHex(), 0.7));
   const dir = new THREE.DirectionalLight(0xffffff, 0.75); dir.position.set(6, 18, 8); scene.add(dir);
 
   const n = deck.slides.length;
@@ -113,15 +117,15 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   const glowEnd = new THREE.PointLight(acc.getHex(), 0.9, 80, 1.3); glowEnd.position.set(0, 3.6, -hallLen + 6); scene.add(glowEnd);
   const glowIn = new THREE.PointLight(acc.getHex(), 0.6, 40, 1.6); glowIn.position.set(0, 3.2, 2); scene.add(glowIn);
 
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshStandardMaterial({ color: 0x161c2a, roughness: 0.82, metalness: 0.12 }));
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshStandardMaterial({ color: tint(0.10, 0.32).getHex(), roughness: 0.82, metalness: 0.12 }));
   floor.rotation.x = -Math.PI / 2; floor.position.z = -hallLen / 2 + 6; scene.add(floor);
-  const grid = new THREE.GridHelper(hallLen + 24, Math.max(8, Math.round((hallLen + 24) / 2)), 0x44557a, 0x232c42);
+  const grid = new THREE.GridHelper(hallLen + 24, Math.max(8, Math.round((hallLen + 24) / 2)), tint(0.32, 0.4).getHex(), tint(0.16, 0.3).getHex());
   grid.position.set(0, 0.012, floor.position.z); scene.add(grid);
   // leuchtender Pfad in der Mitte (führt den Blick nach vorn)
   const runner = new THREE.Mesh(new THREE.PlaneGeometry(1.2, hallLen + 24), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.16 }));
   runner.rotation.x = -Math.PI / 2; runner.position.set(0, 0.02, floor.position.z); scene.add(runner);
 
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x141a27, roughness: 0.95, side: THREE.DoubleSide });
+  const wallMat = new THREE.MeshStandardMaterial({ color: tint(0.075, 0.32).getHex(), roughness: 0.95, side: THREE.DoubleSide });
   for (const sx of [-1, 1]) {
     const wall = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 6.4), wallMat);
     wall.position.set(sx * halfW, 3.2, floor.position.z); wall.rotation.y = -sx * Math.PI / 2; scene.add(wall);
