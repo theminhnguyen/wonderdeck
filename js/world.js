@@ -88,40 +88,35 @@ function dancheongTexture(THREE) {
   return t;
 }
 
-/* ---------- Comic-Figur mit koreanischem Gat-Hut ---------- */
+/* ---------- Minimalistische, weiche Figur (ruhig, cel-shaded — abeto-Stil) ---------- */
 function makeHero(THREE, accentHex) {
   const g = new THREE.Group();
-  const skin = new THREE.MeshToonMaterial({ color: 0xf2c6a0 });
-  const robe = new THREE.MeshToonMaterial({ color: accentHex });
-  const white = new THREE.MeshToonMaterial({ color: 0xf6f2ea });
-  const black = new THREE.MeshToonMaterial({ color: 0x1b1b1b });
-  const out = new THREE.MeshBasicMaterial({ color: 0x14140f, side: THREE.BackSide });
+  const ac = new THREE.Color(accentHex); const h = {}; ac.getHSL(h);
+  const robe = new THREE.MeshToonMaterial({ color: new THREE.Color().setHSL(h.h, Math.min(h.s, 0.34), 0.7).getHex() }); // sanftes Pastell, dezent am Theme
+  const skin = new THREE.MeshToonMaterial({ color: 0xf3d6bf });
+  const dark = new THREE.MeshToonMaterial({ color: 0x2a2622 });
+  const out = new THREE.MeshBasicMaterial({ color: 0x2a2622, side: THREE.BackSide });
   const add = (geo, mat, x, y, z, sx, sy, sz) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); if (sx != null) m.scale.set(sx, sy, sz); g.add(m); return m; };
   const outline = (geo, x, y, z, s, sy, sz) => { const m = new THREE.Mesh(geo, out); m.position.set(x, y, z); m.scale.set(s, sy == null ? s : sy, sz == null ? s : sz); g.add(m); };
 
-  const skirtGeo = new THREE.ConeGeometry(0.44, 0.78, 18);
-  const torsoGeo = new THREE.SphereGeometry(0.3, 18, 14);
-  const headGeo = new THREE.SphereGeometry(0.27, 20, 16);
-  outline(skirtGeo, 0, 0.39, 0, 1.08);
-  outline(torsoGeo, 0, 0.82, 0, 1.12, 1.0, 1.12);
-  outline(headGeo, 0, 1.22, 0, 1.09);
-  add(skirtGeo, robe, 0, 0.39, 0);
-  add(torsoGeo, white, 0, 0.82, 0, 1.0, 0.92, 1.0);
-  add(headGeo, skin, 0, 1.22, 0);
-  // Gat-Hut (schwarz): Krempe + Dom
-  add(new THREE.CylinderGeometry(0.36, 0.36, 0.03, 20), black, 0, 1.4, 0);
-  add(new THREE.CylinderGeometry(0.15, 0.18, 0.24, 16), black, 0, 1.52, 0);
-  // kleiner Knoten oben
-  add(new THREE.SphereGeometry(0.05, 8, 8), black, 0, 1.66, 0);
+  const bodyGeo = new THREE.CapsuleGeometry(0.32, 0.46, 6, 16);
+  const headGeo = new THREE.SphereGeometry(0.28, 20, 16);
+  outline(bodyGeo, 0, 0.62, 0, 1.1);
+  outline(headGeo, 0, 1.18, 0, 1.09);
+  add(bodyGeo, robe, 0, 0.62, 0);
+  add(headGeo, skin, 0, 1.18, 0);
+  // dezenter Haarschopf statt lautem Hut
+  add(new THREE.SphereGeometry(0.22, 14, 10), dark, 0, 1.3, -0.03, 1, 0.62, 1);
+  add(new THREE.SphereGeometry(0.05, 8, 8), dark, 0, 1.46, -0.02);
   // Augen (Gesicht zeigt +Z)
-  const eyeGeo = new THREE.SphereGeometry(0.038, 8, 8);
-  add(eyeGeo, black, -0.1, 1.25, 0.235); add(eyeGeo, black, 0.1, 1.25, 0.235);
+  const eyeGeo = new THREE.SphereGeometry(0.035, 8, 8);
+  add(eyeGeo, dark, -0.1, 1.19, 0.255); add(eyeGeo, dark, 0.1, 1.19, 0.255);
   // Wangen-Tupfer
-  const cheek = new THREE.MeshToonMaterial({ color: 0xe8907a });
-  add(new THREE.SphereGeometry(0.05, 8, 8), cheek, -0.17, 1.18, 0.21, 1, 0.6, 0.4);
-  add(new THREE.SphereGeometry(0.05, 8, 8), cheek, 0.17, 1.18, 0.21, 1, 0.6, 0.4);
+  const cheek = new THREE.MeshToonMaterial({ color: 0xeaa48f });
+  add(new THREE.SphereGeometry(0.05, 8, 8), cheek, -0.18, 1.12, 0.22, 1, 0.6, 0.35);
+  add(new THREE.SphereGeometry(0.05, 8, 8), cheek, 0.18, 1.12, 0.22, 1, 0.6, 0.35);
   // Ärmchen
-  for (const sx of [-1, 1]) add(new THREE.CapsuleGeometry(0.07, 0.22, 4, 8), white, sx * 0.3, 0.8, 0, 1, 1, 1);
+  for (const sx of [-1, 1]) add(new THREE.CapsuleGeometry(0.07, 0.2, 4, 8), robe, sx * 0.33, 0.62, 0);
   return g;
 }
 
@@ -174,14 +169,14 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   floor.rotation.x = -Math.PI / 2; floor.position.z = -hallLen / 2 + 6; scene.add(floor);
   const grid = new THREE.GridHelper(hallLen + 24, Math.max(8, Math.round((hallLen + 24) / 2)), tint(0.5, 0.12).getHex(), tint(0.3, 0.1).getHex());
   grid.position.set(0, 0.012, floor.position.z); scene.add(grid);
-  const runner = new THREE.Mesh(new THREE.PlaneGeometry(1.8, hallLen + 24), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.32 }));
+  const runner = new THREE.Mesh(new THREE.PlaneGeometry(1.8, hallLen + 24), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.2 }));
   runner.rotation.x = -Math.PI / 2; runner.position.set(0, 0.02, floor.position.z); scene.add(runner);
 
   const wallMat = new THREE.MeshToonMaterial({ color: tint(0.56, 0.07).getHex(), side: THREE.DoubleSide });
   for (const sx of [-1, 1]) {
     const wall = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 6.4), wallMat);
     wall.position.set(sx * halfW, 3.2, floor.position.z); wall.rotation.y = -sx * Math.PI / 2; scene.add(wall);
-    const strip = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 0.14), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.7 }));
+    const strip = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 0.14), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.4 }));
     strip.position.set(sx * (halfW - 0.01), 4.7, floor.position.z); strip.rotation.y = -sx * Math.PI / 2; scene.add(strip);
     const base = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.4, hallLen + 24), new THREE.MeshToonMaterial({ color: tint(0.3, 0.14).getHex() }));
     base.position.set(sx * (halfW - 0.08), 0.2, floor.position.z); scene.add(base);
@@ -201,11 +196,10 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   const stoneDark = new THREE.MeshToonMaterial({ color: tint(0.44, 0.1).getHex() });
   const woodMat = new THREE.MeshToonMaterial({ color: tint(0.24, 0.28).getHex() });
   const frameMat = new THREE.MeshStandardMaterial({ color: 0xb89b5e, roughness: 0.45, metalness: 0.5 });
-  const leafMat = new THREE.MeshToonMaterial({ color: 0x3a7a4a });
-  const potMat = new THREE.MeshToonMaterial({ color: 0xc0392b });
-  const dancheong = dancheongTexture(THREE); dancheong.repeat.set(10, 1);
-  const beamMat = new THREE.MeshBasicMaterial({ map: dancheong });
-  disposables.push(stoneMat, stoneDark, woodMat, frameMat, leafMat, potMat, beamMat, dancheong, floor.geometry, floor.material, wallMat, ceil.material, runner.material, skylight.material);
+  const leafMat = new THREE.MeshToonMaterial({ color: 0x6f9a72 }); // gedämpftes Grün
+  const potMat = new THREE.MeshToonMaterial({ color: 0xb07a5a }); // weiche Terrakotta
+  const beamMat = new THREE.MeshToonMaterial({ color: tint(0.5, 0.1).getHex() }); // schlichte, ruhige Balken (kein lautes Dancheong)
+  disposables.push(stoneMat, stoneDark, woodMat, frameMat, leafMat, potMat, beamMat, floor.geometry, floor.material, wallMat, ceil.material, runner.material, skylight.material);
 
   const colGeo = new THREE.CylinderGeometry(0.4, 0.46, 4.9, 18);
   const fluteGeo = new THREE.BoxGeometry(1.1, 0.42, 1.1);
@@ -230,7 +224,7 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   const artZs = []; for (let z = -2.5; z > -hallLen + 6; z -= 7) artZs.push(z);
   for (const z of artZs) for (const sx of [-1, 1]) {
     const fr = new THREE.Mesh(artFrameGeo, frameMat); fr.position.set(sx * (halfW - 0.13), 2.7, z); fr.rotation.y = -sx * Math.PI / 2; scene.add(fr);
-    const fillMat = new THREE.MeshBasicMaterial({ color: new THREE.Color().setHSL(Math.random(), 0.5, 0.5).getHex() });
+    const fillMat = new THREE.MeshToonMaterial({ color: new THREE.Color().setHSL(Math.random(), 0.28, 0.62).getHex() });
     const fill = new THREE.Mesh(artFillGeo, fillMat); fill.position.set(sx * (halfW - 0.19), 2.7, z); fill.rotation.y = -sx * Math.PI / 2; scene.add(fill);
     disposables.push(fillMat);
   }
@@ -249,17 +243,16 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
     }
   }
 
-  /* ----- Koreanische Papierlaternen (hängend, leuchtend) ----- */
-  const lampCols = [0xc0392b, 0x2e6fb0, 0xe8c33a];
-  for (let i = 0, z = -3; z > -hallLen + 6; z -= 9, i++) {
+  /* ----- Papierlaternen (dezent, gedämpft, sanftes Leuchten) ----- */
+  const lampCols = [0xc28a6e, 0x7d8bb0, 0xcdb07a]; // weiche Terrakotta / Indigo / Sandgold
+  for (let i = 0, z = -6; z > -hallLen + 6; z -= 13, i++) {
     const col = lampCols[i % lampCols.length];
-    const g = new THREE.Group(); g.position.set((i % 2 ? 1 : -1) * 1.7, 0, z); scene.add(g);
-    g.add(place(new THREE.CylinderGeometry(0.012, 0.012, 1.0, 6), new THREE.MeshBasicMaterial({ color: 0x222222 }), 0, 4.75, 0));
-    g.add(place(new THREE.CylinderGeometry(0.27, 0.27, 0.46, 16), new THREE.MeshBasicMaterial({ color: col }), 0, 4.06, 0));
-    g.add(place(new THREE.CylinderGeometry(0.16, 0.2, 0.07, 16), new THREE.MeshBasicMaterial({ color: 0x141414 }), 0, 4.32, 0));
-    g.add(place(new THREE.CylinderGeometry(0.2, 0.16, 0.07, 16), new THREE.MeshBasicMaterial({ color: 0x141414 }), 0, 3.79, 0));
-    const tas = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.18, 8), new THREE.MeshBasicMaterial({ color: 0xe8c33a })); tas.position.set(0, 3.68, 0); tas.rotation.x = Math.PI; g.add(tas);
-    if (i % 2 === 0) { const pl = new THREE.PointLight(col, 0.5, 9, 2); pl.position.set(0, 3.9, 0); g.add(pl); }
+    const g = new THREE.Group(); g.position.set((i % 2 ? 1 : -1) * 1.9, 0, z); scene.add(g);
+    g.add(place(new THREE.CylinderGeometry(0.012, 0.012, 1.0, 6), new THREE.MeshBasicMaterial({ color: 0x3a3a3a }), 0, 4.75, 0));
+    g.add(place(new THREE.CylinderGeometry(0.25, 0.25, 0.44, 16), new THREE.MeshBasicMaterial({ color: col }), 0, 4.06, 0));
+    g.add(place(new THREE.CylinderGeometry(0.15, 0.19, 0.07, 16), new THREE.MeshBasicMaterial({ color: 0x2a2622 }), 0, 4.31, 0));
+    g.add(place(new THREE.CylinderGeometry(0.19, 0.15, 0.07, 16), new THREE.MeshBasicMaterial({ color: 0x2a2622 }), 0, 3.8, 0));
+    const pl = new THREE.PointLight(col, 0.35, 8, 2); pl.position.set(0, 3.9, 0); g.add(pl);
   }
 
   /* ----- Steinlaternen (seokdeung) in den Seitengängen ----- */
@@ -276,14 +269,12 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   }
   for (let z = -10; z > -hallLen + 8; z -= 22) { stoneLantern(-(halfW - 1.5), z); stoneLantern(halfW - 1.5, z); }
 
-  /* ----- Koreanisches Eingangstor (dancheong + Ziegeldach) ----- */
-  (function gate() {
+  /* ----- Mondtor am Eingang (dezenter asiatischer Hinweis statt lautem Tor) ----- */
+  (function moonGate() {
     const z = FRONT_Z - 2.2;
-    const postGeo = new THREE.BoxGeometry(0.5, 4.2, 0.5);
-    for (const sx of [-1, 1]) { scene.add(place(postGeo, new THREE.MeshToonMaterial({ color: 0xc0392b }), sx * (halfW - 1.4), 2.1, z)); obstacles.push({ x: sx * (halfW - 1.4), z, r: 0.5 }); }
-    const lintel = new THREE.Mesh(new THREE.BoxGeometry((halfW - 1.4) * 2 + 0.6, 0.6, 0.7), beamMat); lintel.position.set(0, 4.3, z); scene.add(lintel);
-    const roof = new THREE.Mesh(new THREE.ConeGeometry(halfW + 0.5, 0.9, 4), new THREE.MeshToonMaterial({ color: tint(0.32, 0.18).getHex() })); roof.position.set(0, 5.05, z); roof.rotation.y = Math.PI / 4; roof.scale.set(1, 1, 0.5); scene.add(roof);
-    disposables.push(postGeo);
+    const gate = new THREE.Mesh(new THREE.TorusGeometry(2.7, 0.2, 14, 56), new THREE.MeshToonMaterial({ color: tint(0.66, 0.05).getHex() }));
+    gate.position.set(0, 2.7, z); scene.add(gate);
+    for (const sx of [-1, 1]) scene.add(place(new THREE.BoxGeometry(0.6, 0.5, 0.6), stoneMat, sx * 2.55, 0.25, z));
   })();
 
   /* ----- Folien -> Tafeln ----- */
@@ -345,27 +336,31 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
 
   function returnToStart() { hero.position.copy(START); heading = Math.PI; closePanel(); }
 
-  /* Sprechblasen-Tutorial */
-  const guide = "🧑‍🎓";
+  /* Sprechblasen-Tutorial (abschaltbar, merkt sich die Wahl) */
+  const TUT_KEY = "wd:worldTut";
+  const tutOff = (() => { try { return localStorage.getItem(TUT_KEY) === "off"; } catch (e) { return false; } })();
+  const guide = "🙂";
   const msgs = [
-    "Annyeong! 👋 Willkommen in der Galerie.",
+    "Willkommen in der Galerie. 👋",
     "Du steuerst die Figur nur mit der Tastatur: <b>WASD</b> oder die <b>Pfeiltasten</b> — ganz ohne Maus.",
-    "Geh nah an eine leuchtende Tafel und drücke <b>E</b>, um die Details groß zu sehen.",
-    "Am Ende des Saals führt dich das <b>Tor</b> zurück zum Anfang. Viel Spaß beim Entdecken! ✦",
+    "Geh nah an eine Tafel und drücke <b>E</b>, um die Details groß zu sehen.",
+    "Am Ende führt dich das Tor zurück zum Anfang. Viel Spaß! ✦",
   ];
   let bi = 0, bubbleTimer = null;
   function showBubble() {
     if (!bubbleEl) { tutorialDone = true; return; }
     if (bi >= msgs.length) { bubbleEl.hidden = true; tutorialDone = true; return; }
-    bubbleEl.innerHTML = '<span class="wb-av">' + guide + '</span><span class="wb-tx">' + msgs[bi] + '</span><span class="wb-next">' + (isTouch ? "Tippen ▸" : "Weiter ▸ (Leertaste)") + "</span>";
+    bubbleEl.innerHTML = '<span class="wb-av">' + guide + '</span><span class="wb-tx">' + msgs[bi] + '</span><span class="wb-next">' + (isTouch ? "Tippen ▸" : "Weiter ▸ (Leertaste)") + '</span><button class="wb-close" title="Tutorial ausblenden (nicht mehr zeigen)" aria-label="Tutorial ausblenden">✕</button>';
     bubbleEl.hidden = false;
-    clearTimeout(bubbleTimer); bubbleTimer = setTimeout(nextBubble, 6000);
+    clearTimeout(bubbleTimer); bubbleTimer = setTimeout(nextBubble, 6500);
   }
   function nextBubble() { bi++; showBubble(); }
-  if (bubbleEl) bubbleEl.onclick = nextBubble;
+  function dismissTutorial() { clearTimeout(bubbleTimer); if (bubbleEl) bubbleEl.hidden = true; tutorialDone = true; try { localStorage.setItem(TUT_KEY, "off"); } catch (e) {} }
+  if (bubbleEl) bubbleEl.onclick = (e) => { if (e.target && e.target.classList && e.target.classList.contains("wb-close")) dismissTutorial(); else nextBubble(); };
 
   function onKeyDown(e) {
     const k = e.key.toLowerCase(); keys[k] = true;
+    if (k === "escape" && !tutorialDone && !panelOpen) { e.preventDefault(); dismissTutorial(); return; }
     if (k === " " || k === "enter") { if (!tutorialDone) { e.preventDefault(); nextBubble(); return; } }
     if (k === "e") { e.preventDefault(); if (panelOpen) closePanel(); else if (near) openPanel(near.slide); else if (nearPortal) returnToStart(); }
     if (k === "escape" && panelOpen) closePanel();
@@ -483,6 +478,6 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
     };
 
   loader.hidden = true;
-  showBubble();
+  if (tutOff) { tutorialDone = true; if (bubbleEl) bubbleEl.hidden = true; } else showBubble();
   raf = requestAnimationFrame(loop);
 }
