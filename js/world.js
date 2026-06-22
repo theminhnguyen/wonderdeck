@@ -76,47 +76,55 @@ function slideToCanvas(slide, c, resolveSrc) {
   });
 }
 
-/* ---------- Dancheong-Muster (koreanische Bemalung) als Textur ---------- */
-function dancheongTexture(THREE) {
-  const cv = document.createElement("canvas"); cv.width = 256; cv.height = 48; const c = cv.getContext("2d");
-  c.fillStyle = "#1f6f4a"; c.fillRect(0, 0, 256, 48);
-  const cols = ["#c0392b", "#2e6fb0", "#e8c33a", "#f4f1ea"];
-  for (let x = 0, i = 0; x < 256; x += 32, i++) { c.fillStyle = cols[i % cols.length]; c.fillRect(x + 6, 8, 20, 32); }
-  c.fillStyle = "#102a1c"; c.fillRect(0, 0, 256, 5); c.fillRect(0, 43, 256, 5);
-  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  if ("colorSpace" in t) t.colorSpace = THREE.SRGBColorSpace;
-  return t;
+/* ---------- Verlaufs-Himmel + Marmor-Boden als Texturen (mehr Tiefe/Politur) ---------- */
+function gradientSky(THREE, topCss, botCss) {
+  const cv = document.createElement("canvas"); cv.width = 8; cv.height = 256; const c = cv.getContext("2d");
+  const g = c.createLinearGradient(0, 0, 0, 256); g.addColorStop(0, topCss); g.addColorStop(1, botCss);
+  c.fillStyle = g; c.fillRect(0, 0, 8, 256);
+  const t = new THREE.CanvasTexture(cv); if ("colorSpace" in t) t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function marbleTexture(THREE, baseCss, veinCss) {
+  const cv = document.createElement("canvas"); cv.width = 512; cv.height = 512; const c = cv.getContext("2d");
+  c.fillStyle = baseCss; c.fillRect(0, 0, 512, 512);
+  c.strokeStyle = veinCss; c.lineWidth = 1.3; c.globalAlpha = 0.45;
+  for (let i = 0; i < 26; i++) { c.beginPath(); let x = Math.random() * 512, y = Math.random() * 512; c.moveTo(x, y); for (let j = 0; j < 7; j++) { x += (Math.random() - 0.5) * 130; y += (Math.random() - 0.5) * 130; c.lineTo(x, y); } c.stroke(); }
+  c.globalAlpha = 0.045; for (let i = 0; i < 1800; i++) { c.fillStyle = Math.random() < 0.5 ? "#000" : "#fff"; c.fillRect(Math.random() * 512, Math.random() * 512, 1.6, 1.6); }
+  c.globalAlpha = 1;
+  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; if ("colorSpace" in t) t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
-/* ---------- Minimalistische, weiche Figur (ruhig, cel-shaded — abeto-Stil) ---------- */
+/* ---------- Weiche Figur mit Armen, Beinen & Lauf-Animation (cel-shaded) ---------- */
 function makeHero(THREE, accentHex) {
   const g = new THREE.Group();
   const ac = new THREE.Color(accentHex); const h = {}; ac.getHSL(h);
-  const robe = new THREE.MeshToonMaterial({ color: new THREE.Color().setHSL(h.h, Math.min(h.s, 0.34), 0.7).getHex() }); // sanftes Pastell, dezent am Theme
+  const robe = new THREE.MeshToonMaterial({ color: new THREE.Color().setHSL(h.h, Math.min(h.s, 0.36), 0.66).getHex() }); // Rock (Akzent, dezent)
+  const top = new THREE.MeshToonMaterial({ color: new THREE.Color().setHSL(h.h, Math.min(h.s, 0.28), 0.8).getHex() });   // helles Oberteil
   const skin = new THREE.MeshToonMaterial({ color: 0xf3d6bf });
   const dark = new THREE.MeshToonMaterial({ color: 0x2a2622 });
   const out = new THREE.MeshBasicMaterial({ color: 0x2a2622, side: THREE.BackSide });
-  const add = (geo, mat, x, y, z, sx, sy, sz) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); if (sx != null) m.scale.set(sx, sy, sz); g.add(m); return m; };
-  const outline = (geo, x, y, z, s, sy, sz) => { const m = new THREE.Mesh(geo, out); m.position.set(x, y, z); m.scale.set(s, sy == null ? s : sy, sz == null ? s : sz); g.add(m); };
+  const M = (geo, mat) => new THREE.Mesh(geo, mat);
+  const ol = (mesh, s) => { const o = new THREE.Mesh(mesh.geometry, out); o.scale.setScalar(s); mesh.add(o); }; // Outline als Kind
 
-  const bodyGeo = new THREE.CapsuleGeometry(0.32, 0.46, 6, 16);
-  const headGeo = new THREE.SphereGeometry(0.28, 20, 16);
-  outline(bodyGeo, 0, 0.62, 0, 1.1);
-  outline(headGeo, 0, 1.18, 0, 1.09);
-  add(bodyGeo, robe, 0, 0.62, 0);
-  add(headGeo, skin, 0, 1.18, 0);
-  // dezenter Haarschopf statt lautem Hut
-  add(new THREE.SphereGeometry(0.22, 14, 10), dark, 0, 1.3, -0.03, 1, 0.62, 1);
-  add(new THREE.SphereGeometry(0.05, 8, 8), dark, 0, 1.46, -0.02);
-  // Augen (Gesicht zeigt +Z)
-  const eyeGeo = new THREE.SphereGeometry(0.035, 8, 8);
-  add(eyeGeo, dark, -0.1, 1.19, 0.255); add(eyeGeo, dark, 0.1, 1.19, 0.255);
-  // Wangen-Tupfer
-  const cheek = new THREE.MeshToonMaterial({ color: 0xeaa48f });
-  add(new THREE.SphereGeometry(0.05, 8, 8), cheek, -0.18, 1.12, 0.22, 1, 0.6, 0.35);
-  add(new THREE.SphereGeometry(0.05, 8, 8), cheek, 0.18, 1.12, 0.22, 1, 0.6, 0.35);
-  // Ärmchen
-  for (const sx of [-1, 1]) add(new THREE.CapsuleGeometry(0.07, 0.2, 4, 8), robe, sx * 0.33, 0.62, 0);
+  // Beine — Pivot an der Hüfte (für Schwung)
+  const legGeo = new THREE.CapsuleGeometry(0.1, 0.32, 4, 10);
+  const mkLeg = (x) => { const p = new THREE.Group(); p.position.set(x, 0.52, 0); const leg = M(legGeo, dark); leg.position.y = -0.22; ol(leg, 1.13); p.add(leg); g.add(p); return p; };
+  const lleg = mkLeg(-0.12), rleg = mkLeg(0.12);
+  // Rock + Körper
+  const skirt = M(new THREE.CylinderGeometry(0.3, 0.36, 0.34, 18), robe); skirt.position.y = 0.66; ol(skirt, 1.06); g.add(skirt);
+  const body = M(new THREE.CapsuleGeometry(0.27, 0.34, 6, 16), top); body.position.y = 0.95; ol(body, 1.1); g.add(body);
+  // Kopf + Haar
+  const head = M(new THREE.SphereGeometry(0.27, 20, 16), skin); head.position.y = 1.4; ol(head, 1.08); g.add(head);
+  const hair = M(new THREE.SphereGeometry(0.29, 16, 12), dark); hair.position.set(0, 1.45, -0.02); hair.scale.set(1, 0.72, 1.04); g.add(hair);
+  // Augen + Wangen (Gesicht +Z)
+  const eg = new THREE.SphereGeometry(0.034, 8, 8);
+  const le = M(eg, dark), re = M(eg, dark); le.position.set(-0.1, 1.39, 0.25); re.position.set(0.1, 1.39, 0.25); g.add(le, re);
+  const cheek = new THREE.MeshToonMaterial({ color: 0xeaa48f }), cg = new THREE.SphereGeometry(0.05, 8, 8);
+  const lc = M(cg, cheek), rc = M(cg, cheek); lc.position.set(-0.18, 1.32, 0.22); lc.scale.set(1, 0.6, 0.35); rc.position.set(0.18, 1.32, 0.22); rc.scale.set(1, 0.6, 0.35); g.add(lc, rc);
+  // Arme — Pivot an der Schulter
+  const armGeo = new THREE.CapsuleGeometry(0.08, 0.3, 4, 10);
+  const mkArm = (x) => { const p = new THREE.Group(); p.position.set(x, 1.06, 0); const arm = M(armGeo, top); arm.position.y = -0.2; ol(arm, 1.13); p.add(arm); g.add(p); return p; };
+  const larm = mkArm(-0.3), rarm = mkArm(0.3);
+  g.userData.parts = { lleg, rleg, larm, rarm };
   return g;
 }
 
@@ -138,6 +146,8 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   if ("outputColorSpace" in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
   stage.innerHTML = ""; stage.appendChild(renderer.domElement);
 
   const acc = new THREE.Color(accent);
@@ -145,14 +155,20 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   const tint = (l, s) => new THREE.Color().setHSL(hsl.h, Math.min(hsl.s, s == null ? 0.4 : s), l);
   const bgCol = tint(0.52, 0.14);
   const scene = new THREE.Scene();
-  scene.background = bgCol;
-  scene.fog = new THREE.Fog(bgCol, 34, 130);
+  scene.background = gradientSky(THREE, tint(0.78, 0.2).getStyle(), tint(0.46, 0.12).getStyle());
+  scene.fog = new THREE.Fog(bgCol.getHex(), 40, 145);
 
-  const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 240);
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 240);
 
-  scene.add(new THREE.HemisphereLight(tint(0.95, 0.06).getHex(), tint(0.42, 0.16).getHex(), 1.45));
-  scene.add(new THREE.AmbientLight(tint(0.62, 0.1).getHex(), 0.9));
-  const dir = new THREE.DirectionalLight(0xffffff, 0.75); dir.position.set(6, 18, 8); scene.add(dir);
+  scene.add(new THREE.HemisphereLight(tint(0.96, 0.06).getHex(), tint(0.44, 0.16).getHex(), 1.1));
+  scene.add(new THREE.AmbientLight(tint(0.64, 0.1).getHex(), 0.5));
+  // Sonne mit weichem Schatten — folgt der Figur (knackige Schatten in der Nähe)
+  const dir = new THREE.DirectionalLight(0xfff2dc, 1.35);
+  dir.castShadow = true; dir.shadow.mapSize.set(2048, 2048);
+  const sc = dir.shadow.camera; sc.near = 1; sc.far = 70; sc.left = -18; sc.right = 18; sc.top = 18; sc.bottom = -18; sc.updateProjectionMatrix();
+  dir.shadow.bias = -0.0007; dir.shadow.normalBias = 0.04;
+  scene.add(dir); scene.add(dir.target);
+  const sunOff = new THREE.Vector3(7, 17, 9); // Lichtrichtung relativ zur Figur
 
   const n = deck.slides.length;
   const spacing = 7, halfW = 7.5, hallLen = n * spacing + 18;
@@ -164,12 +180,13 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   const obstacles = []; // {x,z,r} für einfache Kollision
   const place = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); return m; };
 
-  /* ----- Boden, Wände, Decke (Toon = Comic) ----- */
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshToonMaterial({ color: tint(0.4, 0.1).getHex() }));
-  floor.rotation.x = -Math.PI / 2; floor.position.z = -hallLen / 2 + 6; scene.add(floor);
-  const grid = new THREE.GridHelper(hallLen + 24, Math.max(8, Math.round((hallLen + 24) / 2)), tint(0.5, 0.12).getHex(), tint(0.3, 0.1).getHex());
-  grid.position.set(0, 0.012, floor.position.z); scene.add(grid);
-  const runner = new THREE.Mesh(new THREE.PlaneGeometry(1.8, hallLen + 24), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.2 }));
+  /* ----- Boden (Marmor), Wände, Decke ----- */
+  const floorTex = marbleTexture(THREE, tint(0.46, 0.07).getStyle(), tint(0.3, 0.12).getStyle());
+  floorTex.repeat.set(4, Math.max(4, Math.round((hallLen + 24) / 8)));
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshToonMaterial({ map: floorTex }));
+  floor.rotation.x = -Math.PI / 2; floor.position.z = -hallLen / 2 + 6; floor.receiveShadow = true; scene.add(floor);
+  disposables.push(floorTex);
+  const runner = new THREE.Mesh(new THREE.PlaneGeometry(1.8, hallLen + 24), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.22 }));
   runner.rotation.x = -Math.PI / 2; runner.position.set(0, 0.02, floor.position.z); scene.add(runner);
 
   const wallMat = new THREE.MeshToonMaterial({ color: tint(0.56, 0.07).getHex(), side: THREE.DoubleSide });
@@ -294,10 +311,34 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
     scene.add(place(new THREE.BoxGeometry(2.0, 0.1, 1.15), stoneDark, x, y - bh / 2, z));
     const fix = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.3), stoneDark); fix.position.set(x, 5.32, z + 0.9); scene.add(fix);
     if (n <= 10) { const spot = new THREE.SpotLight(0xfff1dc, 22, 12, 0.5, 0.6, 1.4); spot.position.set(x, 5.2, z + 1.2); spot.target.position.set(x, y - 0.2, z); scene.add(spot); scene.add(spot.target); }
+    // Teppich unter der Tafel
+    const rug = new THREE.Mesh(new THREE.PlaneGeometry(2.9, 2.3), new THREE.MeshToonMaterial({ color: tint(0.42, 0.32).getHex() }));
+    rug.rotation.x = -Math.PI / 2; rug.position.set(x, 0.016, z); rug.receiveShadow = true; scene.add(rug);
+    // Museums-Absperrung (zwei Messing-Pfosten + Seil) zum Gang hin
+    const sx2 = x * 0.48;
+    for (const oz of [-0.95, 0.95]) {
+      scene.add(place(new THREE.CylinderGeometry(0.045, 0.055, 0.82, 10), frameMat, sx2, 0.41, z + oz));
+      scene.add(place(new THREE.SphereGeometry(0.08, 10, 8), frameMat, sx2, 0.86, z + oz));
+    }
+    const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 1.9, 8), new THREE.MeshToonMaterial({ color: tint(0.4, 0.32).getHex() }));
+    rope.position.set(sx2, 0.74, z); rope.rotation.x = Math.PI / 2; scene.add(rope);
     boards.push({ slide, x, z });
     obstacles.push({ x, z, r: 1.25 });
     disposables.push(tex, board.geometry, frame.geometry, outline.geometry, plinth.geometry, board.material, frame.material, outline.material);
   }));
+
+  /* ----- Skulpturen auf Sockeln (füllen den Raum, mehr Tiefe) ----- */
+  const sculptBase = new THREE.MeshToonMaterial({ color: tint(0.6, 0.07).getHex() });
+  const sculptAcc = new THREE.MeshToonMaterial({ color: tint(0.55, 0.4).getHex() });
+  for (let k = 0, z = -12; z > -hallLen + 10; z -= 20, k++) {
+    const sx = (k % 2 ? 1 : -1) * 4.4;
+    scene.add(place(new THREE.CylinderGeometry(0.48, 0.6, 1.0, 10), sculptBase, sx, 0.5, z));
+    scene.add(place(new THREE.CylinderGeometry(0.6, 0.6, 0.08, 10), sculptBase, sx, 1.0, z));
+    if (k % 2) scene.add(place(new THREE.TorusKnotGeometry(0.26, 0.09, 80, 10), sculptAcc, sx, 1.55, z));
+    else scene.add(place(new THREE.IcosahedronGeometry(0.36, 0), sculptAcc, sx, 1.5, z));
+    obstacles.push({ x: sx, z, r: 0.7 });
+  }
+  disposables.push(sculptBase, sculptAcc);
 
   /* ----- Rückweg-Portal ----- */
   const portalX = 0, portalZ = -hallLen + 7, portalY = 2.1;
@@ -400,8 +441,9 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
 
   /* ----- Loop ----- */
   const camPos = new THREE.Vector3(0, 4.6, 5 + 7), camLook = new THREE.Vector3();
+  const parts = hero.userData.parts;
   const xMin = -(halfW - 1.3), xMax = halfW - 1.3, zMin = -hallLen + 4, zMax = 5;
-  let raf = 0;
+  let raf = 0, walkT = 0;
   function loop() {
     const dt = Math.min(clock.getDelta(), 0.05);
     if (!panelOpen) {
@@ -412,11 +454,11 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
       if (keys["d"] || keys["arrowright"]) mx += 1;
       if (isTouch) { mx += joy.x; mz += joy.y; }
       const len = Math.hypot(mx, mz);
-      if (len > 0.01) {
+      const moving = len > 0.01;
+      if (moving) {
         mx /= len; mz /= len;
         const spd = 5 * dt;
         hero.position.x += mx * spd; hero.position.z += mz * spd;
-        // Kollision: aus Hindernissen herausschieben
         for (const o of obstacles) { const dx = hero.position.x - o.x, dz = hero.position.z - o.z, dd = Math.hypot(dx, dz), rr = o.r + 0.45; if (dd < rr && dd > 0.001) { hero.position.x = o.x + (dx / dd) * rr; hero.position.z = o.z + (dz / dd) * rr; } }
         hero.position.x = clamp(hero.position.x, xMin, xMax);
         hero.position.z = clamp(hero.position.z, zMin, zMax);
@@ -424,13 +466,19 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
         let d = targetH - heading; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
         heading += d * Math.min(1, dt * 12);
         hero.rotation.y = heading;
-        hero.position.y = Math.abs(Math.sin(clock.elapsedTime * 11)) * 0.06; // Hüpfen
+        hero.position.y = Math.abs(Math.sin(clock.elapsedTime * 9)) * 0.05;
       } else { hero.position.y += (0 - hero.position.y) * 0.2; }
+      // Lauf-Animation der Glieder
+      if (moving) { walkT += dt * 9; const sw = Math.sin(walkT) * 0.7; parts.lleg.rotation.x = sw; parts.rleg.rotation.x = -sw; parts.larm.rotation.x = -sw * 0.7; parts.rarm.rotation.x = sw * 0.7; }
+      else { walkT = 0; for (const k in parts) parts[k].rotation.x *= 0.82; }
       shadow.position.set(hero.position.x, 0.02, hero.position.z);
+      // Sonne (Schatten) folgt der Figur
+      dir.position.set(hero.position.x + sunOff.x, sunOff.y, hero.position.z + sunOff.z);
+      dir.target.position.set(hero.position.x, 0, hero.position.z); dir.target.updateMatrixWorld();
 
-      // Kamera folgt (fester Diorama-Blick)
+      // Kamera folgt (sanfter Diorama-Blick)
       camPos.set(hero.position.x, 4.6, hero.position.z + 7);
-      camera.position.lerp(camPos, 1 - Math.pow(0.001, dt));
+      camera.position.lerp(camPos, 1 - Math.pow(0.0015, dt));
       camLook.set(hero.position.x, 1.3, hero.position.z - 1.2);
       camera.lookAt(camLook);
 
@@ -476,6 +524,10 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
       skipTutorial: () => { bi = msgs.length; showBubble(); },
       state: () => ({ x: +hero.position.x.toFixed(2), z: +hero.position.z.toFixed(2), near: !!near, nearPortal, tutorialDone, heading: +heading.toFixed(2) }),
     };
+
+  // Schatten: feste Toon-Objekte werfen & empfangen Schatten
+  scene.traverse((o) => { if (o.isMesh && o.material && o.material.isMeshToonMaterial) { o.castShadow = true; o.receiveShadow = true; } });
+  floor.castShadow = false;
 
   loader.hidden = true;
   if (tutOff) { tutorialDone = true; if (bubbleEl) bubbleEl.hidden = true; } else showBubble();

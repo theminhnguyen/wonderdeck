@@ -270,48 +270,60 @@ function WORLD_RUNTIME(DECK, CFG, THREE) {
   function makeHero(accentHex) {
     const g = new THREE.Group();
     const ac = new THREE.Color(accentHex); const h = {}; ac.getHSL(h);
-    const robe = new THREE.MeshToonMaterial({ color: new THREE.Color().setHSL(h.h, Math.min(h.s, 0.34), 0.7).getHex() });
+    const robe = new THREE.MeshToonMaterial({ color: new THREE.Color().setHSL(h.h, Math.min(h.s, 0.36), 0.66).getHex() });
+    const top = new THREE.MeshToonMaterial({ color: new THREE.Color().setHSL(h.h, Math.min(h.s, 0.28), 0.8).getHex() });
     const skin = new THREE.MeshToonMaterial({ color: 0xf3d6bf }), dark = new THREE.MeshToonMaterial({ color: 0x2a2622 });
     const out = new THREE.MeshBasicMaterial({ color: 0x2a2622, side: THREE.BackSide });
-    const add = (geo, mat, x, y, z, sx, sy, sz) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); if (sx != null) m.scale.set(sx, sy, sz); g.add(m); return m; };
-    const outline = (geo, x, y, z, s, sy, sz) => { const m = new THREE.Mesh(geo, out); m.position.set(x, y, z); m.scale.set(s, sy == null ? s : sy, sz == null ? s : sz); g.add(m); };
-    const bodyGeo = new THREE.CapsuleGeometry(0.32, 0.46, 6, 16), headGeo = new THREE.SphereGeometry(0.28, 20, 16);
-    outline(bodyGeo, 0, 0.62, 0, 1.1); outline(headGeo, 0, 1.18, 0, 1.09);
-    add(bodyGeo, robe, 0, 0.62, 0); add(headGeo, skin, 0, 1.18, 0);
-    add(new THREE.SphereGeometry(0.22, 14, 10), dark, 0, 1.3, -0.03, 1, 0.62, 1);
-    add(new THREE.SphereGeometry(0.05, 8, 8), dark, 0, 1.46, -0.02);
-    const eyeGeo = new THREE.SphereGeometry(0.035, 8, 8); add(eyeGeo, dark, -0.1, 1.19, 0.255); add(eyeGeo, dark, 0.1, 1.19, 0.255);
-    const cheek = new THREE.MeshToonMaterial({ color: 0xeaa48f });
-    add(new THREE.SphereGeometry(0.05, 8, 8), cheek, -0.18, 1.12, 0.22, 1, 0.6, 0.35); add(new THREE.SphereGeometry(0.05, 8, 8), cheek, 0.18, 1.12, 0.22, 1, 0.6, 0.35);
-    for (const sx of [-1, 1]) add(new THREE.CapsuleGeometry(0.07, 0.2, 4, 8), robe, sx * 0.33, 0.62, 0);
+    const M = (geo, mat) => new THREE.Mesh(geo, mat);
+    const ol = (mesh, s) => { const o = new THREE.Mesh(mesh.geometry, out); o.scale.setScalar(s); mesh.add(o); };
+    const legGeo = new THREE.CapsuleGeometry(0.1, 0.32, 4, 10);
+    const mkLeg = (x) => { const p = new THREE.Group(); p.position.set(x, 0.52, 0); const leg = M(legGeo, dark); leg.position.y = -0.22; ol(leg, 1.13); p.add(leg); g.add(p); return p; };
+    const lleg = mkLeg(-0.12), rleg = mkLeg(0.12);
+    const skirt = M(new THREE.CylinderGeometry(0.3, 0.36, 0.34, 18), robe); skirt.position.y = 0.66; ol(skirt, 1.06); g.add(skirt);
+    const body = M(new THREE.CapsuleGeometry(0.27, 0.34, 6, 16), top); body.position.y = 0.95; ol(body, 1.1); g.add(body);
+    const head = M(new THREE.SphereGeometry(0.27, 20, 16), skin); head.position.y = 1.4; ol(head, 1.08); g.add(head);
+    const hair = M(new THREE.SphereGeometry(0.29, 16, 12), dark); hair.position.set(0, 1.45, -0.02); hair.scale.set(1, 0.72, 1.04); g.add(hair);
+    const eg = new THREE.SphereGeometry(0.034, 8, 8); const le = M(eg, dark), re = M(eg, dark); le.position.set(-0.1, 1.39, 0.25); re.position.set(0.1, 1.39, 0.25); g.add(le, re);
+    const cheek = new THREE.MeshToonMaterial({ color: 0xeaa48f }), cg = new THREE.SphereGeometry(0.05, 8, 8);
+    const lc = M(cg, cheek), rc = M(cg, cheek); lc.position.set(-0.18, 1.32, 0.22); lc.scale.set(1, 0.6, 0.35); rc.position.set(0.18, 1.32, 0.22); rc.scale.set(1, 0.6, 0.35); g.add(lc, rc);
+    const armGeo = new THREE.CapsuleGeometry(0.08, 0.3, 4, 10);
+    const mkArm = (x) => { const p = new THREE.Group(); p.position.set(x, 1.06, 0); const arm = M(armGeo, top); arm.position.y = -0.2; ol(arm, 1.13); p.add(arm); g.add(p); return p; };
+    const larm = mkArm(-0.3), rarm = mkArm(0.3);
+    g.userData.parts = { lleg, rleg, larm, rarm };
     return g;
   }
 
+  function gradientSky(topCss, botCss) { const cv = document.createElement("canvas"); cv.width = 8; cv.height = 256; const c = cv.getContext("2d"); const g = c.createLinearGradient(0, 0, 0, 256); g.addColorStop(0, topCss); g.addColorStop(1, botCss); c.fillStyle = g; c.fillRect(0, 0, 8, 256); const t = new THREE.CanvasTexture(cv); if ("colorSpace" in t) t.colorSpace = THREE.SRGBColorSpace; return t; }
+  function marbleTexture(baseCss, veinCss) { const cv = document.createElement("canvas"); cv.width = 512; cv.height = 512; const c = cv.getContext("2d"); c.fillStyle = baseCss; c.fillRect(0, 0, 512, 512); c.strokeStyle = veinCss; c.lineWidth = 1.3; c.globalAlpha = 0.45; for (let i = 0; i < 26; i++) { c.beginPath(); let x = Math.random() * 512, y = Math.random() * 512; c.moveTo(x, y); for (let j = 0; j < 7; j++) { x += (Math.random() - 0.5) * 130; y += (Math.random() - 0.5) * 130; c.lineTo(x, y); } c.stroke(); } c.globalAlpha = 0.045; for (let i = 0; i < 1800; i++) { c.fillStyle = Math.random() < 0.5 ? "#000" : "#fff"; c.fillRect(Math.random() * 512, Math.random() * 512, 1.6, 1.6); } c.globalAlpha = 1; const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; if ("colorSpace" in t) t.colorSpace = THREE.SRGBColorSpace; return t; }
   async function boot() {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.setSize(window.innerWidth, window.innerHeight);
     if ("outputColorSpace" in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
     stage.innerHTML = ""; stage.appendChild(renderer.domElement);
 
     const acc = new THREE.Color(accent); const hsl = {}; acc.getHSL(hsl);
     const tint = (l, s) => new THREE.Color().setHSL(hsl.h, Math.min(hsl.s, s == null ? 0.4 : s), l);
     const place = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); return m; };
     const bgCol = tint(0.52, 0.14);
-    const scene = new THREE.Scene(); scene.background = bgCol; scene.fog = new THREE.Fog(bgCol, 34, 130);
-    const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 240);
-    scene.add(new THREE.HemisphereLight(tint(0.95, 0.06).getHex(), tint(0.42, 0.16).getHex(), 1.45));
-    scene.add(new THREE.AmbientLight(tint(0.62, 0.1).getHex(), 0.9));
-    const dir = new THREE.DirectionalLight(0xffffff, 0.75); dir.position.set(6, 18, 8); scene.add(dir);
+    const scene = new THREE.Scene(); scene.background = gradientSky(tint(0.78, 0.2).getStyle(), tint(0.46, 0.12).getStyle()); scene.fog = new THREE.Fog(bgCol.getHex(), 40, 145);
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 240);
+    scene.add(new THREE.HemisphereLight(tint(0.96, 0.06).getHex(), tint(0.44, 0.16).getHex(), 1.1));
+    scene.add(new THREE.AmbientLight(tint(0.64, 0.1).getHex(), 0.5));
+    const dir = new THREE.DirectionalLight(0xfff2dc, 1.35); dir.castShadow = true; dir.shadow.mapSize.set(2048, 2048);
+    const sc = dir.shadow.camera; sc.near = 1; sc.far = 70; sc.left = -18; sc.right = 18; sc.top = 18; sc.bottom = -18; sc.updateProjectionMatrix();
+    dir.shadow.bias = -0.0007; dir.shadow.normalBias = 0.04; scene.add(dir); scene.add(dir.target);
+    const sunOff = new THREE.Vector3(7, 17, 9);
 
     const n = DECK.slides.length; const spacing = 7, halfW = 7.5, hallLen = n * spacing + 18, FRONT_Z = 13;
     const obstacles = [];
     const glowEnd = new THREE.PointLight(acc.getHex(), 0.9, 80, 1.3); glowEnd.position.set(0, 3.6, -hallLen + 6); scene.add(glowEnd);
 
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshToonMaterial({ color: tint(0.4, 0.1).getHex() }));
-    floor.rotation.x = -Math.PI / 2; floor.position.z = -hallLen / 2 + 6; scene.add(floor);
-    const grid = new THREE.GridHelper(hallLen + 24, Math.max(8, Math.round((hallLen + 24) / 2)), tint(0.5, 0.12).getHex(), tint(0.3, 0.1).getHex());
-    grid.position.set(0, 0.012, floor.position.z); scene.add(grid);
-    const runner = new THREE.Mesh(new THREE.PlaneGeometry(1.8, hallLen + 24), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.2 }));
+    const floorTex = marbleTexture(tint(0.46, 0.07).getStyle(), tint(0.3, 0.12).getStyle()); floorTex.repeat.set(4, Math.max(4, Math.round((hallLen + 24) / 8)));
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshToonMaterial({ map: floorTex }));
+    floor.rotation.x = -Math.PI / 2; floor.position.z = -hallLen / 2 + 6; floor.receiveShadow = true; scene.add(floor);
+    const runner = new THREE.Mesh(new THREE.PlaneGeometry(1.8, hallLen + 24), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.22 }));
     runner.rotation.x = -Math.PI / 2; runner.position.set(0, 0.02, floor.position.z); scene.add(runner);
 
     const wallMat = new THREE.MeshToonMaterial({ color: tint(0.56, 0.07).getHex(), side: THREE.DoubleSide });
@@ -393,8 +405,23 @@ function WORLD_RUNTIME(DECK, CFG, THREE) {
       scene.add(place(new THREE.BoxGeometry(2.0, 0.1, 1.15), stoneDark, x, y - bh / 2, z));
       scene.add(place(new THREE.BoxGeometry(0.5, 0.12, 0.3), stoneDark, x, 5.32, z + 0.9));
       if (n <= 10) { const spot = new THREE.SpotLight(0xfff1dc, 22, 12, 0.5, 0.6, 1.4); spot.position.set(x, 5.2, z + 1.2); spot.target.position.set(x, y - 0.2, z); scene.add(spot); scene.add(spot.target); }
+      const rug = new THREE.Mesh(new THREE.PlaneGeometry(2.9, 2.3), new THREE.MeshToonMaterial({ color: tint(0.42, 0.32).getHex() })); rug.rotation.x = -Math.PI / 2; rug.position.set(x, 0.016, z); rug.receiveShadow = true; scene.add(rug);
+      const sx2 = x * 0.48;
+      for (const oz of [-0.95, 0.95]) { scene.add(place(new THREE.CylinderGeometry(0.045, 0.055, 0.82, 10), frameMat, sx2, 0.41, z + oz)); scene.add(place(new THREE.SphereGeometry(0.08, 10, 8), frameMat, sx2, 0.86, z + oz)); }
+      const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 1.9, 8), new THREE.MeshToonMaterial({ color: tint(0.4, 0.32).getHex() })); rope.position.set(sx2, 0.74, z); rope.rotation.x = Math.PI / 2; scene.add(rope);
       boards.push({ slide, x, z }); obstacles.push({ x, z, r: 1.25 });
     }));
+
+    const sculptBase = new THREE.MeshToonMaterial({ color: tint(0.6, 0.07).getHex() });
+    const sculptAcc = new THREE.MeshToonMaterial({ color: tint(0.55, 0.4).getHex() });
+    for (let k = 0, z = -12; z > -hallLen + 10; z -= 20, k++) {
+      const sx = (k % 2 ? 1 : -1) * 4.4;
+      scene.add(place(new THREE.CylinderGeometry(0.48, 0.6, 1.0, 10), sculptBase, sx, 0.5, z));
+      scene.add(place(new THREE.CylinderGeometry(0.6, 0.6, 0.08, 10), sculptBase, sx, 1.0, z));
+      if (k % 2) scene.add(place(new THREE.TorusKnotGeometry(0.26, 0.09, 80, 10), sculptAcc, sx, 1.55, z));
+      else scene.add(place(new THREE.IcosahedronGeometry(0.36, 0), sculptAcc, sx, 1.5, z));
+      obstacles.push({ x: sx, z, r: 0.7 });
+    }
 
     const portalX = 0, portalZ = -hallLen + 7, portalY = 2.1;
     const portalGrp = new THREE.Group(); portalGrp.position.set(portalX, portalY, portalZ); scene.add(portalGrp);
@@ -454,7 +481,9 @@ function WORLD_RUNTIME(DECK, CFG, THREE) {
     function closePanel() { panelOpen = false; panel.hidden = true; }
 
     const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
+    const parts = hero.userData.parts;
     const xMin = -(halfW - 1.3), xMax = halfW - 1.3, zMin = -hallLen + 4, zMax = 5;
+    let walkT = 0;
     function loop() {
       const dt = Math.min(clock.getDelta(), 0.05);
       if (!panelOpen) {
@@ -463,16 +492,20 @@ function WORLD_RUNTIME(DECK, CFG, THREE) {
         if (keys["a"] || keys["arrowleft"]) mx -= 1; if (keys["d"] || keys["arrowright"]) mx += 1;
         if (isTouch) { mx += jst.x; mz += jst.y; }
         const len = Math.hypot(mx, mz);
-        if (len > 0.01) {
+        const moving = len > 0.01;
+        if (moving) {
           mx /= len; mz /= len; const spd = 5 * dt;
           hero.position.x += mx * spd; hero.position.z += mz * spd;
           for (const o of obstacles) { const dx = hero.position.x - o.x, dz = hero.position.z - o.z, dd = Math.hypot(dx, dz), rr = o.r + 0.45; if (dd < rr && dd > 0.001) { hero.position.x = o.x + (dx / dd) * rr; hero.position.z = o.z + (dz / dd) * rr; } }
           hero.position.x = clamp(hero.position.x, xMin, xMax); hero.position.z = clamp(hero.position.z, zMin, zMax);
           const targetH = Math.atan2(mx, mz); let d = targetH - heading; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; heading += d * Math.min(1, dt * 12); hero.rotation.y = heading;
-          hero.position.y = Math.abs(Math.sin(clock.elapsedTime * 11)) * 0.06;
+          hero.position.y = Math.abs(Math.sin(clock.elapsedTime * 9)) * 0.05;
         } else { hero.position.y += (0 - hero.position.y) * 0.2; }
+        if (moving) { walkT += dt * 9; const sw = Math.sin(walkT) * 0.7; parts.lleg.rotation.x = sw; parts.rleg.rotation.x = -sw; parts.larm.rotation.x = -sw * 0.7; parts.rarm.rotation.x = sw * 0.7; }
+        else { walkT = 0; for (const k in parts) parts[k].rotation.x *= 0.82; }
         shadow.position.set(hero.position.x, 0.02, hero.position.z);
-        camPos.set(hero.position.x, 4.6, hero.position.z + 7); camera.position.lerp(camPos, 1 - Math.pow(0.001, dt));
+        dir.position.set(hero.position.x + sunOff.x, sunOff.y, hero.position.z + sunOff.z); dir.target.position.set(hero.position.x, 0, hero.position.z); dir.target.updateMatrixWorld();
+        camPos.set(hero.position.x, 4.6, hero.position.z + 7); camera.position.lerp(camPos, 1 - Math.pow(0.0015, dt));
         camLook.set(hero.position.x, 1.3, hero.position.z - 1.2); camera.lookAt(camLook);
         near = null; let best = 3.4;
         for (const b of boards) { const d2 = Math.hypot(hero.position.x - b.x, hero.position.z - b.z); if (d2 < best) { best = d2; near = b; } }
@@ -484,6 +517,8 @@ function WORLD_RUNTIME(DECK, CFG, THREE) {
     }
     homeBtn.onclick = returnToStart;
     camera.position.set(hero.position.x, 4.6, hero.position.z + 7); camera.lookAt(hero.position.x, 1.3, hero.position.z - 1.2);
+    scene.traverse((o) => { if (o.isMesh && o.material && o.material.isMeshToonMaterial) { o.castShadow = true; o.receiveShadow = true; } });
+    floor.castShadow = false;
     loader.hidden = true; if (tutOff) { tutorialDone = true; bubbleEl.hidden = true; } else showBubble(); requestAnimationFrame(loop);
   }
   (document.fonts ? document.fonts.ready.catch(() => {}) : Promise.resolve()).then(boot);
