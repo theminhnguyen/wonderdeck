@@ -9,7 +9,11 @@
    Three.js via Import-Map (CDN), kein Build.
    =================================================================== */
 import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { themeVars } from "./themes.js";
+
+// Kostenloses (CC0) animiertes 3D-Modell als Figur — inkl. Lauf-/Sprung-Animation.
+const HERO_URL = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r161/examples/models/gltf/RobotExpressive/RobotExpressive.glb";
 
 const el = (id) => document.getElementById(id);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -357,14 +361,35 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   })();
   disposables.push(door.geometry, door.material, glowDisc.geometry, glowDisc.material, ring.geometry, ring.material, floorRing.geometry, floorRing.material);
 
-  /* ----- Figur ----- */
-  const hero = makeHero(THREE, acc.getHex());
+  /* ----- Figur: echtes animiertes 3D-Modell (CC0), Ersatz: prozedurale Figur ----- */
   const START = new THREE.Vector3(0, 0, 3);
+  let hero, mixer = null, actions = {}, curAction = null, proceduralParts = null;
+  function setAction(name, fade = 0.22) { const a = actions[name]; if (!a || a === curAction) return; if (curAction) curAction.fadeOut(fade); a.reset().fadeIn(fade).play(); curAction = a; }
+  try {
+    const gltf = await new GLTFLoader().loadAsync(HERO_URL);
+    const model = gltf.scene;
+    model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
+    model.updateMatrixWorld(true);
+    const sz = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
+    model.scale.multiplyScalar(1.95 / (sz.y || 1.8));
+    model.updateMatrixWorld(true);
+    const b2 = new THREE.Box3().setFromObject(model); model.position.y = -b2.min.y;
+    hero = new THREE.Group(); hero.add(model);
+    mixer = new THREE.AnimationMixer(model);
+    for (const c of gltf.animations) actions[c.name] = mixer.clipAction(c);
+    if (actions["Jump"]) { actions["Jump"].setLoop(THREE.LoopOnce); actions["Jump"].clampWhenFinished = true; }
+    if (actions["Idle"]) { curAction = actions["Idle"]; curAction.play(); }
+  } catch (e) {
+    console.warn("3D-Figur konnte nicht geladen werden — Ersatz-Figur:", e);
+    hero = makeHero(THREE, acc.getHex()); proceduralParts = hero.userData.parts;
+  }
   hero.position.copy(START); scene.add(hero);
   let heading = Math.PI; hero.rotation.y = heading; // schaut in den Saal (-Z)
-  // Schatten-Tupfer unter der Figur
-  const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.5, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22 }));
-  shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.02; scene.add(shadow);
+  // weicher Kontakt-Tupfer unter der Figur
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.55, 24), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.14 }));
+  shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.015; scene.add(shadow);
+  let jumpY = 0, vy = 0, grounded = true;
+  function jump() { if (grounded) { vy = 5.2; grounded = false; if (actions["Jump"]) setAction("Jump", 0.1); } }
 
   /* ----- Steuerung (nur Tastatur / Touch-Joystick) ----- */
   const isTouch = window.matchMedia("(pointer: coarse)").matches;
@@ -402,7 +427,7 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   function onKeyDown(e) {
     const k = e.key.toLowerCase(); keys[k] = true;
     if (k === "escape" && !tutorialDone && !panelOpen) { e.preventDefault(); dismissTutorial(); return; }
-    if (k === " " || k === "enter") { if (!tutorialDone) { e.preventDefault(); nextBubble(); return; } }
+    if (k === " " || k === "enter") { if (!tutorialDone) { e.preventDefault(); nextBubble(); return; } if (k === " " && !panelOpen) { e.preventDefault(); jump(); return; } }
     if (k === "e") { e.preventDefault(); if (panelOpen) closePanel(); else if (near) openPanel(near.slide); else if (nearPortal) returnToStart(); }
     if (k === "escape" && panelOpen) closePanel();
   }
@@ -441,7 +466,6 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
 
   /* ----- Loop ----- */
   const camPos = new THREE.Vector3(0, 4.6, 5 + 7), camLook = new THREE.Vector3();
-  const parts = hero.userData.parts;
   const xMin = -(halfW - 1.3), xMax = halfW - 1.3, zMin = -hallLen + 4, zMax = 5;
   let raf = 0, walkT = 0;
   function loop() {
@@ -466,12 +490,19 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
         let d = targetH - heading; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
         heading += d * Math.min(1, dt * 12);
         hero.rotation.y = heading;
-        hero.position.y = Math.abs(Math.sin(clock.elapsedTime * 9)) * 0.05;
-      } else { hero.position.y += (0 - hero.position.y) * 0.2; }
-      // Lauf-Animation der Glieder
-      if (moving) { walkT += dt * 9; const sw = Math.sin(walkT) * 0.7; parts.lleg.rotation.x = sw; parts.rleg.rotation.x = -sw; parts.larm.rotation.x = -sw * 0.7; parts.rarm.rotation.x = sw * 0.7; }
-      else { walkT = 0; for (const k in parts) parts[k].rotation.x *= 0.82; }
-      shadow.position.set(hero.position.x, 0.02, hero.position.z);
+      }
+      // Sprung-Physik (Leertaste)
+      if (!grounded) { vy -= 14 * dt; jumpY += vy * dt; if (jumpY <= 0) { jumpY = 0; vy = 0; grounded = true; } }
+      // Animation: echtes Modell (Mixer) ODER prozedurale Glieder
+      if (mixer) { mixer.update(dt); if (grounded) setAction(moving ? "Walking" : "Idle"); }
+      else if (proceduralParts) {
+        if (moving) { walkT += dt * 9; const sw = Math.sin(walkT) * 0.7; proceduralParts.lleg.rotation.x = sw; proceduralParts.rleg.rotation.x = -sw; proceduralParts.larm.rotation.x = -sw * 0.7; proceduralParts.rarm.rotation.x = sw * 0.7; }
+        else { walkT = 0; for (const k in proceduralParts) proceduralParts[k].rotation.x *= 0.82; }
+      }
+      const bob = (proceduralParts && grounded && moving) ? Math.abs(Math.sin(clock.elapsedTime * 9)) * 0.05 : 0;
+      hero.position.y = jumpY + bob;
+      shadow.position.set(hero.position.x, 0.015, hero.position.z);
+      shadow.material.opacity = 0.14 * Math.max(0.25, 1 - jumpY * 0.7);
       // Sonne (Schatten) folgt der Figur
       dir.position.set(hero.position.x + sunOff.x, sunOff.y, hero.position.z + sunOff.z);
       dir.target.position.set(hero.position.x, 0, hero.position.z); dir.target.updateMatrixWorld();

@@ -221,7 +221,8 @@ const JOURNEY_CSS = "*{margin:0;box-sizing:border-box}html,body{height:100%;over
 /* Eigenständige, begehbare 3D-Welt (Comic-Museum, dritte Person, nur Tastatur).
    Spiegelt js/world.js. Wird als type="module" eingebettet, importiert THREE
    und ruft diese Funktion mit (DECK, CFG, THREE) auf. */
-function WORLD_RUNTIME(DECK, CFG, THREE) {
+function WORLD_RUNTIME(DECK, CFG, THREE, GLTFLoader) {
+  const HERO_URL = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r161/examples/models/gltf/RobotExpressive/RobotExpressive.glb";
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const esc = (s) => String(s == null ? "" : s).replace(/[<&>]/g, (c) => ({ "<": "&lt;", "&": "&amp;", ">": "&gt;" }[c]));
   const hexA = (hex, a) => { let h = String(hex || "").trim().replace("#", ""); if (h.length === 3) h = h.split("").map((x) => x + x).join(""); if (h.length !== 6 || /[^0-9a-f]/i.test(h)) return "rgba(255,255,255," + a + ")"; return "rgba(" + parseInt(h.slice(0, 2), 16) + "," + parseInt(h.slice(2, 4), 16) + "," + parseInt(h.slice(4, 6), 16) + "," + a + ")"; };
@@ -432,9 +433,28 @@ function WORLD_RUNTIME(DECK, CFG, THREE) {
     portalGrp.add(new THREE.PointLight(acc.getHex(), 1.0, 30, 1.5));
     { const cv = document.createElement("canvas"); cv.width = 640; cv.height = 140; const c = cv.getContext("2d"); c.fillStyle = accent; c.font = "700 60px " + fontTitle; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("⟲  Zum Anfang", 320, 78); const t = new THREE.CanvasTexture(cv); if ("colorSpace" in t) t.colorSpace = THREE.SRGBColorSpace; const s = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.79), new THREE.MeshBasicMaterial({ map: t, transparent: true })); s.position.set(0, 2.7, 0); portalGrp.add(s); }
 
-    const hero = makeHero(acc.getHex()); const START = new THREE.Vector3(0, 0, 3); hero.position.copy(START); scene.add(hero);
+    const START = new THREE.Vector3(0, 0, 3);
+    let hero, mixer = null, actions = {}, curAction = null, proceduralParts = null;
+    function setAction(name, fade = 0.22) { const a = actions[name]; if (!a || a === curAction) return; if (curAction) curAction.fadeOut(fade); a.reset().fadeIn(fade).play(); curAction = a; }
+    try {
+      const gltf = await new GLTFLoader().loadAsync(HERO_URL);
+      const model = gltf.scene;
+      model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
+      model.updateMatrixWorld(true);
+      const sz = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
+      model.scale.multiplyScalar(1.95 / (sz.y || 1.8)); model.updateMatrixWorld(true);
+      const b2 = new THREE.Box3().setFromObject(model); model.position.y = -b2.min.y;
+      hero = new THREE.Group(); hero.add(model);
+      mixer = new THREE.AnimationMixer(model);
+      for (const c of gltf.animations) actions[c.name] = mixer.clipAction(c);
+      if (actions["Jump"]) { actions["Jump"].setLoop(THREE.LoopOnce); actions["Jump"].clampWhenFinished = true; }
+      if (actions["Idle"]) { curAction = actions["Idle"]; curAction.play(); }
+    } catch (e) { hero = makeHero(acc.getHex()); proceduralParts = hero.userData.parts; }
+    hero.position.copy(START); scene.add(hero);
     let heading = Math.PI; hero.rotation.y = heading;
-    const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.5, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22 })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.02; scene.add(shadow);
+    const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.55, 24), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.14 })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.015; scene.add(shadow);
+    let jumpY = 0, vy = 0, grounded = true;
+    function jump() { if (grounded) { vy = 5.2; grounded = false; if (actions["Jump"]) setAction("Jump", 0.1); } }
 
     const isTouch = window.matchMedia("(pointer: coarse)").matches; joy.hidden = !isTouch;
     let panelOpen = false, near = null, nearPortal = false, lastHint = "", tutorialDone = false;
@@ -481,7 +501,6 @@ function WORLD_RUNTIME(DECK, CFG, THREE) {
     function closePanel() { panelOpen = false; panel.hidden = true; }
 
     const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
-    const parts = hero.userData.parts;
     const xMin = -(halfW - 1.3), xMax = halfW - 1.3, zMin = -hallLen + 4, zMax = 5;
     let walkT = 0;
     function loop() {
@@ -499,11 +518,16 @@ function WORLD_RUNTIME(DECK, CFG, THREE) {
           for (const o of obstacles) { const dx = hero.position.x - o.x, dz = hero.position.z - o.z, dd = Math.hypot(dx, dz), rr = o.r + 0.45; if (dd < rr && dd > 0.001) { hero.position.x = o.x + (dx / dd) * rr; hero.position.z = o.z + (dz / dd) * rr; } }
           hero.position.x = clamp(hero.position.x, xMin, xMax); hero.position.z = clamp(hero.position.z, zMin, zMax);
           const targetH = Math.atan2(mx, mz); let d = targetH - heading; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; heading += d * Math.min(1, dt * 12); hero.rotation.y = heading;
-          hero.position.y = Math.abs(Math.sin(clock.elapsedTime * 9)) * 0.05;
-        } else { hero.position.y += (0 - hero.position.y) * 0.2; }
-        if (moving) { walkT += dt * 9; const sw = Math.sin(walkT) * 0.7; parts.lleg.rotation.x = sw; parts.rleg.rotation.x = -sw; parts.larm.rotation.x = -sw * 0.7; parts.rarm.rotation.x = sw * 0.7; }
-        else { walkT = 0; for (const k in parts) parts[k].rotation.x *= 0.82; }
-        shadow.position.set(hero.position.x, 0.02, hero.position.z);
+        }
+        if (!grounded) { vy -= 14 * dt; jumpY += vy * dt; if (jumpY <= 0) { jumpY = 0; vy = 0; grounded = true; } }
+        if (mixer) { mixer.update(dt); if (grounded) setAction(moving ? "Walking" : "Idle"); }
+        else if (proceduralParts) {
+          if (moving) { walkT += dt * 9; const sw = Math.sin(walkT) * 0.7; proceduralParts.lleg.rotation.x = sw; proceduralParts.rleg.rotation.x = -sw; proceduralParts.larm.rotation.x = -sw * 0.7; proceduralParts.rarm.rotation.x = sw * 0.7; }
+          else { walkT = 0; for (const k in proceduralParts) proceduralParts[k].rotation.x *= 0.82; }
+        }
+        const bob = (proceduralParts && grounded && moving) ? Math.abs(Math.sin(clock.elapsedTime * 9)) * 0.05 : 0;
+        hero.position.y = jumpY + bob;
+        shadow.position.set(hero.position.x, 0.015, hero.position.z); shadow.material.opacity = 0.14 * Math.max(0.25, 1 - jumpY * 0.7);
         dir.position.set(hero.position.x + sunOff.x, sunOff.y, hero.position.z + sunOff.z); dir.target.position.set(hero.position.x, 0, hero.position.z); dir.target.updateMatrixWorld();
         camPos.set(hero.position.x, 4.6, hero.position.z + 7); camera.position.lerp(camPos, 1 - Math.pow(0.0015, dt));
         camLook.set(hero.position.x, 1.3, hero.position.z - 1.2); camera.lookAt(camLook);
@@ -562,8 +586,8 @@ function buildDoc(deck) {
     const cfg = { accent: tv["--accent"], ink: tv["--ink"], fontTitle: tv["--font-title"], fontBody: tv["--font-body"] };
     return docHead(deck, WORLD_CSS)
       + "<body>"
-      + "<script type=\"importmap\">{\"imports\":{\"three\":\"https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js\"}}<\/script>"
-      + "<script type=\"module\">import * as THREE from \"three\";(" + WORLD_RUNTIME.toString() + ")(" + json + "," + JSON.stringify(cfg) + ",THREE);<\/script>"
+      + "<script type=\"importmap\">{\"imports\":{\"three\":\"https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js\",\"three/addons/\":\"https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/\"}}<\/script>"
+      + "<script type=\"module\">import * as THREE from \"three\";import { GLTFLoader } from \"three/addons/loaders/GLTFLoader.js\";(" + WORLD_RUNTIME.toString() + ")(" + json + "," + JSON.stringify(cfg) + ",THREE,GLTFLoader);<\/script>"
       + "</body></html>";
   }
   if (deck.mode === "journey") {
