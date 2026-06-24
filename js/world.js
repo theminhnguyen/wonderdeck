@@ -9,11 +9,11 @@
    Three.js via Import-Map (CDN), kein Build.
    =================================================================== */
 import * as THREE from "three";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { themeVars } from "./themes.js";
-
-// Kostenloses (CC0) animiertes 3D-Modell als Figur — inkl. Lauf-/Sprung-Animation.
-const HERO_URL = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r161/examples/models/gltf/RobotExpressive/RobotExpressive.glb";
 
 const el = (id) => document.getElementById(id);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -97,37 +97,85 @@ function marbleTexture(THREE, baseCss, veinCss) {
   const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; if ("colorSpace" in t) t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
-/* ---------- Weiche Figur mit Armen, Beinen & Lauf-Animation (cel-shaded) ---------- */
+/* ---------- Figur im abeto-Stil: schlanke, cel-shaded Bote:in mit Haar-Dutt + Rucksack ---------- */
 function makeHero(THREE, accentHex) {
   const g = new THREE.Group();
-  const ac = new THREE.Color(accentHex); const h = {}; ac.getHSL(h);
-  const robe = new THREE.MeshToonMaterial({ color: new THREE.Color().setHSL(h.h, Math.min(h.s, 0.36), 0.66).getHex() }); // Rock (Akzent, dezent)
-  const top = new THREE.MeshToonMaterial({ color: new THREE.Color().setHSL(h.h, Math.min(h.s, 0.28), 0.8).getHex() });   // helles Oberteil
-  const skin = new THREE.MeshToonMaterial({ color: 0xf3d6bf });
-  const dark = new THREE.MeshToonMaterial({ color: 0x2a2622 });
-  const out = new THREE.MeshBasicMaterial({ color: 0x2a2622, side: THREE.BackSide });
-  const M = (geo, mat) => new THREE.Mesh(geo, mat);
-  const ol = (mesh, s) => { const o = new THREE.Mesh(mesh.geometry, out); o.scale.setScalar(s); mesh.add(o); }; // Outline als Kind
+  const acc = new THREE.Color(accentHex);
 
-  // Beine — Pivot an der Hüfte (für Schwung)
-  const legGeo = new THREE.CapsuleGeometry(0.1, 0.32, 4, 10);
-  const mkLeg = (x) => { const p = new THREE.Group(); p.position.set(x, 0.52, 0); const leg = M(legGeo, dark); leg.position.y = -0.22; ol(leg, 1.13); p.add(leg); g.add(p); return p; };
-  const lleg = mkLeg(-0.12), rleg = mkLeg(0.12);
-  // Rock + Körper
-  const skirt = M(new THREE.CylinderGeometry(0.3, 0.36, 0.34, 18), robe); skirt.position.y = 0.66; ol(skirt, 1.06); g.add(skirt);
-  const body = M(new THREE.CapsuleGeometry(0.27, 0.34, 6, 16), top); body.position.y = 0.95; ol(body, 1.1); g.add(body);
-  // Kopf + Haar
-  const head = M(new THREE.SphereGeometry(0.27, 20, 16), skin); head.position.y = 1.4; ol(head, 1.08); g.add(head);
-  const hair = M(new THREE.SphereGeometry(0.29, 16, 12), dark); hair.position.set(0, 1.45, -0.02); hair.scale.set(1, 0.72, 1.04); g.add(hair);
-  // Augen + Wangen (Gesicht +Z)
-  const eg = new THREE.SphereGeometry(0.034, 8, 8);
-  const le = M(eg, dark), re = M(eg, dark); le.position.set(-0.1, 1.39, 0.25); re.position.set(0.1, 1.39, 0.25); g.add(le, re);
-  const cheek = new THREE.MeshToonMaterial({ color: 0xeaa48f }), cg = new THREE.SphereGeometry(0.05, 8, 8);
-  const lc = M(cg, cheek), rc = M(cg, cheek); lc.position.set(-0.18, 1.32, 0.22); lc.scale.set(1, 0.6, 0.35); rc.position.set(0.18, 1.32, 0.22); rc.scale.set(1, 0.6, 0.35); g.add(lc, rc);
-  // Arme — Pivot an der Schulter
-  const armGeo = new THREE.CapsuleGeometry(0.08, 0.3, 4, 10);
-  const mkArm = (x) => { const p = new THREE.Group(); p.position.set(x, 1.06, 0); const arm = M(armGeo, top); arm.position.y = -0.2; ol(arm, 1.13); p.add(arm); g.add(p); return p; };
-  const larm = mkArm(-0.3), rarm = mkArm(0.3);
+  // Cel-shaded Materialien — abeto-Palette (dunkles Outfit, cremefarbener Rucksack, Aubergine-Haar)
+  const skin = new THREE.MeshToonMaterial({ color: 0xf2d6c2 });
+  const hairC = new THREE.MeshToonMaterial({ color: 0x3c3247 }); // dunkles Aubergine-Lila
+  const tieC = new THREE.MeshToonMaterial({ color: 0xc23b34 });  // rotes Haarband
+  const shirt = new THREE.MeshToonMaterial({ color: 0x262a31 }); // fast-schwarzes Shirt
+  const pants = new THREE.MeshToonMaterial({ color: 0x1c1f24 }); // schwarze Culottes
+  const bagC = new THREE.MeshToonMaterial({ color: 0xeae3d4 });  // cremeweißer Rucksack
+  const bagD = new THREE.MeshToonMaterial({ color: 0xd8cfbb });  // Rucksack-Träger / Deckel
+  const sockC = new THREE.MeshToonMaterial({ color: 0xf1eee4 });
+  const shoeC = new THREE.MeshToonMaterial({ color: 0x17191d });
+  const emblem = new THREE.MeshToonMaterial({ color: acc.getHex() }); // Brust-Emblem (Akzentfarbe)
+  const eyeC = new THREE.MeshBasicMaterial({ color: 0x241f2a });
+  const out = new THREE.MeshBasicMaterial({ color: 0x16131a, side: THREE.BackSide }); // Tinten-Outline
+  const M = (geo, mat) => new THREE.Mesh(geo, mat);
+  const add = (geo, mat, x, y, z) => { const m = M(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
+  const ol = (mesh, s) => { const o = new THREE.Mesh(mesh.geometry, out); o.scale.setScalar(s); mesh.add(o); return o; }; // Outline als Kind
+
+  // Beine (blank) — Pivot an der Hüfte, mit Söckchen + Schuh
+  const legGeo = new THREE.CapsuleGeometry(0.078, 0.46, 4, 10);
+  const sockGeo = new THREE.CylinderGeometry(0.088, 0.082, 0.13, 12);
+  const shoeGeo = new THREE.BoxGeometry(0.155, 0.11, 0.28);
+  const mkLeg = (x) => {
+    const p = new THREE.Group(); p.position.set(x, 0.86, 0);
+    const leg = M(legGeo, skin); leg.position.y = -0.31; ol(leg, 1.12); p.add(leg);
+    p.add(M(sockGeo, sockC).translateY(-0.7));
+    const sh = M(shoeGeo, shoeC); sh.position.set(0, -0.785, 0.05); ol(sh, 1.07); p.add(sh);
+    g.add(p); return p;
+  };
+  const lleg = mkLeg(-0.1), rleg = mkLeg(0.1);
+
+  // Culottes + Torso (Shirt) + Brust-Emblem
+  const shorts = add(new THREE.CylinderGeometry(0.19, 0.265, 0.34, 18), pants, 0, 0.82, 0); ol(shorts, 1.05);
+  const torso = add(new THREE.CapsuleGeometry(0.185, 0.32, 6, 16), shirt, 0, 1.16, 0); ol(torso, 1.06);
+  add(new THREE.BoxGeometry(0.12, 0.12, 0.02), emblem, 0, 1.2, 0.185);
+  add(new THREE.CylinderGeometry(0.055, 0.065, 0.1, 10), skin, 0, 1.44, 0); // Hals
+
+  // Kopf
+  const head = add(new THREE.SphereGeometry(0.15, 22, 18), skin, 0, 1.58, 0.01);
+  head.scale.set(0.96, 1.06, 0.98); ol(head, 1.055);
+
+  // Haar: Kappe (Top/Hinterkopf, nach hinten versetzt → Gesicht bleibt frei), Nacken,
+  // Seitensträhnen rahmen das Gesicht, Pony hoch über der Stirn, Dutt + rotes Haarband.
+  const crown = add(new THREE.SphereGeometry(0.16, 20, 16), hairC, 0, 1.65, -0.05); crown.scale.set(1.05, 0.98, 1.0);
+  const nape = add(new THREE.SphereGeometry(0.135, 16, 12), hairC, 0, 1.55, -0.07); nape.scale.set(1.02, 1.05, 0.85);
+  for (const sx of [-1, 1]) { const lock = add(new THREE.CapsuleGeometry(0.032, 0.16, 4, 8), hairC, sx * 0.135, 1.55, 0.02); lock.rotation.z = sx * 0.14; }
+  const fringe = add(new THREE.SphereGeometry(0.13, 16, 12), hairC, 0, 1.69, 0.06); fringe.scale.set(1.06, 0.5, 0.7);
+  add(new THREE.SphereGeometry(0.07, 14, 12), hairC, 0, 1.8, -0.04); // Dutt
+  const tie = add(new THREE.TorusGeometry(0.05, 0.017, 8, 16), tieC, 0, 1.765, -0.04); tie.rotation.x = Math.PI / 2;
+
+  // Gesicht (Augen + Brauen) auf +Z
+  const eyeGeo = new THREE.SphereGeometry(0.022, 10, 8);
+  for (const sx of [-1, 1]) {
+    const eye = add(eyeGeo, eyeC, sx * 0.058, 1.575, 0.14); eye.scale.set(0.85, 1.35, 0.5);
+    const brow = add(new THREE.BoxGeometry(0.05, 0.012, 0.012), eyeC, sx * 0.06, 1.62, 0.142); brow.rotation.z = -sx * 0.08;
+  }
+
+  // Arme — kurzer Shirt-Ärmel + blanker Unterarm, Pivot an der Schulter
+  const armGeo = new THREE.CapsuleGeometry(0.052, 0.34, 4, 8);
+  const sleeveGeo = new THREE.CylinderGeometry(0.07, 0.062, 0.12, 10);
+  const handGeo = new THREE.SphereGeometry(0.05, 10, 8);
+  const mkArm = (x) => {
+    const p = new THREE.Group(); p.position.set(x, 1.36, 0);
+    const arm = M(armGeo, skin); arm.position.y = -0.24; ol(arm, 1.12); p.add(arm);
+    const sleeve = M(sleeveGeo, shirt); sleeve.position.y = -0.04; ol(sleeve, 1.06); p.add(sleeve);
+    p.add(M(handGeo, skin).translateY(-0.43));
+    g.add(p); return p;
+  };
+  const larm = mkArm(-0.212), rarm = mkArm(0.212);
+
+  // Rucksack auf dem Rücken (-Z) + Träger über die Schultern (+Z)
+  const bag = add(new THREE.BoxGeometry(0.3, 0.4, 0.17), bagC, 0, 1.12, -0.235); ol(bag, 1.04);
+  add(new THREE.BoxGeometry(0.3, 0.13, 0.18), bagD, 0, 1.29, -0.235); // Deckel
+  for (const sx of [-1, 1]) { const strap = add(new THREE.BoxGeometry(0.045, 0.42, 0.04), bagD, sx * 0.1, 1.18, 0.17); strap.rotation.x = -0.04; }
+
   g.userData.parts = { lleg, rleg, larm, rarm };
   return g;
 }
@@ -163,6 +211,13 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   scene.fog = new THREE.Fog(bgCol.getHex(), 40, 145);
 
   const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 240);
+
+  // Bloom-Pipeline (weiches Leuchten für Laternen, Portal & Akzente — abeto-Glanz)
+  const composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.5, 0.5, 0.82);
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
 
   scene.add(new THREE.HemisphereLight(tint(0.96, 0.06).getHex(), tint(0.44, 0.16).getHex(), 1.1));
   scene.add(new THREE.AmbientLight(tint(0.64, 0.1).getHex(), 0.5));
@@ -344,6 +399,33 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   }
   disposables.push(sculptBase, sculptAcc);
 
+  /* ----- Warme Wandleuchten (abeto-Wärme; leuchten weich mit Bloom) ----- */
+  const sconceBulbGeo = new THREE.SphereGeometry(0.1, 12, 10);
+  const sconceArmGeo = new THREE.BoxGeometry(0.05, 0.05, 0.16);
+  const sconceBulbMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0 });
+  const sconceArmMat = new THREE.MeshToonMaterial({ color: tint(0.3, 0.12).getHex() });
+  disposables.push(sconceBulbGeo, sconceArmGeo, sconceBulbMat, sconceArmMat);
+  for (let z = -3; z > -hallLen + 6; z -= 9) for (const sx of [-1, 1]) {
+    const gx = sx * (halfW - 0.12);
+    scene.add(place(sconceArmGeo, sconceArmMat, gx - sx * 0.08, 3.75, z));
+    const bulb = place(sconceBulbGeo, sconceBulbMat, gx - sx * 0.18, 3.75, z); bulb.scale.set(0.7, 1, 0.7); scene.add(bulb);
+  }
+
+  /* ----- Versand-Kisten am Eingang (dezenter abeto-Hafen-Anklang) ----- */
+  const crateMat = new THREE.MeshToonMaterial({ color: tint(0.42, 0.3).getHex() });
+  const crateBand = new THREE.MeshToonMaterial({ color: tint(0.3, 0.34).getHex() });
+  const crateGeoL = new THREE.BoxGeometry(0.9, 0.9, 0.9), crateGeoM = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+  const crateBandGeoL = new THREE.BoxGeometry(0.92, 0.12, 0.92), crateBandGeoM = new THREE.BoxGeometry(0.62, 0.1, 0.62);
+  disposables.push(crateMat, crateBand, crateGeoL, crateGeoM, crateBandGeoL, crateBandGeoM);
+  const mkCrate = (geo, bandGeo, x, y, z, ry) => {
+    const c = place(geo, crateMat, x, y, z); c.rotation.y = ry || 0;
+    const band = new THREE.Mesh(bandGeo, crateBand); band.position.y = geo.parameters.height * 0.5 - 0.02; c.add(band);
+    scene.add(c); return c;
+  };
+  mkCrate(crateGeoL, crateBandGeoL, 4.1, 0.45, -3.2, 0.3); obstacles.push({ x: 4.1, z: -3.2, r: 0.75 });
+  mkCrate(crateGeoM, crateBandGeoM, 4.4, 1.2, -2.9, -0.25);
+  mkCrate(crateGeoL, crateBandGeoL, -4.2, 0.45, -16, -0.2); obstacles.push({ x: -4.2, z: -16, r: 0.75 });
+
   /* ----- Rückweg-Portal ----- */
   const portalX = 0, portalZ = -hallLen + 7, portalY = 2.1;
   const portalGrp = new THREE.Group(); portalGrp.position.set(portalX, portalY, portalZ); scene.add(portalGrp);
@@ -361,35 +443,17 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   })();
   disposables.push(door.geometry, door.material, glowDisc.geometry, glowDisc.material, ring.geometry, ring.material, floorRing.geometry, floorRing.material);
 
-  /* ----- Figur: echtes animiertes 3D-Modell (CC0), Ersatz: prozedurale Figur ----- */
+  /* ----- Figur: handgebaute cel-shaded Bote:in (abeto-Stil) — nur Tastatur ----- */
   const START = new THREE.Vector3(0, 0, 3);
-  let hero, mixer = null, actions = {}, curAction = null, proceduralParts = null;
-  function setAction(name, fade = 0.22) { const a = actions[name]; if (!a || a === curAction) return; if (curAction) curAction.fadeOut(fade); a.reset().fadeIn(fade).play(); curAction = a; }
-  try {
-    const gltf = await new GLTFLoader().loadAsync(HERO_URL);
-    const model = gltf.scene;
-    model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
-    model.updateMatrixWorld(true);
-    const sz = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
-    model.scale.multiplyScalar(1.95 / (sz.y || 1.8));
-    model.updateMatrixWorld(true);
-    const b2 = new THREE.Box3().setFromObject(model); model.position.y = -b2.min.y;
-    hero = new THREE.Group(); hero.add(model);
-    mixer = new THREE.AnimationMixer(model);
-    for (const c of gltf.animations) actions[c.name] = mixer.clipAction(c);
-    if (actions["Jump"]) { actions["Jump"].setLoop(THREE.LoopOnce); actions["Jump"].clampWhenFinished = true; }
-    if (actions["Idle"]) { curAction = actions["Idle"]; curAction.play(); }
-  } catch (e) {
-    console.warn("3D-Figur konnte nicht geladen werden — Ersatz-Figur:", e);
-    hero = makeHero(THREE, acc.getHex()); proceduralParts = hero.userData.parts;
-  }
+  const hero = makeHero(THREE, acc.getHex());
+  const proceduralParts = hero.userData.parts;
   hero.position.copy(START); scene.add(hero);
   let heading = Math.PI; hero.rotation.y = heading; // schaut in den Saal (-Z)
   // weicher Kontakt-Tupfer unter der Figur
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.55, 24), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.14 }));
   shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.015; scene.add(shadow);
   let jumpY = 0, vy = 0, grounded = true;
-  function jump() { if (grounded) { vy = 5.2; grounded = false; if (actions["Jump"]) setAction("Jump", 0.1); } }
+  function jump() { if (grounded) { vy = 5.2; grounded = false; } }
 
   /* ----- Steuerung (nur Tastatur / Touch-Joystick) ----- */
   const isTouch = window.matchMedia("(pointer: coarse)").matches;
@@ -432,7 +496,7 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
     if (k === "escape" && panelOpen) closePanel();
   }
   function onKeyUp(e) { keys[e.key.toLowerCase()] = false; }
-  function onResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+  function onResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); composer.setSize(window.innerWidth, window.innerHeight); }
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("resize", onResize);
@@ -493,13 +557,10 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
       }
       // Sprung-Physik (Leertaste)
       if (!grounded) { vy -= 14 * dt; jumpY += vy * dt; if (jumpY <= 0) { jumpY = 0; vy = 0; grounded = true; } }
-      // Animation: echtes Modell (Mixer) ODER prozedurale Glieder
-      if (mixer) { mixer.update(dt); if (grounded) setAction(moving ? "Walking" : "Idle"); }
-      else if (proceduralParts) {
-        if (moving) { walkT += dt * 9; const sw = Math.sin(walkT) * 0.7; proceduralParts.lleg.rotation.x = sw; proceduralParts.rleg.rotation.x = -sw; proceduralParts.larm.rotation.x = -sw * 0.7; proceduralParts.rarm.rotation.x = sw * 0.7; }
-        else { walkT = 0; for (const k in proceduralParts) proceduralParts[k].rotation.x *= 0.82; }
-      }
-      const bob = (proceduralParts && grounded && moving) ? Math.abs(Math.sin(clock.elapsedTime * 9)) * 0.05 : 0;
+      // Animation: prozedurale Glieder (Lauf-Schwung) + sanftes Wippen
+      if (moving) { walkT += dt * 9; const sw = Math.sin(walkT) * 0.7; proceduralParts.lleg.rotation.x = sw; proceduralParts.rleg.rotation.x = -sw; proceduralParts.larm.rotation.x = -sw * 0.7; proceduralParts.rarm.rotation.x = sw * 0.7; }
+      else { walkT = 0; for (const k in proceduralParts) proceduralParts[k].rotation.x *= 0.82; }
+      const bob = (grounded && moving) ? Math.abs(Math.sin(clock.elapsedTime * 9)) * 0.05 : 0;
       hero.position.y = jumpY + bob;
       shadow.position.set(hero.position.x, 0.015, hero.position.z);
       shadow.material.opacity = 0.14 * Math.max(0.25, 1 - jumpY * 0.7);
@@ -524,7 +585,7 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
     }
     ring.rotation.z += dt * 0.6;
     glowDisc.material.opacity = 0.12 + 0.06 * (1 + Math.sin(clock.elapsedTime * 2)) / 2;
-    renderer.render(scene, camera);
+    composer.render();
     raf = requestAnimationFrame(loop);
   }
 
@@ -534,7 +595,7 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
     window.removeEventListener("keyup", onKeyUp);
     window.removeEventListener("resize", onResize);
     if (bubbleEl) { bubbleEl.hidden = true; bubbleEl.onclick = null; }
-    try { disposables.forEach((d) => d && d.dispose && d.dispose()); renderer.dispose(); } catch (e) {}
+    try { disposables.forEach((d) => d && d.dispose && d.dispose()); composer.dispose(); renderer.dispose(); } catch (e) {}
     stage.innerHTML = ""; overlay.hidden = true; el("worldPanel").hidden = true;
     active = null;
     if (onClose) onClose();

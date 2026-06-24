@@ -221,8 +221,7 @@ const JOURNEY_CSS = "*{margin:0;box-sizing:border-box}html,body{height:100%;over
 /* Eigenständige, begehbare 3D-Welt (Comic-Museum, dritte Person, nur Tastatur).
    Spiegelt js/world.js. Wird als type="module" eingebettet, importiert THREE
    und ruft diese Funktion mit (DECK, CFG, THREE) auf. */
-function WORLD_RUNTIME(DECK, CFG, THREE, GLTFLoader) {
-  const HERO_URL = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r161/examples/models/gltf/RobotExpressive/RobotExpressive.glb";
+function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloomPass, OutputPass) {
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const esc = (s) => String(s == null ? "" : s).replace(/[<&>]/g, (c) => ({ "<": "&lt;", "&": "&amp;", ">": "&gt;" }[c]));
   const hexA = (hex, a) => { let h = String(hex || "").trim().replace("#", ""); if (h.length === 3) h = h.split("").map((x) => x + x).join(""); if (h.length !== 6 || /[^0-9a-f]/i.test(h)) return "rgba(255,255,255," + a + ")"; return "rgba(" + parseInt(h.slice(0, 2), 16) + "," + parseInt(h.slice(2, 4), 16) + "," + parseInt(h.slice(4, 6), 16) + "," + a + ")"; };
@@ -270,26 +269,60 @@ function WORLD_RUNTIME(DECK, CFG, THREE, GLTFLoader) {
   }
   function makeHero(accentHex) {
     const g = new THREE.Group();
-    const ac = new THREE.Color(accentHex); const h = {}; ac.getHSL(h);
-    const robe = new THREE.MeshToonMaterial({ color: new THREE.Color().setHSL(h.h, Math.min(h.s, 0.36), 0.66).getHex() });
-    const top = new THREE.MeshToonMaterial({ color: new THREE.Color().setHSL(h.h, Math.min(h.s, 0.28), 0.8).getHex() });
-    const skin = new THREE.MeshToonMaterial({ color: 0xf3d6bf }), dark = new THREE.MeshToonMaterial({ color: 0x2a2622 });
-    const out = new THREE.MeshBasicMaterial({ color: 0x2a2622, side: THREE.BackSide });
+    const acc = new THREE.Color(accentHex);
+    // Cel-shaded Materialien — abeto-Palette (dunkles Outfit, cremefarbener Rucksack, Aubergine-Haar)
+    const skin = new THREE.MeshToonMaterial({ color: 0xf2d6c2 });
+    const hairC = new THREE.MeshToonMaterial({ color: 0x3c3247 });
+    const tieC = new THREE.MeshToonMaterial({ color: 0xc23b34 });
+    const shirt = new THREE.MeshToonMaterial({ color: 0x262a31 });
+    const pants = new THREE.MeshToonMaterial({ color: 0x1c1f24 });
+    const bagC = new THREE.MeshToonMaterial({ color: 0xeae3d4 });
+    const bagD = new THREE.MeshToonMaterial({ color: 0xd8cfbb });
+    const sockC = new THREE.MeshToonMaterial({ color: 0xf1eee4 });
+    const shoeC = new THREE.MeshToonMaterial({ color: 0x17191d });
+    const emblem = new THREE.MeshToonMaterial({ color: acc.getHex() });
+    const eyeC = new THREE.MeshBasicMaterial({ color: 0x241f2a });
+    const out = new THREE.MeshBasicMaterial({ color: 0x16131a, side: THREE.BackSide });
     const M = (geo, mat) => new THREE.Mesh(geo, mat);
-    const ol = (mesh, s) => { const o = new THREE.Mesh(mesh.geometry, out); o.scale.setScalar(s); mesh.add(o); };
-    const legGeo = new THREE.CapsuleGeometry(0.1, 0.32, 4, 10);
-    const mkLeg = (x) => { const p = new THREE.Group(); p.position.set(x, 0.52, 0); const leg = M(legGeo, dark); leg.position.y = -0.22; ol(leg, 1.13); p.add(leg); g.add(p); return p; };
-    const lleg = mkLeg(-0.12), rleg = mkLeg(0.12);
-    const skirt = M(new THREE.CylinderGeometry(0.3, 0.36, 0.34, 18), robe); skirt.position.y = 0.66; ol(skirt, 1.06); g.add(skirt);
-    const body = M(new THREE.CapsuleGeometry(0.27, 0.34, 6, 16), top); body.position.y = 0.95; ol(body, 1.1); g.add(body);
-    const head = M(new THREE.SphereGeometry(0.27, 20, 16), skin); head.position.y = 1.4; ol(head, 1.08); g.add(head);
-    const hair = M(new THREE.SphereGeometry(0.29, 16, 12), dark); hair.position.set(0, 1.45, -0.02); hair.scale.set(1, 0.72, 1.04); g.add(hair);
-    const eg = new THREE.SphereGeometry(0.034, 8, 8); const le = M(eg, dark), re = M(eg, dark); le.position.set(-0.1, 1.39, 0.25); re.position.set(0.1, 1.39, 0.25); g.add(le, re);
-    const cheek = new THREE.MeshToonMaterial({ color: 0xeaa48f }), cg = new THREE.SphereGeometry(0.05, 8, 8);
-    const lc = M(cg, cheek), rc = M(cg, cheek); lc.position.set(-0.18, 1.32, 0.22); lc.scale.set(1, 0.6, 0.35); rc.position.set(0.18, 1.32, 0.22); rc.scale.set(1, 0.6, 0.35); g.add(lc, rc);
-    const armGeo = new THREE.CapsuleGeometry(0.08, 0.3, 4, 10);
-    const mkArm = (x) => { const p = new THREE.Group(); p.position.set(x, 1.06, 0); const arm = M(armGeo, top); arm.position.y = -0.2; ol(arm, 1.13); p.add(arm); g.add(p); return p; };
-    const larm = mkArm(-0.3), rarm = mkArm(0.3);
+    const add = (geo, mat, x, y, z) => { const m = M(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
+    const ol = (mesh, s) => { const o = new THREE.Mesh(mesh.geometry, out); o.scale.setScalar(s); mesh.add(o); return o; };
+    const legGeo = new THREE.CapsuleGeometry(0.078, 0.46, 4, 10), sockGeo = new THREE.CylinderGeometry(0.088, 0.082, 0.13, 12), shoeGeo = new THREE.BoxGeometry(0.155, 0.11, 0.28);
+    const mkLeg = (x) => {
+      const p = new THREE.Group(); p.position.set(x, 0.86, 0);
+      const leg = M(legGeo, skin); leg.position.y = -0.31; ol(leg, 1.12); p.add(leg);
+      p.add(M(sockGeo, sockC).translateY(-0.7));
+      const sh = M(shoeGeo, shoeC); sh.position.set(0, -0.785, 0.05); ol(sh, 1.07); p.add(sh);
+      g.add(p); return p;
+    };
+    const lleg = mkLeg(-0.1), rleg = mkLeg(0.1);
+    const shorts = add(new THREE.CylinderGeometry(0.19, 0.265, 0.34, 18), pants, 0, 0.82, 0); ol(shorts, 1.05);
+    const torso = add(new THREE.CapsuleGeometry(0.185, 0.32, 6, 16), shirt, 0, 1.16, 0); ol(torso, 1.06);
+    add(new THREE.BoxGeometry(0.12, 0.12, 0.02), emblem, 0, 1.2, 0.185);
+    add(new THREE.CylinderGeometry(0.055, 0.065, 0.1, 10), skin, 0, 1.44, 0);
+    const head = add(new THREE.SphereGeometry(0.15, 22, 18), skin, 0, 1.58, 0.01); head.scale.set(0.96, 1.06, 0.98); ol(head, 1.055);
+    const crown = add(new THREE.SphereGeometry(0.16, 20, 16), hairC, 0, 1.65, -0.05); crown.scale.set(1.05, 0.98, 1.0);
+    const nape = add(new THREE.SphereGeometry(0.135, 16, 12), hairC, 0, 1.55, -0.07); nape.scale.set(1.02, 1.05, 0.85);
+    for (const sx of [-1, 1]) { const lock = add(new THREE.CapsuleGeometry(0.032, 0.16, 4, 8), hairC, sx * 0.135, 1.55, 0.02); lock.rotation.z = sx * 0.14; }
+    const fringe = add(new THREE.SphereGeometry(0.13, 16, 12), hairC, 0, 1.69, 0.06); fringe.scale.set(1.06, 0.5, 0.7);
+    add(new THREE.SphereGeometry(0.07, 14, 12), hairC, 0, 1.8, -0.04);
+    const tie = add(new THREE.TorusGeometry(0.05, 0.017, 8, 16), tieC, 0, 1.765, -0.04); tie.rotation.x = Math.PI / 2;
+    const eyeGeo = new THREE.SphereGeometry(0.022, 10, 8);
+    for (const sx of [-1, 1]) {
+      const eye = add(eyeGeo, eyeC, sx * 0.058, 1.575, 0.14); eye.scale.set(0.85, 1.35, 0.5);
+      const brow = add(new THREE.BoxGeometry(0.05, 0.012, 0.012), eyeC, sx * 0.06, 1.62, 0.142); brow.rotation.z = -sx * 0.08;
+    }
+    const armGeo = new THREE.CapsuleGeometry(0.052, 0.34, 4, 8), sleeveGeo = new THREE.CylinderGeometry(0.07, 0.062, 0.12, 10), handGeo = new THREE.SphereGeometry(0.05, 10, 8);
+    const mkArm = (x) => {
+      const p = new THREE.Group(); p.position.set(x, 1.36, 0);
+      const arm = M(armGeo, skin); arm.position.y = -0.24; ol(arm, 1.12); p.add(arm);
+      const sleeve = M(sleeveGeo, shirt); sleeve.position.y = -0.04; ol(sleeve, 1.06); p.add(sleeve);
+      p.add(M(handGeo, skin).translateY(-0.43));
+      g.add(p); return p;
+    };
+    const larm = mkArm(-0.212), rarm = mkArm(0.212);
+    const bag = add(new THREE.BoxGeometry(0.3, 0.4, 0.17), bagC, 0, 1.12, -0.235); ol(bag, 1.04);
+    add(new THREE.BoxGeometry(0.3, 0.13, 0.18), bagD, 0, 1.29, -0.235);
+    for (const sx of [-1, 1]) { const strap = add(new THREE.BoxGeometry(0.045, 0.42, 0.04), bagD, sx * 0.1, 1.18, 0.17); strap.rotation.x = -0.04; }
     g.userData.parts = { lleg, rleg, larm, rarm };
     return g;
   }
@@ -310,6 +343,11 @@ function WORLD_RUNTIME(DECK, CFG, THREE, GLTFLoader) {
     const bgCol = tint(0.52, 0.14);
     const scene = new THREE.Scene(); scene.background = gradientSky(tint(0.78, 0.2).getStyle(), tint(0.46, 0.12).getStyle()); scene.fog = new THREE.Fog(bgCol.getHex(), 40, 145);
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 240);
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.5, 0.5, 0.82);
+    composer.addPass(bloom);
+    composer.addPass(new OutputPass());
     scene.add(new THREE.HemisphereLight(tint(0.96, 0.06).getHex(), tint(0.44, 0.16).getHex(), 1.1));
     scene.add(new THREE.AmbientLight(tint(0.64, 0.1).getHex(), 0.5));
     const dir = new THREE.DirectionalLight(0xfff2dc, 1.35); dir.castShadow = true; dir.shadow.mapSize.set(2048, 2048);
@@ -424,6 +462,26 @@ function WORLD_RUNTIME(DECK, CFG, THREE, GLTFLoader) {
       obstacles.push({ x: sx, z, r: 0.7 });
     }
 
+    // Warme Wandleuchten (abeto-Wärme; leuchten weich mit Bloom)
+    const sconceBulbGeo = new THREE.SphereGeometry(0.1, 12, 10), sconceArmGeo = new THREE.BoxGeometry(0.05, 0.05, 0.16);
+    const sconceBulbMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0 }), sconceArmMat = new THREE.MeshToonMaterial({ color: tint(0.3, 0.12).getHex() });
+    for (let z = -3; z > -hallLen + 6; z -= 9) for (const sx of [-1, 1]) {
+      const gx = sx * (halfW - 0.12);
+      scene.add(place(sconceArmGeo, sconceArmMat, gx - sx * 0.08, 3.75, z));
+      const bulb = place(sconceBulbGeo, sconceBulbMat, gx - sx * 0.18, 3.75, z); bulb.scale.set(0.7, 1, 0.7); scene.add(bulb);
+    }
+    // Versand-Kisten in den Seitengängen (dezenter abeto-Hafen-Anklang)
+    const crateMat = new THREE.MeshToonMaterial({ color: tint(0.42, 0.3).getHex() }), crateBand = new THREE.MeshToonMaterial({ color: tint(0.3, 0.34).getHex() });
+    const crateGeoL = new THREE.BoxGeometry(0.9, 0.9, 0.9), crateGeoM = new THREE.BoxGeometry(0.6, 0.6, 0.6), crateBandGeoL = new THREE.BoxGeometry(0.92, 0.12, 0.92), crateBandGeoM = new THREE.BoxGeometry(0.62, 0.1, 0.62);
+    const mkCrate = (geo, bandGeo, x, y, z, ry) => {
+      const c = place(geo, crateMat, x, y, z); c.rotation.y = ry || 0;
+      const band = new THREE.Mesh(bandGeo, crateBand); band.position.y = geo.parameters.height * 0.5 - 0.02; c.add(band);
+      scene.add(c); return c;
+    };
+    mkCrate(crateGeoL, crateBandGeoL, 4.1, 0.45, -3.2, 0.3); obstacles.push({ x: 4.1, z: -3.2, r: 0.75 });
+    mkCrate(crateGeoM, crateBandGeoM, 4.4, 1.2, -2.9, -0.25);
+    mkCrate(crateGeoL, crateBandGeoL, -4.2, 0.45, -16, -0.2); obstacles.push({ x: -4.2, z: -16, r: 0.75 });
+
     const portalX = 0, portalZ = -hallLen + 7, portalY = 2.1;
     const portalGrp = new THREE.Group(); portalGrp.position.set(portalX, portalY, portalZ); scene.add(portalGrp);
     const door = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 4.8), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.12 })); door.position.z = -0.06; portalGrp.add(door);
@@ -434,27 +492,13 @@ function WORLD_RUNTIME(DECK, CFG, THREE, GLTFLoader) {
     { const cv = document.createElement("canvas"); cv.width = 640; cv.height = 140; const c = cv.getContext("2d"); c.fillStyle = accent; c.font = "700 60px " + fontTitle; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("⟲  Zum Anfang", 320, 78); const t = new THREE.CanvasTexture(cv); if ("colorSpace" in t) t.colorSpace = THREE.SRGBColorSpace; const s = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.79), new THREE.MeshBasicMaterial({ map: t, transparent: true })); s.position.set(0, 2.7, 0); portalGrp.add(s); }
 
     const START = new THREE.Vector3(0, 0, 3);
-    let hero, mixer = null, actions = {}, curAction = null, proceduralParts = null;
-    function setAction(name, fade = 0.22) { const a = actions[name]; if (!a || a === curAction) return; if (curAction) curAction.fadeOut(fade); a.reset().fadeIn(fade).play(); curAction = a; }
-    try {
-      const gltf = await new GLTFLoader().loadAsync(HERO_URL);
-      const model = gltf.scene;
-      model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
-      model.updateMatrixWorld(true);
-      const sz = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
-      model.scale.multiplyScalar(1.95 / (sz.y || 1.8)); model.updateMatrixWorld(true);
-      const b2 = new THREE.Box3().setFromObject(model); model.position.y = -b2.min.y;
-      hero = new THREE.Group(); hero.add(model);
-      mixer = new THREE.AnimationMixer(model);
-      for (const c of gltf.animations) actions[c.name] = mixer.clipAction(c);
-      if (actions["Jump"]) { actions["Jump"].setLoop(THREE.LoopOnce); actions["Jump"].clampWhenFinished = true; }
-      if (actions["Idle"]) { curAction = actions["Idle"]; curAction.play(); }
-    } catch (e) { hero = makeHero(acc.getHex()); proceduralParts = hero.userData.parts; }
+    const hero = makeHero(acc.getHex());
+    const proceduralParts = hero.userData.parts;
     hero.position.copy(START); scene.add(hero);
     let heading = Math.PI; hero.rotation.y = heading;
     const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.55, 24), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.14 })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.015; scene.add(shadow);
     let jumpY = 0, vy = 0, grounded = true;
-    function jump() { if (grounded) { vy = 5.2; grounded = false; if (actions["Jump"]) setAction("Jump", 0.1); } }
+    function jump() { if (grounded) { vy = 5.2; grounded = false; } }
 
     const isTouch = window.matchMedia("(pointer: coarse)").matches; joy.hidden = !isTouch;
     let panelOpen = false, near = null, nearPortal = false, lastHint = "", tutorialDone = false;
@@ -475,7 +519,7 @@ function WORLD_RUNTIME(DECK, CFG, THREE, GLTFLoader) {
 
     function onKeyDown(e) { const k = e.key.toLowerCase(); keys[k] = true; if (k === "escape" && !tutorialDone && !panelOpen) { e.preventDefault(); dismissTutorial(); return; } if (k === " " || k === "enter") { if (!tutorialDone) { e.preventDefault(); nextBubble(); return; } } if (k === "e") { e.preventDefault(); if (panelOpen) closePanel(); else if (near) openPanel(near.slide); else if (nearPortal) returnToStart(); } if (k === "escape" && panelOpen) closePanel(); if (k === "f") { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}); } }
     function onKeyUp(e) { keys[e.key.toLowerCase()] = false; }
-    function onResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+    function onResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); composer.setSize(window.innerWidth, window.innerHeight); }
     window.addEventListener("keydown", onKeyDown); window.addEventListener("keyup", onKeyUp); window.addEventListener("resize", onResize);
 
     const jst = { x: 0, y: 0, id: null };
@@ -520,12 +564,9 @@ function WORLD_RUNTIME(DECK, CFG, THREE, GLTFLoader) {
           const targetH = Math.atan2(mx, mz); let d = targetH - heading; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; heading += d * Math.min(1, dt * 12); hero.rotation.y = heading;
         }
         if (!grounded) { vy -= 14 * dt; jumpY += vy * dt; if (jumpY <= 0) { jumpY = 0; vy = 0; grounded = true; } }
-        if (mixer) { mixer.update(dt); if (grounded) setAction(moving ? "Walking" : "Idle"); }
-        else if (proceduralParts) {
-          if (moving) { walkT += dt * 9; const sw = Math.sin(walkT) * 0.7; proceduralParts.lleg.rotation.x = sw; proceduralParts.rleg.rotation.x = -sw; proceduralParts.larm.rotation.x = -sw * 0.7; proceduralParts.rarm.rotation.x = sw * 0.7; }
-          else { walkT = 0; for (const k in proceduralParts) proceduralParts[k].rotation.x *= 0.82; }
-        }
-        const bob = (proceduralParts && grounded && moving) ? Math.abs(Math.sin(clock.elapsedTime * 9)) * 0.05 : 0;
+        if (moving) { walkT += dt * 9; const sw = Math.sin(walkT) * 0.7; proceduralParts.lleg.rotation.x = sw; proceduralParts.rleg.rotation.x = -sw; proceduralParts.larm.rotation.x = -sw * 0.7; proceduralParts.rarm.rotation.x = sw * 0.7; }
+        else { walkT = 0; for (const k in proceduralParts) proceduralParts[k].rotation.x *= 0.82; }
+        const bob = (grounded && moving) ? Math.abs(Math.sin(clock.elapsedTime * 9)) * 0.05 : 0;
         hero.position.y = jumpY + bob;
         shadow.position.set(hero.position.x, 0.015, hero.position.z); shadow.material.opacity = 0.14 * Math.max(0.25, 1 - jumpY * 0.7);
         dir.position.set(hero.position.x + sunOff.x, sunOff.y, hero.position.z + sunOff.z); dir.target.position.set(hero.position.x, 0, hero.position.z); dir.target.updateMatrixWorld();
@@ -537,7 +578,7 @@ function WORLD_RUNTIME(DECK, CFG, THREE, GLTFLoader) {
         if (!tutorialDone) setHint(""); else if (near) setHint("<b>" + (isTouch ? "Tippen" : "E") + "</b> für Details"); else if (nearPortal) setHint("<b>" + (isTouch ? "Tippen" : "E") + "</b> · zurück zum Anfang"); else setHint(idleHint);
       }
       ring.rotation.z += dt * 0.6; glowDisc.material.opacity = 0.12 + 0.06 * (1 + Math.sin(clock.elapsedTime * 2)) / 2;
-      renderer.render(scene, camera); requestAnimationFrame(loop);
+      composer.render(); requestAnimationFrame(loop);
     }
     homeBtn.onclick = returnToStart;
     camera.position.set(hero.position.x, 4.6, hero.position.z + 7); camera.lookAt(hero.position.x, 1.3, hero.position.z - 1.2);
@@ -587,7 +628,7 @@ function buildDoc(deck) {
     return docHead(deck, WORLD_CSS)
       + "<body>"
       + "<script type=\"importmap\">{\"imports\":{\"three\":\"https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js\",\"three/addons/\":\"https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/\"}}<\/script>"
-      + "<script type=\"module\">import * as THREE from \"three\";import { GLTFLoader } from \"three/addons/loaders/GLTFLoader.js\";(" + WORLD_RUNTIME.toString() + ")(" + json + "," + JSON.stringify(cfg) + ",THREE,GLTFLoader);<\/script>"
+      + "<script type=\"module\">import * as THREE from \"three\";import { EffectComposer } from \"three/addons/postprocessing/EffectComposer.js\";import { RenderPass } from \"three/addons/postprocessing/RenderPass.js\";import { UnrealBloomPass } from \"three/addons/postprocessing/UnrealBloomPass.js\";import { OutputPass } from \"three/addons/postprocessing/OutputPass.js\";(" + WORLD_RUNTIME.toString() + ")(" + json + "," + JSON.stringify(cfg) + ",THREE,EffectComposer,RenderPass,UnrealBloomPass,OutputPass);<\/script>"
       + "</body></html>";
   }
   if (deck.mode === "journey") {
