@@ -97,84 +97,97 @@ function marbleTexture(THREE, baseCss, veinCss) {
   const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; if ("colorSpace" in t) t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
-/* ---------- Figur im abeto-Stil: schlanke, cel-shaded Bote:in mit Haar-Dutt + Rucksack ---------- */
+/* ---------- Figur im abeto-Stil: schlanke, cel-shaded Bote:in mit Anime-Gesicht, Haar-Dutt + Rucksack ---------- */
 function makeHero(THREE, accentHex) {
   const g = new THREE.Group();
   const acc = new THREE.Color(accentHex);
 
-  // Cel-shaded Materialien — abeto-Palette (dunkles Outfit, cremefarbener Rucksack, Aubergine-Haar)
-  const skin = new THREE.MeshToonMaterial({ color: 0xf2d6c2 });
-  const hairC = new THREE.MeshToonMaterial({ color: 0x3c3247 }); // dunkles Aubergine-Lila
-  const tieC = new THREE.MeshToonMaterial({ color: 0xc23b34 });  // rotes Haarband
-  const shirt = new THREE.MeshToonMaterial({ color: 0x262a31 }); // fast-schwarzes Shirt
-  const pants = new THREE.MeshToonMaterial({ color: 0x1c1f24 }); // schwarze Culottes
-  const bagC = new THREE.MeshToonMaterial({ color: 0xeae3d4 });  // cremeweißer Rucksack
-  const bagD = new THREE.MeshToonMaterial({ color: 0xd8cfbb });  // Rucksack-Träger / Deckel
-  const sockC = new THREE.MeshToonMaterial({ color: 0xf1eee4 });
-  const shoeC = new THREE.MeshToonMaterial({ color: 0x17191d });
-  const emblem = new THREE.MeshToonMaterial({ color: acc.getHex() }); // Brust-Emblem (Akzentfarbe)
-  const eyeC = new THREE.MeshBasicMaterial({ color: 0x241f2a });
-  const out = new THREE.MeshBasicMaterial({ color: 0x16131a, side: THREE.BackSide }); // Tinten-Outline
+  // Weiche 4-Stufen-Cel-Schattierung (gradientMap) → „gezeichneter" Anime-Look statt hartem 2-Ton
+  const rampCv = document.createElement("canvas"); rampCv.width = 4; rampCv.height = 1;
+  { const x = rampCv.getContext("2d"); const steps = ["#9a9088", "#c4bcb2", "#ece7df", "#ffffff"]; for (let i = 0; i < 4; i++) { x.fillStyle = steps[i]; x.fillRect(i, 0, 1, 1); } }
+  const ramp = new THREE.CanvasTexture(rampCv); ramp.minFilter = ramp.magFilter = THREE.NearestFilter; if ("colorSpace" in ramp) ramp.colorSpace = THREE.SRGBColorSpace;
+  const toon = (color) => new THREE.MeshToonMaterial({ color, gradientMap: ramp });
+
+  const skin = toon(0xf4d9c6);
+  const hairC = toon(0x342c40);   // dunkles Aubergine-Lila
+  const hairHi = toon(0x4b4060);  // Haar-Glanzsträhne
+  const tieC = toon(0xc7423a);    // rotes Haarband
+  const shirt = toon(0x23262d);   // fast-schwarzes Shirt
+  const pants = toon(0x1a1d22);   // schwarze Culottes
+  const bagC = toon(0xeae3d3);    // cremeweißer Rucksack
+  const bagD = toon(0xd6cdb9);    // Rucksack-Träger / Deckel
+  const sockC = toon(0xf3f0e7);
+  const shoeC = toon(0x15171b);
+  const blush = toon(0xe9a591);   // sanftes Erröten
+  const lip = toon(0xc77f72);     // Mund
+  const emblem = toon(acc.getHex());
+  const eyeDark = new THREE.MeshBasicMaterial({ color: 0x2a2331 });
+  const eyeHi = new THREE.MeshBasicMaterial({ color: 0xfdfcff });
+  const out = new THREE.MeshBasicMaterial({ color: 0x141019, side: THREE.BackSide }); // Tinten-Outline
   const M = (geo, mat) => new THREE.Mesh(geo, mat);
   const add = (geo, mat, x, y, z) => { const m = M(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
-  const ol = (mesh, s) => { const o = new THREE.Mesh(mesh.geometry, out); o.scale.setScalar(s); mesh.add(o); return o; }; // Outline als Kind
+  const ol = (mesh, s) => { const o = new THREE.Mesh(mesh.geometry, out); o.scale.setScalar(s); mesh.add(o); return o; };
 
-  // Beine (blank) — Pivot an der Hüfte, mit Söckchen + Schuh
-  const legGeo = new THREE.CapsuleGeometry(0.078, 0.46, 4, 10);
-  const sockGeo = new THREE.CylinderGeometry(0.088, 0.082, 0.13, 12);
-  const shoeGeo = new THREE.BoxGeometry(0.155, 0.11, 0.28);
+  // Beine (blank) — Pivot an der Hüfte, mit Söckchen + rundem Schuh
+  const legGeo = new THREE.CapsuleGeometry(0.072, 0.5, 6, 14);
+  const sockGeo = new THREE.CylinderGeometry(0.084, 0.078, 0.12, 14);
+  const shoeGeo = new THREE.CapsuleGeometry(0.078, 0.13, 6, 12);
   const mkLeg = (x) => {
-    const p = new THREE.Group(); p.position.set(x, 0.86, 0);
-    const leg = M(legGeo, skin); leg.position.y = -0.31; ol(leg, 1.12); p.add(leg);
-    p.add(M(sockGeo, sockC).translateY(-0.7));
-    const sh = M(shoeGeo, shoeC); sh.position.set(0, -0.785, 0.05); ol(sh, 1.07); p.add(sh);
+    const p = new THREE.Group(); p.position.set(x, 0.88, 0);
+    const leg = M(legGeo, skin); leg.position.y = -0.33; ol(leg, 1.1); p.add(leg);
+    p.add(M(sockGeo, sockC).translateY(-0.66));
+    const sh = M(shoeGeo, shoeC); sh.rotation.x = Math.PI / 2; sh.position.set(0, -0.79, 0.06); ol(sh, 1.08); p.add(sh);
     g.add(p); return p;
   };
   const lleg = mkLeg(-0.1), rleg = mkLeg(0.1);
 
-  // Culottes + Torso (Shirt) + Brust-Emblem
-  const shorts = add(new THREE.CylinderGeometry(0.19, 0.265, 0.34, 18), pants, 0, 0.82, 0); ol(shorts, 1.05);
-  const torso = add(new THREE.CapsuleGeometry(0.185, 0.32, 6, 16), shirt, 0, 1.16, 0); ol(torso, 1.06);
-  add(new THREE.BoxGeometry(0.12, 0.12, 0.02), emblem, 0, 1.2, 0.185);
-  add(new THREE.CylinderGeometry(0.055, 0.065, 0.1, 10), skin, 0, 1.44, 0); // Hals
+  // Culottes + Torso + Brust-Emblem + Hals
+  const shorts = add(new THREE.CylinderGeometry(0.175, 0.255, 0.34, 20), pants, 0, 0.85, 0); ol(shorts, 1.05);
+  const torso = add(new THREE.CapsuleGeometry(0.175, 0.34, 8, 18), shirt, 0, 1.18, 0); ol(torso, 1.05);
+  add(new THREE.BoxGeometry(0.12, 0.12, 0.02), emblem, 0, 1.22, 0.176);
+  add(new THREE.CylinderGeometry(0.05, 0.062, 0.1, 12), skin, 0, 1.46, 0);
 
-  // Kopf
-  const head = add(new THREE.SphereGeometry(0.15, 22, 18), skin, 0, 1.58, 0.01);
-  head.scale.set(0.96, 1.06, 0.98); ol(head, 1.055);
+  // Kopf (leicht ei-/herzförmig) + Kinn + Ohren
+  const head = add(new THREE.SphereGeometry(0.15, 24, 20), skin, 0, 1.61, 0.005); head.scale.set(0.95, 1.07, 0.97); ol(head, 1.05);
+  const chin = add(new THREE.SphereGeometry(0.085, 16, 12), skin, 0, 1.53, 0.05); chin.scale.set(1.05, 0.9, 0.95);
+  for (const sx of [-1, 1]) add(new THREE.SphereGeometry(0.03, 10, 8), skin, sx * 0.148, 1.6, -0.005);
 
-  // Haar: Kappe (Top/Hinterkopf, nach hinten versetzt → Gesicht bleibt frei), Nacken,
-  // Seitensträhnen rahmen das Gesicht, Pony hoch über der Stirn, Dutt + rotes Haarband.
-  const crown = add(new THREE.SphereGeometry(0.16, 20, 16), hairC, 0, 1.65, -0.05); crown.scale.set(1.05, 0.98, 1.0);
-  const nape = add(new THREE.SphereGeometry(0.135, 16, 12), hairC, 0, 1.55, -0.07); nape.scale.set(1.02, 1.05, 0.85);
-  for (const sx of [-1, 1]) { const lock = add(new THREE.CapsuleGeometry(0.032, 0.16, 4, 8), hairC, sx * 0.135, 1.55, 0.02); lock.rotation.z = sx * 0.14; }
-  const fringe = add(new THREE.SphereGeometry(0.13, 16, 12), hairC, 0, 1.69, 0.06); fringe.scale.set(1.06, 0.5, 0.7);
-  add(new THREE.SphereGeometry(0.07, 14, 12), hairC, 0, 1.8, -0.04); // Dutt
-  const tie = add(new THREE.TorusGeometry(0.05, 0.017, 8, 16), tieC, 0, 1.765, -0.04); tie.rotation.x = Math.PI / 2;
+  // Haar: Hinterkopf-Kappe + Nacken, mittig geteilter Pony, Seitensträhnen, Dutt + rotes Band, Glanzsträhne
+  const crown = add(new THREE.SphereGeometry(0.158, 22, 18), hairC, 0, 1.665, -0.038); crown.scale.set(1.06, 1.0, 1.05);
+  const nape = add(new THREE.SphereGeometry(0.132, 18, 14), hairC, 0, 1.56, -0.06); nape.scale.set(1.04, 1.05, 0.85);
+  for (const sx of [-1, 1]) { const fr = add(new THREE.CapsuleGeometry(0.045, 0.12, 5, 10), hairC, sx * 0.055, 1.675, 0.108); fr.rotation.set(0.5, 0, sx * 0.62); fr.scale.set(1, 1, 0.7); }
+  add(new THREE.SphereGeometry(0.05, 12, 10), hairC, 0, 1.715, 0.075).scale.set(1.5, 0.5, 0.7); // Stirn-Haaransatz
+  for (const sx of [-1, 1]) { const lock = add(new THREE.CapsuleGeometry(0.03, 0.2, 5, 10), hairC, sx * 0.138, 1.55, 0.03); lock.rotation.z = sx * 0.16; }
+  add(new THREE.SphereGeometry(0.073, 16, 14), hairC, 0, 1.82, -0.045); // Dutt
+  add(new THREE.SphereGeometry(0.03, 8, 8), hairHi, -0.05, 1.69, 0.02); // dezente Glanzsträhne
+  const tie = add(new THREE.TorusGeometry(0.052, 0.017, 8, 18), tieC, 0, 1.785, -0.045); tie.rotation.x = Math.PI / 2;
 
-  // Gesicht (Augen + Brauen) auf +Z
-  const eyeGeo = new THREE.SphereGeometry(0.022, 10, 8);
+  // Gesicht: mandelförmige Augen + Glanzpunkt, Brauen, feine Nase, Mund, sanftes Erröten (auf +Z)
   for (const sx of [-1, 1]) {
-    const eye = add(eyeGeo, eyeC, sx * 0.058, 1.575, 0.14); eye.scale.set(0.85, 1.35, 0.5);
-    const brow = add(new THREE.BoxGeometry(0.05, 0.012, 0.012), eyeC, sx * 0.06, 1.62, 0.142); brow.rotation.z = -sx * 0.08;
+    const eye = add(new THREE.SphereGeometry(0.027, 12, 10), eyeDark, sx * 0.06, 1.6, 0.132); eye.scale.set(0.78, 1.3, 0.42);
+    add(new THREE.SphereGeometry(0.009, 8, 8), eyeHi, sx * 0.052, 1.618, 0.15);
+    const brow = add(new THREE.BoxGeometry(0.055, 0.013, 0.012), hairC, sx * 0.062, 1.648, 0.138); brow.rotation.z = -sx * 0.1;
+    const bl = add(new THREE.SphereGeometry(0.038, 10, 8), blush, sx * 0.092, 1.575, 0.11); bl.scale.set(1.1, 0.7, 0.25);
   }
+  add(new THREE.SphereGeometry(0.02, 10, 8), skin, 0, 1.575, 0.152).scale.set(0.6, 0.7, 0.6); // Nase
+  add(new THREE.SphereGeometry(0.024, 10, 8), lip, 0, 1.535, 0.145).scale.set(1.3, 0.4, 0.4); // Mund
 
-  // Arme — kurzer Shirt-Ärmel + blanker Unterarm, Pivot an der Schulter
-  const armGeo = new THREE.CapsuleGeometry(0.052, 0.34, 4, 8);
-  const sleeveGeo = new THREE.CylinderGeometry(0.07, 0.062, 0.12, 10);
-  const handGeo = new THREE.SphereGeometry(0.05, 10, 8);
+  // Arme — runde Schulter + kurzer Ärmel + blanker Unterarm + Hand, Pivot an der Schulter
   const mkArm = (x) => {
-    const p = new THREE.Group(); p.position.set(x, 1.36, 0);
-    const arm = M(armGeo, skin); arm.position.y = -0.24; ol(arm, 1.12); p.add(arm);
-    const sleeve = M(sleeveGeo, shirt); sleeve.position.y = -0.04; ol(sleeve, 1.06); p.add(sleeve);
-    p.add(M(handGeo, skin).translateY(-0.43));
+    const p = new THREE.Group(); p.position.set(x, 1.4, 0);
+    const shoulder = M(new THREE.SphereGeometry(0.082, 14, 12), shirt); ol(shoulder, 1.05); p.add(shoulder);
+    const arm = M(new THREE.CapsuleGeometry(0.05, 0.34, 6, 12), skin); arm.position.y = -0.26; ol(arm, 1.1); p.add(arm);
+    const sleeve = M(new THREE.SphereGeometry(0.073, 14, 12), shirt); sleeve.position.y = -0.09; sleeve.scale.set(1, 0.78, 1); p.add(sleeve);
+    const hand = M(new THREE.SphereGeometry(0.052, 12, 10), skin); hand.position.y = -0.475; hand.scale.set(1, 1.15, 0.78); p.add(hand);
     g.add(p); return p;
   };
-  const larm = mkArm(-0.212), rarm = mkArm(0.212);
+  const larm = mkArm(-0.205), rarm = mkArm(0.205);
 
-  // Rucksack auf dem Rücken (-Z) + Träger über die Schultern (+Z)
-  const bag = add(new THREE.BoxGeometry(0.3, 0.4, 0.17), bagC, 0, 1.12, -0.235); ol(bag, 1.04);
-  add(new THREE.BoxGeometry(0.3, 0.13, 0.18), bagD, 0, 1.29, -0.235); // Deckel
-  for (const sx of [-1, 1]) { const strap = add(new THREE.BoxGeometry(0.045, 0.42, 0.04), bagD, sx * 0.1, 1.18, 0.17); strap.rotation.x = -0.04; }
+  // Rucksack auf dem Rücken (-Z) + Fronttasche + Träger über die Schultern (+Z)
+  const bag = add(new THREE.BoxGeometry(0.3, 0.4, 0.17), bagC, 0, 1.14, -0.23); ol(bag, 1.04);
+  add(new THREE.BoxGeometry(0.3, 0.13, 0.18), bagD, 0, 1.31, -0.23); // Deckel
+  add(new THREE.BoxGeometry(0.16, 0.16, 0.04), bagD, 0, 1.05, -0.318); // Fronttasche
+  for (const sx of [-1, 1]) { const strap = add(new THREE.BoxGeometry(0.045, 0.44, 0.04), bagD, sx * 0.1, 1.2, 0.165); strap.rotation.x = -0.04; }
 
   g.userData.parts = { lleg, rleg, larm, rarm };
   return g;
@@ -205,10 +218,11 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   const acc = new THREE.Color(accent);
   const hsl = {}; acc.getHSL(hsl);
   const tint = (l, s) => new THREE.Color().setHSL(hsl.h, Math.min(hsl.s, s == null ? 0.4 : s), l);
-  const bgCol = tint(0.52, 0.14);
+  // abeto-Basis-Palette (fest): Teal/Aqua-Himmel + warmes Steingrau; Theme-Akzent nur als Highlight
+  const A = { wall: 0xdcd6c9, wallDark: 0x39352e, ceil: 0xe6e0d3, stone: 0xd2cbbc, stoneDark: 0x8a8273, wood: 0x9c7b54, beam: 0xc0b8a8, floor: 0xd0c9ba, floorVein: 0xb3ab9a };
   const scene = new THREE.Scene();
-  scene.background = gradientSky(THREE, tint(0.78, 0.2).getStyle(), tint(0.46, 0.12).getStyle());
-  scene.fog = new THREE.Fog(bgCol.getHex(), 40, 145);
+  scene.background = gradientSky(THREE, "#6cc2bc", "#cbe9e2");
+  scene.fog = new THREE.Fog(0xd2eae3, 46, 150);
 
   const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 240);
 
@@ -219,10 +233,10 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
 
-  scene.add(new THREE.HemisphereLight(tint(0.96, 0.06).getHex(), tint(0.44, 0.16).getHex(), 1.1));
-  scene.add(new THREE.AmbientLight(tint(0.64, 0.1).getHex(), 0.5));
+  scene.add(new THREE.HemisphereLight(0xe9f4f1, 0xcdbfa6, 1.05)); // Aqua-Himmel / warmer Boden
+  scene.add(new THREE.AmbientLight(0xece5d6, 0.42));
   // Sonne mit weichem Schatten — folgt der Figur (knackige Schatten in der Nähe)
-  const dir = new THREE.DirectionalLight(0xfff2dc, 1.35);
+  const dir = new THREE.DirectionalLight(0xfff1d6, 1.3);
   dir.castShadow = true; dir.shadow.mapSize.set(2048, 2048);
   const sc = dir.shadow.camera; sc.near = 1; sc.far = 70; sc.left = -18; sc.right = 18; sc.top = 18; sc.bottom = -18; sc.updateProjectionMatrix();
   dir.shadow.bias = -0.0007; dir.shadow.normalBias = 0.04;
@@ -240,7 +254,7 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   const place = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); return m; };
 
   /* ----- Boden (Marmor), Wände, Decke ----- */
-  const floorTex = marbleTexture(THREE, tint(0.46, 0.07).getStyle(), tint(0.3, 0.12).getStyle());
+  const floorTex = marbleTexture(THREE, new THREE.Color(A.floor).getStyle(), new THREE.Color(A.floorVein).getStyle());
   floorTex.repeat.set(4, Math.max(4, Math.round((hallLen + 24) / 8)));
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshToonMaterial({ map: floorTex }));
   floor.rotation.x = -Math.PI / 2; floor.position.z = -hallLen / 2 + 6; floor.receiveShadow = true; scene.add(floor);
@@ -248,34 +262,35 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   const runner = new THREE.Mesh(new THREE.PlaneGeometry(1.8, hallLen + 24), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.22 }));
   runner.rotation.x = -Math.PI / 2; runner.position.set(0, 0.02, floor.position.z); scene.add(runner);
 
-  const wallMat = new THREE.MeshToonMaterial({ color: tint(0.56, 0.07).getHex(), side: THREE.DoubleSide });
+  const wallMat = new THREE.MeshToonMaterial({ color: A.wall, side: THREE.DoubleSide });
   for (const sx of [-1, 1]) {
     const wall = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 6.4), wallMat);
     wall.position.set(sx * halfW, 3.2, floor.position.z); wall.rotation.y = -sx * Math.PI / 2; scene.add(wall);
     const strip = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 0.14), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.4 }));
     strip.position.set(sx * (halfW - 0.01), 4.7, floor.position.z); strip.rotation.y = -sx * Math.PI / 2; scene.add(strip);
-    const base = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.4, hallLen + 24), new THREE.MeshToonMaterial({ color: tint(0.3, 0.14).getHex() }));
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.4, hallLen + 24), new THREE.MeshToonMaterial({ color: A.wallDark }));
     base.position.set(sx * (halfW - 0.08), 0.2, floor.position.z); scene.add(base);
   }
   for (const [z, ry] of [[FRONT_Z, Math.PI], [-hallLen + 5, 0]]) {
     const w = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, 6.4), wallMat);
     w.position.set(0, 3.2, z); w.rotation.y = ry; scene.add(w);
   }
-  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshToonMaterial({ color: tint(0.46, 0.1).getHex(), side: THREE.DoubleSide }));
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshToonMaterial({ color: A.ceil, side: THREE.DoubleSide }));
   ceil.rotation.x = Math.PI / 2; ceil.position.set(0, 5.4, floor.position.z); scene.add(ceil);
   const skylight = new THREE.Mesh(new THREE.PlaneGeometry(2.4, hallLen + 20), new THREE.MeshBasicMaterial({ color: 0xfff4e2 }));
   skylight.rotation.x = Math.PI / 2; skylight.position.set(0, 5.36, floor.position.z); scene.add(skylight);
   for (let z = -4; z > -hallLen + 6; z -= 16) { const sl = new THREE.PointLight(0xfff2e0, 0.45, 26, 1.8); sl.position.set(0, 5.0, z); scene.add(sl); }
 
   /* ----- Materialien Ausstattung ----- */
-  const stoneMat = new THREE.MeshToonMaterial({ color: tint(0.62, 0.06).getHex() });
-  const stoneDark = new THREE.MeshToonMaterial({ color: tint(0.44, 0.1).getHex() });
-  const woodMat = new THREE.MeshToonMaterial({ color: tint(0.24, 0.28).getHex() });
+  const stoneMat = new THREE.MeshToonMaterial({ color: A.stone });
+  const stoneDark = new THREE.MeshToonMaterial({ color: A.stoneDark });
+  const woodMat = new THREE.MeshToonMaterial({ color: A.wood });
   const frameMat = new THREE.MeshStandardMaterial({ color: 0xb89b5e, roughness: 0.45, metalness: 0.5 });
   const leafMat = new THREE.MeshToonMaterial({ color: 0x6f9a72 }); // gedämpftes Grün
   const potMat = new THREE.MeshToonMaterial({ color: 0xb07a5a }); // weiche Terrakotta
-  const beamMat = new THREE.MeshToonMaterial({ color: tint(0.5, 0.1).getHex() }); // schlichte, ruhige Balken (kein lautes Dancheong)
-  disposables.push(stoneMat, stoneDark, woodMat, frameMat, leafMat, potMat, beamMat, floor.geometry, floor.material, wallMat, ceil.material, runner.material, skylight.material);
+  const beamMat = new THREE.MeshToonMaterial({ color: A.beam }); // schlichte, ruhige Balken
+  const outlineMat = new THREE.MeshBasicMaterial({ color: 0x1a1620, side: THREE.BackSide }); // abeto-Tinten-Outline
+  disposables.push(stoneMat, stoneDark, woodMat, frameMat, leafMat, potMat, beamMat, outlineMat, floor.geometry, floor.material, wallMat, ceil.material, runner.material, skylight.material);
 
   const colGeo = new THREE.CylinderGeometry(0.4, 0.46, 4.9, 18);
   const fluteGeo = new THREE.BoxGeometry(1.1, 0.42, 1.1);
@@ -348,7 +363,7 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   /* ----- Mondtor am Eingang (dezenter asiatischer Hinweis statt lautem Tor) ----- */
   (function moonGate() {
     const z = FRONT_Z - 2.2;
-    const gate = new THREE.Mesh(new THREE.TorusGeometry(2.7, 0.2, 14, 56), new THREE.MeshToonMaterial({ color: tint(0.66, 0.05).getHex() }));
+    const gate = new THREE.Mesh(new THREE.TorusGeometry(2.7, 0.2, 14, 56), new THREE.MeshToonMaterial({ color: A.stone }));
     gate.position.set(0, 2.7, z); scene.add(gate);
     for (const sx of [-1, 1]) scene.add(place(new THREE.BoxGeometry(0.6, 0.5, 0.6), stoneMat, sx * 2.55, 0.25, z));
   })();
@@ -387,7 +402,7 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   }));
 
   /* ----- Skulpturen auf Sockeln (füllen den Raum, mehr Tiefe) ----- */
-  const sculptBase = new THREE.MeshToonMaterial({ color: tint(0.6, 0.07).getHex() });
+  const sculptBase = new THREE.MeshToonMaterial({ color: A.stone });
   const sculptAcc = new THREE.MeshToonMaterial({ color: tint(0.55, 0.4).getHex() });
   for (let k = 0, z = -12; z > -hallLen + 10; z -= 20, k++) {
     const sx = (k % 2 ? 1 : -1) * 4.4;
@@ -403,7 +418,7 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   const sconceBulbGeo = new THREE.SphereGeometry(0.1, 12, 10);
   const sconceArmGeo = new THREE.BoxGeometry(0.05, 0.05, 0.16);
   const sconceBulbMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0 });
-  const sconceArmMat = new THREE.MeshToonMaterial({ color: tint(0.3, 0.12).getHex() });
+  const sconceArmMat = new THREE.MeshToonMaterial({ color: A.stoneDark });
   disposables.push(sconceBulbGeo, sconceArmGeo, sconceBulbMat, sconceArmMat);
   for (let z = -3; z > -hallLen + 6; z -= 9) for (const sx of [-1, 1]) {
     const gx = sx * (halfW - 0.12);
@@ -412,8 +427,8 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   }
 
   /* ----- Versand-Kisten am Eingang (dezenter abeto-Hafen-Anklang) ----- */
-  const crateMat = new THREE.MeshToonMaterial({ color: tint(0.42, 0.3).getHex() });
-  const crateBand = new THREE.MeshToonMaterial({ color: tint(0.3, 0.34).getHex() });
+  const crateMat = new THREE.MeshToonMaterial({ color: 0xb58a57 }); // warmes Holz/Karton (abeto)
+  const crateBand = new THREE.MeshToonMaterial({ color: 0x7c5f3d });
   const crateGeoL = new THREE.BoxGeometry(0.9, 0.9, 0.9), crateGeoM = new THREE.BoxGeometry(0.6, 0.6, 0.6);
   const crateBandGeoL = new THREE.BoxGeometry(0.92, 0.12, 0.92), crateBandGeoM = new THREE.BoxGeometry(0.62, 0.1, 0.62);
   disposables.push(crateMat, crateBand, crateGeoL, crateGeoM, crateBandGeoL, crateBandGeoM);
@@ -620,6 +635,21 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   // Schatten: feste Toon-Objekte werfen & empfangen Schatten
   scene.traverse((o) => { if (o.isMesh && o.material && o.material.isMeshToonMaterial) { o.castShadow = true; o.receiveShadow = true; } });
   floor.castShadow = false;
+
+  // abeto-Tinten-Outlines: dünne inverted-hull-Hülle um alle festen Objekte
+  // (Wände/Boden/Tafeln = Planes und Glows/Figur ausgenommen) → Comic/Manga-Look
+  hero.traverse((o) => { o.userData.noOutline = true; });
+  (function inkOutline() {
+    const todo = [];
+    scene.traverse((o) => {
+      if (!o.isMesh || o.userData.noOutline || o.userData.isOutline) return;
+      if (o.material && o.material.side === THREE.BackSide) return;
+      const g = o.geometry; if (!g || /Plane/.test(g.type || "")) return;
+      const m = o.material; if (m && m.transparent && (m.opacity == null || m.opacity < 0.92)) return;
+      todo.push(o);
+    });
+    for (const o of todo) { const s = new THREE.Mesh(o.geometry, outlineMat); s.scale.setScalar(1.035); s.userData.isOutline = true; o.add(s); }
+  })();
 
   loader.hidden = true;
   if (tutOff) { tutorialDone = true; if (bubbleEl) bubbleEl.hidden = true; } else showBubble();

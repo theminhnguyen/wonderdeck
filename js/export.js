@@ -270,59 +270,64 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
   function makeHero(accentHex) {
     const g = new THREE.Group();
     const acc = new THREE.Color(accentHex);
-    // Cel-shaded Materialien — abeto-Palette (dunkles Outfit, cremefarbener Rucksack, Aubergine-Haar)
-    const skin = new THREE.MeshToonMaterial({ color: 0xf2d6c2 });
-    const hairC = new THREE.MeshToonMaterial({ color: 0x3c3247 });
-    const tieC = new THREE.MeshToonMaterial({ color: 0xc23b34 });
-    const shirt = new THREE.MeshToonMaterial({ color: 0x262a31 });
-    const pants = new THREE.MeshToonMaterial({ color: 0x1c1f24 });
-    const bagC = new THREE.MeshToonMaterial({ color: 0xeae3d4 });
-    const bagD = new THREE.MeshToonMaterial({ color: 0xd8cfbb });
-    const sockC = new THREE.MeshToonMaterial({ color: 0xf1eee4 });
-    const shoeC = new THREE.MeshToonMaterial({ color: 0x17191d });
-    const emblem = new THREE.MeshToonMaterial({ color: acc.getHex() });
-    const eyeC = new THREE.MeshBasicMaterial({ color: 0x241f2a });
-    const out = new THREE.MeshBasicMaterial({ color: 0x16131a, side: THREE.BackSide });
+    // Weiche 4-Stufen-Cel-Schattierung (gradientMap) → „gezeichneter" Anime-Look
+    const rampCv = document.createElement("canvas"); rampCv.width = 4; rampCv.height = 1;
+    { const x = rampCv.getContext("2d"); const steps = ["#9a9088", "#c4bcb2", "#ece7df", "#ffffff"]; for (let i = 0; i < 4; i++) { x.fillStyle = steps[i]; x.fillRect(i, 0, 1, 1); } }
+    const ramp = new THREE.CanvasTexture(rampCv); ramp.minFilter = ramp.magFilter = THREE.NearestFilter; if ("colorSpace" in ramp) ramp.colorSpace = THREE.SRGBColorSpace;
+    const toon = (color) => new THREE.MeshToonMaterial({ color, gradientMap: ramp });
+    const skin = toon(0xf4d9c6), hairC = toon(0x342c40), hairHi = toon(0x4b4060), tieC = toon(0xc7423a);
+    const shirt = toon(0x23262d), pants = toon(0x1a1d22), bagC = toon(0xeae3d3), bagD = toon(0xd6cdb9);
+    const sockC = toon(0xf3f0e7), shoeC = toon(0x15171b), blush = toon(0xe9a591), lip = toon(0xc77f72), emblem = toon(acc.getHex());
+    const eyeDark = new THREE.MeshBasicMaterial({ color: 0x2a2331 }), eyeHi = new THREE.MeshBasicMaterial({ color: 0xfdfcff });
+    const out = new THREE.MeshBasicMaterial({ color: 0x141019, side: THREE.BackSide });
     const M = (geo, mat) => new THREE.Mesh(geo, mat);
     const add = (geo, mat, x, y, z) => { const m = M(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
     const ol = (mesh, s) => { const o = new THREE.Mesh(mesh.geometry, out); o.scale.setScalar(s); mesh.add(o); return o; };
-    const legGeo = new THREE.CapsuleGeometry(0.078, 0.46, 4, 10), sockGeo = new THREE.CylinderGeometry(0.088, 0.082, 0.13, 12), shoeGeo = new THREE.BoxGeometry(0.155, 0.11, 0.28);
+    const legGeo = new THREE.CapsuleGeometry(0.072, 0.5, 6, 14), sockGeo = new THREE.CylinderGeometry(0.084, 0.078, 0.12, 14), shoeGeo = new THREE.CapsuleGeometry(0.078, 0.13, 6, 12);
     const mkLeg = (x) => {
-      const p = new THREE.Group(); p.position.set(x, 0.86, 0);
-      const leg = M(legGeo, skin); leg.position.y = -0.31; ol(leg, 1.12); p.add(leg);
-      p.add(M(sockGeo, sockC).translateY(-0.7));
-      const sh = M(shoeGeo, shoeC); sh.position.set(0, -0.785, 0.05); ol(sh, 1.07); p.add(sh);
+      const p = new THREE.Group(); p.position.set(x, 0.88, 0);
+      const leg = M(legGeo, skin); leg.position.y = -0.33; ol(leg, 1.1); p.add(leg);
+      p.add(M(sockGeo, sockC).translateY(-0.66));
+      const sh = M(shoeGeo, shoeC); sh.rotation.x = Math.PI / 2; sh.position.set(0, -0.79, 0.06); ol(sh, 1.08); p.add(sh);
       g.add(p); return p;
     };
     const lleg = mkLeg(-0.1), rleg = mkLeg(0.1);
-    const shorts = add(new THREE.CylinderGeometry(0.19, 0.265, 0.34, 18), pants, 0, 0.82, 0); ol(shorts, 1.05);
-    const torso = add(new THREE.CapsuleGeometry(0.185, 0.32, 6, 16), shirt, 0, 1.16, 0); ol(torso, 1.06);
-    add(new THREE.BoxGeometry(0.12, 0.12, 0.02), emblem, 0, 1.2, 0.185);
-    add(new THREE.CylinderGeometry(0.055, 0.065, 0.1, 10), skin, 0, 1.44, 0);
-    const head = add(new THREE.SphereGeometry(0.15, 22, 18), skin, 0, 1.58, 0.01); head.scale.set(0.96, 1.06, 0.98); ol(head, 1.055);
-    const crown = add(new THREE.SphereGeometry(0.16, 20, 16), hairC, 0, 1.65, -0.05); crown.scale.set(1.05, 0.98, 1.0);
-    const nape = add(new THREE.SphereGeometry(0.135, 16, 12), hairC, 0, 1.55, -0.07); nape.scale.set(1.02, 1.05, 0.85);
-    for (const sx of [-1, 1]) { const lock = add(new THREE.CapsuleGeometry(0.032, 0.16, 4, 8), hairC, sx * 0.135, 1.55, 0.02); lock.rotation.z = sx * 0.14; }
-    const fringe = add(new THREE.SphereGeometry(0.13, 16, 12), hairC, 0, 1.69, 0.06); fringe.scale.set(1.06, 0.5, 0.7);
-    add(new THREE.SphereGeometry(0.07, 14, 12), hairC, 0, 1.8, -0.04);
-    const tie = add(new THREE.TorusGeometry(0.05, 0.017, 8, 16), tieC, 0, 1.765, -0.04); tie.rotation.x = Math.PI / 2;
-    const eyeGeo = new THREE.SphereGeometry(0.022, 10, 8);
+    const shorts = add(new THREE.CylinderGeometry(0.175, 0.255, 0.34, 20), pants, 0, 0.85, 0); ol(shorts, 1.05);
+    const torso = add(new THREE.CapsuleGeometry(0.175, 0.34, 8, 18), shirt, 0, 1.18, 0); ol(torso, 1.05);
+    add(new THREE.BoxGeometry(0.12, 0.12, 0.02), emblem, 0, 1.22, 0.176);
+    add(new THREE.CylinderGeometry(0.05, 0.062, 0.1, 12), skin, 0, 1.46, 0);
+    const head = add(new THREE.SphereGeometry(0.15, 24, 20), skin, 0, 1.61, 0.005); head.scale.set(0.95, 1.07, 0.97); ol(head, 1.05);
+    const chin = add(new THREE.SphereGeometry(0.085, 16, 12), skin, 0, 1.53, 0.05); chin.scale.set(1.05, 0.9, 0.95);
+    for (const sx of [-1, 1]) add(new THREE.SphereGeometry(0.03, 10, 8), skin, sx * 0.148, 1.6, -0.005);
+    const crown = add(new THREE.SphereGeometry(0.158, 22, 18), hairC, 0, 1.665, -0.038); crown.scale.set(1.06, 1.0, 1.05);
+    const nape = add(new THREE.SphereGeometry(0.132, 18, 14), hairC, 0, 1.56, -0.06); nape.scale.set(1.04, 1.05, 0.85);
+    for (const sx of [-1, 1]) { const fr = add(new THREE.CapsuleGeometry(0.045, 0.12, 5, 10), hairC, sx * 0.055, 1.675, 0.108); fr.rotation.set(0.5, 0, sx * 0.62); fr.scale.set(1, 1, 0.7); }
+    add(new THREE.SphereGeometry(0.05, 12, 10), hairC, 0, 1.715, 0.075).scale.set(1.5, 0.5, 0.7);
+    for (const sx of [-1, 1]) { const lock = add(new THREE.CapsuleGeometry(0.03, 0.2, 5, 10), hairC, sx * 0.138, 1.55, 0.03); lock.rotation.z = sx * 0.16; }
+    add(new THREE.SphereGeometry(0.073, 16, 14), hairC, 0, 1.82, -0.045);
+    add(new THREE.SphereGeometry(0.03, 8, 8), hairHi, -0.05, 1.69, 0.02);
+    const tie = add(new THREE.TorusGeometry(0.052, 0.017, 8, 18), tieC, 0, 1.785, -0.045); tie.rotation.x = Math.PI / 2;
     for (const sx of [-1, 1]) {
-      const eye = add(eyeGeo, eyeC, sx * 0.058, 1.575, 0.14); eye.scale.set(0.85, 1.35, 0.5);
-      const brow = add(new THREE.BoxGeometry(0.05, 0.012, 0.012), eyeC, sx * 0.06, 1.62, 0.142); brow.rotation.z = -sx * 0.08;
+      const eye = add(new THREE.SphereGeometry(0.027, 12, 10), eyeDark, sx * 0.06, 1.6, 0.132); eye.scale.set(0.78, 1.3, 0.42);
+      add(new THREE.SphereGeometry(0.009, 8, 8), eyeHi, sx * 0.052, 1.618, 0.15);
+      const brow = add(new THREE.BoxGeometry(0.055, 0.013, 0.012), hairC, sx * 0.062, 1.648, 0.138); brow.rotation.z = -sx * 0.1;
+      const bl = add(new THREE.SphereGeometry(0.038, 10, 8), blush, sx * 0.092, 1.575, 0.11); bl.scale.set(1.1, 0.7, 0.25);
     }
-    const armGeo = new THREE.CapsuleGeometry(0.052, 0.34, 4, 8), sleeveGeo = new THREE.CylinderGeometry(0.07, 0.062, 0.12, 10), handGeo = new THREE.SphereGeometry(0.05, 10, 8);
+    add(new THREE.SphereGeometry(0.02, 10, 8), skin, 0, 1.575, 0.152).scale.set(0.6, 0.7, 0.6);
+    add(new THREE.SphereGeometry(0.024, 10, 8), lip, 0, 1.535, 0.145).scale.set(1.3, 0.4, 0.4);
     const mkArm = (x) => {
-      const p = new THREE.Group(); p.position.set(x, 1.36, 0);
-      const arm = M(armGeo, skin); arm.position.y = -0.24; ol(arm, 1.12); p.add(arm);
-      const sleeve = M(sleeveGeo, shirt); sleeve.position.y = -0.04; ol(sleeve, 1.06); p.add(sleeve);
-      p.add(M(handGeo, skin).translateY(-0.43));
+      const p = new THREE.Group(); p.position.set(x, 1.4, 0);
+      const shoulder = M(new THREE.SphereGeometry(0.082, 14, 12), shirt); ol(shoulder, 1.05); p.add(shoulder);
+      const arm = M(new THREE.CapsuleGeometry(0.05, 0.34, 6, 12), skin); arm.position.y = -0.26; ol(arm, 1.1); p.add(arm);
+      const sleeve = M(new THREE.SphereGeometry(0.073, 14, 12), shirt); sleeve.position.y = -0.09; sleeve.scale.set(1, 0.78, 1); p.add(sleeve);
+      const hand = M(new THREE.SphereGeometry(0.052, 12, 10), skin); hand.position.y = -0.475; hand.scale.set(1, 1.15, 0.78); p.add(hand);
       g.add(p); return p;
     };
-    const larm = mkArm(-0.212), rarm = mkArm(0.212);
-    const bag = add(new THREE.BoxGeometry(0.3, 0.4, 0.17), bagC, 0, 1.12, -0.235); ol(bag, 1.04);
-    add(new THREE.BoxGeometry(0.3, 0.13, 0.18), bagD, 0, 1.29, -0.235);
-    for (const sx of [-1, 1]) { const strap = add(new THREE.BoxGeometry(0.045, 0.42, 0.04), bagD, sx * 0.1, 1.18, 0.17); strap.rotation.x = -0.04; }
+    const larm = mkArm(-0.205), rarm = mkArm(0.205);
+    const bag = add(new THREE.BoxGeometry(0.3, 0.4, 0.17), bagC, 0, 1.14, -0.23); ol(bag, 1.04);
+    add(new THREE.BoxGeometry(0.3, 0.13, 0.18), bagD, 0, 1.31, -0.23);
+    add(new THREE.BoxGeometry(0.16, 0.16, 0.04), bagD, 0, 1.05, -0.318);
+    for (const sx of [-1, 1]) { const strap = add(new THREE.BoxGeometry(0.045, 0.44, 0.04), bagD, sx * 0.1, 1.2, 0.165); strap.rotation.x = -0.04; }
     g.userData.parts = { lleg, rleg, larm, rarm };
     return g;
   }
@@ -340,17 +345,18 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
     const acc = new THREE.Color(accent); const hsl = {}; acc.getHSL(hsl);
     const tint = (l, s) => new THREE.Color().setHSL(hsl.h, Math.min(hsl.s, s == null ? 0.4 : s), l);
     const place = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); return m; };
-    const bgCol = tint(0.52, 0.14);
-    const scene = new THREE.Scene(); scene.background = gradientSky(tint(0.78, 0.2).getStyle(), tint(0.46, 0.12).getStyle()); scene.fog = new THREE.Fog(bgCol.getHex(), 40, 145);
+    // abeto-Basis-Palette (fest): Teal/Aqua-Himmel + warmes Steingrau; Theme-Akzent nur als Highlight
+    const A = { wall: 0xdcd6c9, wallDark: 0x39352e, ceil: 0xe6e0d3, stone: 0xd2cbbc, stoneDark: 0x8a8273, wood: 0x9c7b54, beam: 0xc0b8a8, floor: 0xd0c9ba, floorVein: 0xb3ab9a };
+    const scene = new THREE.Scene(); scene.background = gradientSky("#6cc2bc", "#cbe9e2"); scene.fog = new THREE.Fog(0xd2eae3, 46, 150);
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 240);
     const composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
     const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.5, 0.5, 0.82);
     composer.addPass(bloom);
     composer.addPass(new OutputPass());
-    scene.add(new THREE.HemisphereLight(tint(0.96, 0.06).getHex(), tint(0.44, 0.16).getHex(), 1.1));
-    scene.add(new THREE.AmbientLight(tint(0.64, 0.1).getHex(), 0.5));
-    const dir = new THREE.DirectionalLight(0xfff2dc, 1.35); dir.castShadow = true; dir.shadow.mapSize.set(2048, 2048);
+    scene.add(new THREE.HemisphereLight(0xe9f4f1, 0xcdbfa6, 1.05));
+    scene.add(new THREE.AmbientLight(0xece5d6, 0.42));
+    const dir = new THREE.DirectionalLight(0xfff1d6, 1.3); dir.castShadow = true; dir.shadow.mapSize.set(2048, 2048);
     const sc = dir.shadow.camera; sc.near = 1; sc.far = 70; sc.left = -18; sc.right = 18; sc.top = 18; sc.bottom = -18; sc.updateProjectionMatrix();
     dir.shadow.bias = -0.0007; dir.shadow.normalBias = 0.04; scene.add(dir); scene.add(dir.target);
     const sunOff = new THREE.Vector3(7, 17, 9);
@@ -359,30 +365,31 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
     const obstacles = [];
     const glowEnd = new THREE.PointLight(acc.getHex(), 0.9, 80, 1.3); glowEnd.position.set(0, 3.6, -hallLen + 6); scene.add(glowEnd);
 
-    const floorTex = marbleTexture(tint(0.46, 0.07).getStyle(), tint(0.3, 0.12).getStyle()); floorTex.repeat.set(4, Math.max(4, Math.round((hallLen + 24) / 8)));
+    const floorTex = marbleTexture(new THREE.Color(A.floor).getStyle(), new THREE.Color(A.floorVein).getStyle()); floorTex.repeat.set(4, Math.max(4, Math.round((hallLen + 24) / 8)));
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshToonMaterial({ map: floorTex }));
     floor.rotation.x = -Math.PI / 2; floor.position.z = -hallLen / 2 + 6; floor.receiveShadow = true; scene.add(floor);
     const runner = new THREE.Mesh(new THREE.PlaneGeometry(1.8, hallLen + 24), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.22 }));
     runner.rotation.x = -Math.PI / 2; runner.position.set(0, 0.02, floor.position.z); scene.add(runner);
 
-    const wallMat = new THREE.MeshToonMaterial({ color: tint(0.56, 0.07).getHex(), side: THREE.DoubleSide });
+    const wallMat = new THREE.MeshToonMaterial({ color: A.wall, side: THREE.DoubleSide });
     for (const sx of [-1, 1]) {
       const wall = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 6.4), wallMat); wall.position.set(sx * halfW, 3.2, floor.position.z); wall.rotation.y = -sx * Math.PI / 2; scene.add(wall);
       const strip = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 0.14), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.4 })); strip.position.set(sx * (halfW - 0.01), 4.7, floor.position.z); strip.rotation.y = -sx * Math.PI / 2; scene.add(strip);
-      const base = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.4, hallLen + 24), new THREE.MeshToonMaterial({ color: tint(0.3, 0.14).getHex() })); base.position.set(sx * (halfW - 0.08), 0.2, floor.position.z); scene.add(base);
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.4, hallLen + 24), new THREE.MeshToonMaterial({ color: A.wallDark })); base.position.set(sx * (halfW - 0.08), 0.2, floor.position.z); scene.add(base);
     }
     for (const [z, ry] of [[FRONT_Z, Math.PI], [-hallLen + 5, 0]]) { const w = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, 6.4), wallMat); w.position.set(0, 3.2, z); w.rotation.y = ry; scene.add(w); }
-    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshToonMaterial({ color: tint(0.46, 0.1).getHex(), side: THREE.DoubleSide })); ceil.rotation.x = Math.PI / 2; ceil.position.set(0, 5.4, floor.position.z); scene.add(ceil);
+    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshToonMaterial({ color: A.ceil, side: THREE.DoubleSide })); ceil.rotation.x = Math.PI / 2; ceil.position.set(0, 5.4, floor.position.z); scene.add(ceil);
     const skylight = new THREE.Mesh(new THREE.PlaneGeometry(2.4, hallLen + 20), new THREE.MeshBasicMaterial({ color: 0xfff4e2 })); skylight.rotation.x = Math.PI / 2; skylight.position.set(0, 5.36, floor.position.z); scene.add(skylight);
     for (let z = -4; z > -hallLen + 6; z -= 16) { const sl = new THREE.PointLight(0xfff2e0, 0.45, 26, 1.8); sl.position.set(0, 5.0, z); scene.add(sl); }
 
-    const stoneMat = new THREE.MeshToonMaterial({ color: tint(0.62, 0.06).getHex() });
-    const stoneDark = new THREE.MeshToonMaterial({ color: tint(0.44, 0.1).getHex() });
-    const woodMat = new THREE.MeshToonMaterial({ color: tint(0.24, 0.28).getHex() });
+    const stoneMat = new THREE.MeshToonMaterial({ color: A.stone });
+    const stoneDark = new THREE.MeshToonMaterial({ color: A.stoneDark });
+    const woodMat = new THREE.MeshToonMaterial({ color: A.wood });
     const frameMat = new THREE.MeshStandardMaterial({ color: 0xb89b5e, roughness: 0.45, metalness: 0.5 });
     const leafMat = new THREE.MeshToonMaterial({ color: 0x6f9a72 });
     const potMat = new THREE.MeshToonMaterial({ color: 0xb07a5a });
-    const beamMat = new THREE.MeshToonMaterial({ color: tint(0.5, 0.1).getHex() });
+    const beamMat = new THREE.MeshToonMaterial({ color: A.beam });
+    const outlineMat = new THREE.MeshBasicMaterial({ color: 0x1a1620, side: THREE.BackSide }); // abeto-Tinten-Outline
     const colGeo = new THREE.CylinderGeometry(0.4, 0.46, 4.9, 18), fluteGeo = new THREE.BoxGeometry(1.1, 0.42, 1.1), capGeo = new THREE.BoxGeometry(1.0, 0.34, 1.0), beamGeo = new THREE.BoxGeometry(halfW * 2, 0.3, 0.42);
     const colXs = [-(halfW - 0.7), halfW - 0.7];
     const colZs = []; for (let z = 1; z > -hallLen + 6; z -= 7) colZs.push(z);
@@ -428,7 +435,7 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
     for (let z = -10; z > -hallLen + 8; z -= 22) { stoneLantern(-(halfW - 1.5), z); stoneLantern(halfW - 1.5, z); }
     (function moonGate() {
       const z = FRONT_Z - 2.2;
-      const gate = new THREE.Mesh(new THREE.TorusGeometry(2.7, 0.2, 14, 56), new THREE.MeshToonMaterial({ color: tint(0.66, 0.05).getHex() })); gate.position.set(0, 2.7, z); scene.add(gate);
+      const gate = new THREE.Mesh(new THREE.TorusGeometry(2.7, 0.2, 14, 56), new THREE.MeshToonMaterial({ color: A.stone })); gate.position.set(0, 2.7, z); scene.add(gate);
       for (const sx of [-1, 1]) scene.add(place(new THREE.BoxGeometry(0.6, 0.5, 0.6), stoneMat, sx * 2.55, 0.25, z));
     })();
 
@@ -451,7 +458,7 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
       boards.push({ slide, x, z }); obstacles.push({ x, z, r: 1.25 });
     }));
 
-    const sculptBase = new THREE.MeshToonMaterial({ color: tint(0.6, 0.07).getHex() });
+    const sculptBase = new THREE.MeshToonMaterial({ color: A.stone });
     const sculptAcc = new THREE.MeshToonMaterial({ color: tint(0.55, 0.4).getHex() });
     for (let k = 0, z = -12; z > -hallLen + 10; z -= 20, k++) {
       const sx = (k % 2 ? 1 : -1) * 4.4;
@@ -464,14 +471,14 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
 
     // Warme Wandleuchten (abeto-Wärme; leuchten weich mit Bloom)
     const sconceBulbGeo = new THREE.SphereGeometry(0.1, 12, 10), sconceArmGeo = new THREE.BoxGeometry(0.05, 0.05, 0.16);
-    const sconceBulbMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0 }), sconceArmMat = new THREE.MeshToonMaterial({ color: tint(0.3, 0.12).getHex() });
+    const sconceBulbMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0 }), sconceArmMat = new THREE.MeshToonMaterial({ color: A.stoneDark });
     for (let z = -3; z > -hallLen + 6; z -= 9) for (const sx of [-1, 1]) {
       const gx = sx * (halfW - 0.12);
       scene.add(place(sconceArmGeo, sconceArmMat, gx - sx * 0.08, 3.75, z));
       const bulb = place(sconceBulbGeo, sconceBulbMat, gx - sx * 0.18, 3.75, z); bulb.scale.set(0.7, 1, 0.7); scene.add(bulb);
     }
     // Versand-Kisten in den Seitengängen (dezenter abeto-Hafen-Anklang)
-    const crateMat = new THREE.MeshToonMaterial({ color: tint(0.42, 0.3).getHex() }), crateBand = new THREE.MeshToonMaterial({ color: tint(0.3, 0.34).getHex() });
+    const crateMat = new THREE.MeshToonMaterial({ color: 0xb58a57 }), crateBand = new THREE.MeshToonMaterial({ color: 0x7c5f3d });
     const crateGeoL = new THREE.BoxGeometry(0.9, 0.9, 0.9), crateGeoM = new THREE.BoxGeometry(0.6, 0.6, 0.6), crateBandGeoL = new THREE.BoxGeometry(0.92, 0.12, 0.92), crateBandGeoM = new THREE.BoxGeometry(0.62, 0.1, 0.62);
     const mkCrate = (geo, bandGeo, x, y, z, ry) => {
       const c = place(geo, crateMat, x, y, z); c.rotation.y = ry || 0;
@@ -584,6 +591,19 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
     camera.position.set(hero.position.x, 4.6, hero.position.z + 7); camera.lookAt(hero.position.x, 1.3, hero.position.z - 1.2);
     scene.traverse((o) => { if (o.isMesh && o.material && o.material.isMeshToonMaterial) { o.castShadow = true; o.receiveShadow = true; } });
     floor.castShadow = false;
+    // abeto-Tinten-Outlines: inverted-hull-Hülle um feste Objekte (Planes/Glows/Figur ausgenommen)
+    hero.traverse((o) => { o.userData.noOutline = true; });
+    (function inkOutline() {
+      const todo = [];
+      scene.traverse((o) => {
+        if (!o.isMesh || o.userData.noOutline || o.userData.isOutline) return;
+        if (o.material && o.material.side === THREE.BackSide) return;
+        const gg = o.geometry; if (!gg || /Plane/.test(gg.type || "")) return;
+        const m = o.material; if (m && m.transparent && (m.opacity == null || m.opacity < 0.92)) return;
+        todo.push(o);
+      });
+      for (const o of todo) { const s = new THREE.Mesh(o.geometry, outlineMat); s.scale.setScalar(1.035); s.userData.isOutline = true; o.add(s); }
+    })();
     loader.hidden = true; if (tutOff) { tutorialDone = true; bubbleEl.hidden = true; } else showBubble(); requestAnimationFrame(loop);
   }
   (document.fonts ? document.fonts.ready.catch(() => {}) : Promise.resolve()).then(boot);
