@@ -222,7 +222,8 @@ const JOURNEY_CSS = "*{margin:0;box-sizing:border-box}html,body{height:100%;over
    Spiegelt js/world.js. Wird als type="module" eingebettet, importiert THREE
    und ruft diese Funktion mit (DECK, CFG, THREE) auf. */
 function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloomPass, OutputPass, GLTFLoader, VRMLoaderPlugin, VRMUtils) {
-  const HERO_VRM_URL = "https://theminhnguyen.github.io/wonderdeck/public/models/hero.vrm";
+  const HERO_FILES = { shibu: "shibu.vrm", avatarA: "avatar-a.vrm", avatarC: "avatar-c.vrm", rainy: "rainy-devil.vrm", judge: "judgeman.vrm" };
+  const HERO_VRM_URL = "https://theminhnguyen.github.io/wonderdeck/public/models/" + (HERO_FILES[CFG.hero] || HERO_FILES.shibu);
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const esc = (s) => String(s == null ? "" : s).replace(/[<&>]/g, (c) => ({ "<": "&lt;", "&": "&amp;", ">": "&gt;" }[c]));
   const hexA = (hex, a) => { let h = String(hex || "").trim().replace("#", ""); if (h.length === 3) h = h.split("").map((x) => x + x).join(""); if (h.length !== 6 || /[^0-9a-f]/i.test(h)) return "rgba(255,255,255," + a + ")"; return "rgba(" + parseInt(h.slice(0, 2), 16) + "," + parseInt(h.slice(2, 4), 16) + "," + parseInt(h.slice(4, 6), 16) + "," + a + ")"; };
@@ -688,7 +689,7 @@ function buildDoc(deck) {
   const json = JSON.stringify(deck).replace(/</g, "\\u003c");
   if (deck.mode === "world") {
     const tv = themeVars(deck.theme);
-    const cfg = { accent: tv["--accent"], ink: tv["--ink"], fontTitle: tv["--font-title"], fontBody: tv["--font-body"] };
+    const cfg = { accent: tv["--accent"], ink: tv["--ink"], fontTitle: tv["--font-title"], fontBody: tv["--font-body"], hero: deck.hero };
     return docHead(deck, WORLD_CSS)
       + "<body>"
       + "<script type=\"importmap\">{\"imports\":{\"three\":\"https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js\",\"three/addons/\":\"https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/\",\"@pixiv/three-vrm\":\"https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3/lib/three-vrm.module.min.js\"}}<\/script>"

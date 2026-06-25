@@ -56,6 +56,7 @@ export function normalizeDeck(deck) {
   if (!deck.nav) deck.nav = [];
   if (!deck.navPos) deck.navPos = "top";
   if (!deck.mode) deck.mode = "deck"; // "deck" (Folien) | "journey" (durchlaufbare Welt)
+  if (!deck.hero) deck.hero = "shibu"; // Figur der 3D-Welt (siehe HEROES in world.js)
   (deck.slides || []).forEach((s) => { if (!s.transition) s.transition = "snap"; });
   return deck;
 }
@@ -230,6 +231,7 @@ export function deleteNavItem(id) {
 }
 export function setNavPos(pos) { state.deck.navPos = pos; commit(); }
 export function setDeckMode(m) { state.deck.mode = m; commit(); }
+export function setDeckHero(id) { state.deck.hero = id; commit(); }
 export function setDeckBrand(text) { state.deck.brand = text; commit(); }
 export async function setBrandImage(dataURL) {
   const imageId = uid();

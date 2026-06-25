@@ -16,10 +16,10 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMUtils } from "@pixiv/three-vrm";
 import { themeVars } from "./themes.js";
+import { heroFile } from "./heroes.js";
 
-// Echtes cel-shaded Anime-Modell (VRM, CC0 „Sendagaya Shibu") als Figur — abeto-Look.
-// Im Repo gehostet (public/models/hero.vrm). Bei Ladefehler: prozedurale Ersatz-Figur.
-const HERO_VRM_URL = "public/models/hero.vrm";
+// Figur pro Präsentation via deck.hero (Registry in heroes.js). Fallback: makeHero.
+const heroUrl = (id) => "public/models/" + heroFile(id);
 
 const el = (id) => document.getElementById(id);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -471,7 +471,7 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   try {
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMLoaderPlugin(parser));
-    const gltf = await loader.loadAsync(HERO_VRM_URL);
+    const gltf = await loader.loadAsync(heroUrl(deck.hero));
     vrm = gltf.userData.vrm;
     try { VRMUtils.rotateVRM0(vrm); } catch (e) {} // VRM0-Modelle nach +Z drehen (wie VRM1)
     try { VRMUtils.removeUnnecessaryVertices(gltf.scene); } catch (e) {}
