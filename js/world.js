@@ -17,8 +17,9 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMUtils } from "@pixiv/three-vrm";
 import { themeVars } from "./themes.js";
 
-// Echtes cel-shaded Anime-Modell (VRM) als Figur — abeto-Look. Bei Ladefehler: prozedurale Ersatz-Figur.
-const HERO_VRM_URL = "https://cdn.jsdelivr.net/gh/pixiv/three-vrm@dev/packages/three-vrm/examples/models/VRM1_Constraint_Twist_Sample.vrm";
+// Echtes cel-shaded Anime-Modell (VRM, CC0 „Sendagaya Shibu") als Figur — abeto-Look.
+// Im Repo gehostet (public/models/hero.vrm). Bei Ladefehler: prozedurale Ersatz-Figur.
+const HERO_VRM_URL = "public/models/hero.vrm";
 
 const el = (id) => document.getElementById(id);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -472,6 +473,7 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
     loader.register((parser) => new VRMLoaderPlugin(parser));
     const gltf = await loader.loadAsync(HERO_VRM_URL);
     vrm = gltf.userData.vrm;
+    try { VRMUtils.rotateVRM0(vrm); } catch (e) {} // VRM0-Modelle nach +Z drehen (wie VRM1)
     try { VRMUtils.removeUnnecessaryVertices(gltf.scene); } catch (e) {}
     try { VRMUtils.combineSkeletons(gltf.scene); } catch (e) {}
     vrm.scene.traverse((o) => {
@@ -488,10 +490,10 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
     // Skelett-Knoten (normalisiert) für Lauf-/Idle-Animation
     const hb = (n) => vrm.humanoid.getNormalizedBoneNode(n);
     vbones = { spine: hb("spine"), lUpLeg: hb("leftUpperLeg"), rUpLeg: hb("rightUpperLeg"), lLowLeg: hb("leftLowerLeg"), rLowLeg: hb("rightLowerLeg"), lUpArm: hb("leftUpperArm"), rUpArm: hb("rightUpperArm"), lLowArm: hb("leftLowerArm"), rLowArm: hb("rightLowerArm") };
-    if (vbones.lUpArm) vbones.lUpArm.rotation.z = -ARM;
-    if (vbones.rUpArm) vbones.rUpArm.rotation.z = ARM;
-    if (vbones.lLowArm) vbones.lLowArm.rotation.z = -0.12;
-    if (vbones.rLowArm) vbones.rLowArm.rotation.z = 0.12;
+    if (vbones.lUpArm) vbones.lUpArm.rotation.z = ARM;
+    if (vbones.rUpArm) vbones.rUpArm.rotation.z = -ARM;
+    if (vbones.lLowArm) vbones.lLowArm.rotation.z = 0.12;
+    if (vbones.rLowArm) vbones.rLowArm.rotation.z = -0.12;
     hero = new THREE.Group(); hero.add(vrm.scene);
   } catch (e) {
     console.warn("VRM-Figur konnte nicht geladen werden — prozedurale Ersatz-Figur:", e);
@@ -613,12 +615,12 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
           walkT += dt * 9; const sw = Math.sin(walkT);
           if (vbones.lUpLeg) vbones.lUpLeg.rotation.x = sw * 0.5;
           if (vbones.rUpLeg) vbones.rUpLeg.rotation.x = -sw * 0.5;
-          if (vbones.lUpArm) vbones.lUpArm.rotation.set(-sw * 0.32, 0, -ARM);
-          if (vbones.rUpArm) vbones.rUpArm.rotation.set(sw * 0.32, 0, ARM);
+          if (vbones.lUpArm) vbones.lUpArm.rotation.set(-sw * 0.32, 0, ARM);
+          if (vbones.rUpArm) vbones.rUpArm.rotation.set(sw * 0.32, 0, -ARM);
         } else {
           walkT = 0;
           const ez = (b, x, z) => { if (b) { b.rotation.x += (x - b.rotation.x) * 0.18; b.rotation.z += (z - b.rotation.z) * 0.18; } };
-          ez(vbones.lUpLeg, 0, 0); ez(vbones.rUpLeg, 0, 0); ez(vbones.lUpArm, 0, -ARM); ez(vbones.rUpArm, 0, ARM);
+          ez(vbones.lUpLeg, 0, 0); ez(vbones.rUpLeg, 0, 0); ez(vbones.lUpArm, 0, ARM); ez(vbones.rUpArm, 0, -ARM);
         }
         if (vbones.spine) vbones.spine.rotation.x = Math.sin(clock.elapsedTime * 1.5) * 0.025; // Atmen
         if (vrm.expressionManager) vrm.expressionManager.setValue("blink", (clock.elapsedTime % 4.2) > 4.0 ? 1 : 0);

@@ -222,7 +222,7 @@ const JOURNEY_CSS = "*{margin:0;box-sizing:border-box}html,body{height:100%;over
    Spiegelt js/world.js. Wird als type="module" eingebettet, importiert THREE
    und ruft diese Funktion mit (DECK, CFG, THREE) auf. */
 function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloomPass, OutputPass, GLTFLoader, VRMLoaderPlugin, VRMUtils) {
-  const HERO_VRM_URL = "https://cdn.jsdelivr.net/gh/pixiv/three-vrm@dev/packages/three-vrm/examples/models/VRM1_Constraint_Twist_Sample.vrm";
+  const HERO_VRM_URL = "https://theminhnguyen.github.io/wonderdeck/public/models/hero.vrm";
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const esc = (s) => String(s == null ? "" : s).replace(/[<&>]/g, (c) => ({ "<": "&lt;", "&": "&amp;", ">": "&gt;" }[c]));
   const hexA = (hex, a) => { let h = String(hex || "").trim().replace("#", ""); if (h.length === 3) h = h.split("").map((x) => x + x).join(""); if (h.length !== 6 || /[^0-9a-f]/i.test(h)) return "rgba(255,255,255," + a + ")"; return "rgba(" + parseInt(h.slice(0, 2), 16) + "," + parseInt(h.slice(2, 4), 16) + "," + parseInt(h.slice(4, 6), 16) + "," + a + ")"; };
@@ -507,6 +507,7 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
       loader.register((parser) => new VRMLoaderPlugin(parser));
       const gltf = await loader.loadAsync(HERO_VRM_URL);
       vrm = gltf.userData.vrm;
+      try { VRMUtils.rotateVRM0(vrm); } catch (e) {}
       try { VRMUtils.removeUnnecessaryVertices(gltf.scene); } catch (e) {}
       try { VRMUtils.combineSkeletons(gltf.scene); } catch (e) {}
       vrm.scene.traverse((o) => {
@@ -521,10 +522,10 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
       const b2 = new THREE.Box3().setFromObject(vrm.scene); vrm.scene.position.y = -b2.min.y;
       const hb = (n) => vrm.humanoid.getNormalizedBoneNode(n);
       vbones = { spine: hb("spine"), lUpLeg: hb("leftUpperLeg"), rUpLeg: hb("rightUpperLeg"), lUpArm: hb("leftUpperArm"), rUpArm: hb("rightUpperArm"), lLowArm: hb("leftLowerArm"), rLowArm: hb("rightLowerArm") };
-      if (vbones.lUpArm) vbones.lUpArm.rotation.z = -ARM;
-      if (vbones.rUpArm) vbones.rUpArm.rotation.z = ARM;
-      if (vbones.lLowArm) vbones.lLowArm.rotation.z = -0.12;
-      if (vbones.rLowArm) vbones.rLowArm.rotation.z = 0.12;
+      if (vbones.lUpArm) vbones.lUpArm.rotation.z = ARM;
+      if (vbones.rUpArm) vbones.rUpArm.rotation.z = -ARM;
+      if (vbones.lLowArm) vbones.lLowArm.rotation.z = 0.12;
+      if (vbones.rLowArm) vbones.rLowArm.rotation.z = -0.12;
       hero = new THREE.Group(); hero.add(vrm.scene);
     } catch (e) { hero = makeHero(acc.getHex()); proceduralParts = hero.userData.parts; }
     hero.position.copy(START); scene.add(hero);
@@ -602,12 +603,12 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
             walkT += dt * 9; const sw = Math.sin(walkT);
             if (vbones.lUpLeg) vbones.lUpLeg.rotation.x = sw * 0.5;
             if (vbones.rUpLeg) vbones.rUpLeg.rotation.x = -sw * 0.5;
-            if (vbones.lUpArm) vbones.lUpArm.rotation.set(-sw * 0.32, 0, -ARM);
-            if (vbones.rUpArm) vbones.rUpArm.rotation.set(sw * 0.32, 0, ARM);
+            if (vbones.lUpArm) vbones.lUpArm.rotation.set(-sw * 0.32, 0, ARM);
+            if (vbones.rUpArm) vbones.rUpArm.rotation.set(sw * 0.32, 0, -ARM);
           } else {
             walkT = 0;
             const ez = (b, x, z) => { if (b) { b.rotation.x += (x - b.rotation.x) * 0.18; b.rotation.z += (z - b.rotation.z) * 0.18; } };
-            ez(vbones.lUpLeg, 0, 0); ez(vbones.rUpLeg, 0, 0); ez(vbones.lUpArm, 0, -ARM); ez(vbones.rUpArm, 0, ARM);
+            ez(vbones.lUpLeg, 0, 0); ez(vbones.rUpLeg, 0, 0); ez(vbones.lUpArm, 0, ARM); ez(vbones.rUpArm, 0, -ARM);
           }
           if (vbones.spine) vbones.spine.rotation.x = Math.sin(clock.elapsedTime * 1.5) * 0.025;
           if (vrm.expressionManager) vrm.expressionManager.setValue("blink", (clock.elapsedTime % 4.2) > 4.0 ? 1 : 0);
