@@ -13,7 +13,12 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { VRMLoaderPlugin, VRMUtils } from "@pixiv/three-vrm";
 import { themeVars } from "./themes.js";
+
+// Echtes cel-shaded Anime-Modell (VRM) als Figur — abeto-Look. Bei Ladefehler: prozedurale Ersatz-Figur.
+const HERO_VRM_URL = "https://cdn.jsdelivr.net/gh/pixiv/three-vrm@dev/packages/three-vrm/examples/models/VRM1_Constraint_Twist_Sample.vrm";
 
 const el = (id) => document.getElementById(id);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -458,10 +463,40 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   })();
   disposables.push(door.geometry, door.material, glowDisc.geometry, glowDisc.material, ring.geometry, ring.material, floorRing.geometry, floorRing.material);
 
-  /* ----- Figur: handgebaute cel-shaded Bote:in (abeto-Stil) — nur Tastatur ----- */
+  /* ----- Figur: echtes Anime-VRM-Modell (cel-shaded), Ersatz: prozedurale Figur ----- */
   const START = new THREE.Vector3(0, 0, 3);
-  const hero = makeHero(THREE, acc.getHex());
-  const proceduralParts = hero.userData.parts;
+  let hero, vrm = null, vbones = null, proceduralParts = null;
+  const ARM = 1.4; // A-Pose-Winkel (Arme aus T- in Ruhepose gesenkt, fast senkrecht)
+  try {
+    const loader = new GLTFLoader();
+    loader.register((parser) => new VRMLoaderPlugin(parser));
+    const gltf = await loader.loadAsync(HERO_VRM_URL);
+    vrm = gltf.userData.vrm;
+    try { VRMUtils.removeUnnecessaryVertices(gltf.scene); } catch (e) {}
+    try { VRMUtils.combineSkeletons(gltf.scene); } catch (e) {}
+    vrm.scene.traverse((o) => {
+      o.frustumCulled = false;
+      if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
+      const mats = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []);
+      for (const m of mats) if (m && m.outlineWidthFactor !== undefined) m.outlineWidthFactor *= 0.3; // dünnere Outline (keine Distanz-Artefakte)
+    });
+    // Höhe auf ~1.72 normieren, Füße auf y=0
+    vrm.scene.updateWorldMatrix(true, true);
+    const b1 = new THREE.Box3().setFromObject(vrm.scene); vrm.scene.scale.multiplyScalar(1.72 / ((b1.max.y - b1.min.y) || 1.5));
+    vrm.scene.updateWorldMatrix(true, true);
+    const b2 = new THREE.Box3().setFromObject(vrm.scene); vrm.scene.position.y = -b2.min.y;
+    // Skelett-Knoten (normalisiert) für Lauf-/Idle-Animation
+    const hb = (n) => vrm.humanoid.getNormalizedBoneNode(n);
+    vbones = { spine: hb("spine"), lUpLeg: hb("leftUpperLeg"), rUpLeg: hb("rightUpperLeg"), lLowLeg: hb("leftLowerLeg"), rLowLeg: hb("rightLowerLeg"), lUpArm: hb("leftUpperArm"), rUpArm: hb("rightUpperArm"), lLowArm: hb("leftLowerArm"), rLowArm: hb("rightLowerArm") };
+    if (vbones.lUpArm) vbones.lUpArm.rotation.z = -ARM;
+    if (vbones.rUpArm) vbones.rUpArm.rotation.z = ARM;
+    if (vbones.lLowArm) vbones.lLowArm.rotation.z = -0.12;
+    if (vbones.rLowArm) vbones.rLowArm.rotation.z = 0.12;
+    hero = new THREE.Group(); hero.add(vrm.scene);
+  } catch (e) {
+    console.warn("VRM-Figur konnte nicht geladen werden — prozedurale Ersatz-Figur:", e);
+    hero = makeHero(THREE, acc.getHex()); proceduralParts = hero.userData.parts;
+  }
   hero.position.copy(START); scene.add(hero);
   let heading = Math.PI; hero.rotation.y = heading; // schaut in den Saal (-Z)
   // weicher Kontakt-Tupfer unter der Figur
@@ -572,10 +607,27 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
       }
       // Sprung-Physik (Leertaste)
       if (!grounded) { vy -= 14 * dt; jumpY += vy * dt; if (jumpY <= 0) { jumpY = 0; vy = 0; grounded = true; } }
-      // Animation: prozedurale Glieder (Lauf-Schwung) + sanftes Wippen
-      if (moving) { walkT += dt * 9; const sw = Math.sin(walkT) * 0.7; proceduralParts.lleg.rotation.x = sw; proceduralParts.rleg.rotation.x = -sw; proceduralParts.larm.rotation.x = -sw * 0.7; proceduralParts.rarm.rotation.x = sw * 0.7; }
-      else { walkT = 0; for (const k in proceduralParts) proceduralParts[k].rotation.x *= 0.82; }
-      const bob = (grounded && moving) ? Math.abs(Math.sin(clock.elapsedTime * 9)) * 0.05 : 0;
+      // Animation: VRM-Skelett (Lauf/Idle/Atmen/Blinzeln) ODER prozedurale Glieder
+      if (vrm) {
+        if (moving) {
+          walkT += dt * 9; const sw = Math.sin(walkT);
+          if (vbones.lUpLeg) vbones.lUpLeg.rotation.x = sw * 0.5;
+          if (vbones.rUpLeg) vbones.rUpLeg.rotation.x = -sw * 0.5;
+          if (vbones.lUpArm) vbones.lUpArm.rotation.set(-sw * 0.32, 0, -ARM);
+          if (vbones.rUpArm) vbones.rUpArm.rotation.set(sw * 0.32, 0, ARM);
+        } else {
+          walkT = 0;
+          const ez = (b, x, z) => { if (b) { b.rotation.x += (x - b.rotation.x) * 0.18; b.rotation.z += (z - b.rotation.z) * 0.18; } };
+          ez(vbones.lUpLeg, 0, 0); ez(vbones.rUpLeg, 0, 0); ez(vbones.lUpArm, 0, -ARM); ez(vbones.rUpArm, 0, ARM);
+        }
+        if (vbones.spine) vbones.spine.rotation.x = Math.sin(clock.elapsedTime * 1.5) * 0.025; // Atmen
+        if (vrm.expressionManager) vrm.expressionManager.setValue("blink", (clock.elapsedTime % 4.2) > 4.0 ? 1 : 0);
+        vrm.update(dt);
+      } else if (proceduralParts) {
+        if (moving) { walkT += dt * 9; const sw = Math.sin(walkT) * 0.7; proceduralParts.lleg.rotation.x = sw; proceduralParts.rleg.rotation.x = -sw; proceduralParts.larm.rotation.x = -sw * 0.7; proceduralParts.rarm.rotation.x = sw * 0.7; }
+        else { walkT = 0; for (const k in proceduralParts) proceduralParts[k].rotation.x *= 0.82; }
+      }
+      const bob = (grounded && moving) ? Math.abs(Math.sin(clock.elapsedTime * 9)) * (vrm ? 0.03 : 0.05) : 0;
       hero.position.y = jumpY + bob;
       shadow.position.set(hero.position.x, 0.015, hero.position.z);
       shadow.material.opacity = 0.14 * Math.max(0.25, 1 - jumpY * 0.7);

@@ -221,7 +221,8 @@ const JOURNEY_CSS = "*{margin:0;box-sizing:border-box}html,body{height:100%;over
 /* Eigenständige, begehbare 3D-Welt (Comic-Museum, dritte Person, nur Tastatur).
    Spiegelt js/world.js. Wird als type="module" eingebettet, importiert THREE
    und ruft diese Funktion mit (DECK, CFG, THREE) auf. */
-function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloomPass, OutputPass) {
+function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloomPass, OutputPass, GLTFLoader, VRMLoaderPlugin, VRMUtils) {
+  const HERO_VRM_URL = "https://cdn.jsdelivr.net/gh/pixiv/three-vrm@dev/packages/three-vrm/examples/models/VRM1_Constraint_Twist_Sample.vrm";
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const esc = (s) => String(s == null ? "" : s).replace(/[<&>]/g, (c) => ({ "<": "&lt;", "&": "&amp;", ">": "&gt;" }[c]));
   const hexA = (hex, a) => { let h = String(hex || "").trim().replace("#", ""); if (h.length === 3) h = h.split("").map((x) => x + x).join(""); if (h.length !== 6 || /[^0-9a-f]/i.test(h)) return "rgba(255,255,255," + a + ")"; return "rgba(" + parseInt(h.slice(0, 2), 16) + "," + parseInt(h.slice(2, 4), 16) + "," + parseInt(h.slice(4, 6), 16) + "," + a + ")"; };
@@ -499,8 +500,33 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
     { const cv = document.createElement("canvas"); cv.width = 640; cv.height = 140; const c = cv.getContext("2d"); c.fillStyle = accent; c.font = "700 60px " + fontTitle; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("⟲  Zum Anfang", 320, 78); const t = new THREE.CanvasTexture(cv); if ("colorSpace" in t) t.colorSpace = THREE.SRGBColorSpace; const s = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.79), new THREE.MeshBasicMaterial({ map: t, transparent: true })); s.position.set(0, 2.7, 0); portalGrp.add(s); }
 
     const START = new THREE.Vector3(0, 0, 3);
-    const hero = makeHero(acc.getHex());
-    const proceduralParts = hero.userData.parts;
+    let hero, vrm = null, vbones = null, proceduralParts = null;
+    const ARM = 1.4;
+    try {
+      const loader = new GLTFLoader();
+      loader.register((parser) => new VRMLoaderPlugin(parser));
+      const gltf = await loader.loadAsync(HERO_VRM_URL);
+      vrm = gltf.userData.vrm;
+      try { VRMUtils.removeUnnecessaryVertices(gltf.scene); } catch (e) {}
+      try { VRMUtils.combineSkeletons(gltf.scene); } catch (e) {}
+      vrm.scene.traverse((o) => {
+        o.frustumCulled = false;
+        if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
+        const mats = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []);
+        for (const m of mats) if (m && m.outlineWidthFactor !== undefined) m.outlineWidthFactor *= 0.3;
+      });
+      vrm.scene.updateWorldMatrix(true, true);
+      const b1 = new THREE.Box3().setFromObject(vrm.scene); vrm.scene.scale.multiplyScalar(1.72 / ((b1.max.y - b1.min.y) || 1.5));
+      vrm.scene.updateWorldMatrix(true, true);
+      const b2 = new THREE.Box3().setFromObject(vrm.scene); vrm.scene.position.y = -b2.min.y;
+      const hb = (n) => vrm.humanoid.getNormalizedBoneNode(n);
+      vbones = { spine: hb("spine"), lUpLeg: hb("leftUpperLeg"), rUpLeg: hb("rightUpperLeg"), lUpArm: hb("leftUpperArm"), rUpArm: hb("rightUpperArm"), lLowArm: hb("leftLowerArm"), rLowArm: hb("rightLowerArm") };
+      if (vbones.lUpArm) vbones.lUpArm.rotation.z = -ARM;
+      if (vbones.rUpArm) vbones.rUpArm.rotation.z = ARM;
+      if (vbones.lLowArm) vbones.lLowArm.rotation.z = -0.12;
+      if (vbones.rLowArm) vbones.rLowArm.rotation.z = 0.12;
+      hero = new THREE.Group(); hero.add(vrm.scene);
+    } catch (e) { hero = makeHero(acc.getHex()); proceduralParts = hero.userData.parts; }
     hero.position.copy(START); scene.add(hero);
     let heading = Math.PI; hero.rotation.y = heading;
     const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.55, 24), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.14 })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.015; scene.add(shadow);
@@ -571,9 +597,26 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
           const targetH = Math.atan2(mx, mz); let d = targetH - heading; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; heading += d * Math.min(1, dt * 12); hero.rotation.y = heading;
         }
         if (!grounded) { vy -= 14 * dt; jumpY += vy * dt; if (jumpY <= 0) { jumpY = 0; vy = 0; grounded = true; } }
-        if (moving) { walkT += dt * 9; const sw = Math.sin(walkT) * 0.7; proceduralParts.lleg.rotation.x = sw; proceduralParts.rleg.rotation.x = -sw; proceduralParts.larm.rotation.x = -sw * 0.7; proceduralParts.rarm.rotation.x = sw * 0.7; }
-        else { walkT = 0; for (const k in proceduralParts) proceduralParts[k].rotation.x *= 0.82; }
-        const bob = (grounded && moving) ? Math.abs(Math.sin(clock.elapsedTime * 9)) * 0.05 : 0;
+        if (vrm) {
+          if (moving) {
+            walkT += dt * 9; const sw = Math.sin(walkT);
+            if (vbones.lUpLeg) vbones.lUpLeg.rotation.x = sw * 0.5;
+            if (vbones.rUpLeg) vbones.rUpLeg.rotation.x = -sw * 0.5;
+            if (vbones.lUpArm) vbones.lUpArm.rotation.set(-sw * 0.32, 0, -ARM);
+            if (vbones.rUpArm) vbones.rUpArm.rotation.set(sw * 0.32, 0, ARM);
+          } else {
+            walkT = 0;
+            const ez = (b, x, z) => { if (b) { b.rotation.x += (x - b.rotation.x) * 0.18; b.rotation.z += (z - b.rotation.z) * 0.18; } };
+            ez(vbones.lUpLeg, 0, 0); ez(vbones.rUpLeg, 0, 0); ez(vbones.lUpArm, 0, -ARM); ez(vbones.rUpArm, 0, ARM);
+          }
+          if (vbones.spine) vbones.spine.rotation.x = Math.sin(clock.elapsedTime * 1.5) * 0.025;
+          if (vrm.expressionManager) vrm.expressionManager.setValue("blink", (clock.elapsedTime % 4.2) > 4.0 ? 1 : 0);
+          vrm.update(dt);
+        } else if (proceduralParts) {
+          if (moving) { walkT += dt * 9; const sw = Math.sin(walkT) * 0.7; proceduralParts.lleg.rotation.x = sw; proceduralParts.rleg.rotation.x = -sw; proceduralParts.larm.rotation.x = -sw * 0.7; proceduralParts.rarm.rotation.x = sw * 0.7; }
+          else { walkT = 0; for (const k in proceduralParts) proceduralParts[k].rotation.x *= 0.82; }
+        }
+        const bob = (grounded && moving) ? Math.abs(Math.sin(clock.elapsedTime * 9)) * (vrm ? 0.03 : 0.05) : 0;
         hero.position.y = jumpY + bob;
         shadow.position.set(hero.position.x, 0.015, hero.position.z); shadow.material.opacity = 0.14 * Math.max(0.25, 1 - jumpY * 0.7);
         dir.position.set(hero.position.x + sunOff.x, sunOff.y, hero.position.z + sunOff.z); dir.target.position.set(hero.position.x, 0, hero.position.z); dir.target.updateMatrixWorld();
@@ -647,8 +690,8 @@ function buildDoc(deck) {
     const cfg = { accent: tv["--accent"], ink: tv["--ink"], fontTitle: tv["--font-title"], fontBody: tv["--font-body"] };
     return docHead(deck, WORLD_CSS)
       + "<body>"
-      + "<script type=\"importmap\">{\"imports\":{\"three\":\"https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js\",\"three/addons/\":\"https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/\"}}<\/script>"
-      + "<script type=\"module\">import * as THREE from \"three\";import { EffectComposer } from \"three/addons/postprocessing/EffectComposer.js\";import { RenderPass } from \"three/addons/postprocessing/RenderPass.js\";import { UnrealBloomPass } from \"three/addons/postprocessing/UnrealBloomPass.js\";import { OutputPass } from \"three/addons/postprocessing/OutputPass.js\";(" + WORLD_RUNTIME.toString() + ")(" + json + "," + JSON.stringify(cfg) + ",THREE,EffectComposer,RenderPass,UnrealBloomPass,OutputPass);<\/script>"
+      + "<script type=\"importmap\">{\"imports\":{\"three\":\"https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js\",\"three/addons/\":\"https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/\",\"@pixiv/three-vrm\":\"https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3/lib/three-vrm.module.min.js\"}}<\/script>"
+      + "<script type=\"module\">import * as THREE from \"three\";import { EffectComposer } from \"three/addons/postprocessing/EffectComposer.js\";import { RenderPass } from \"three/addons/postprocessing/RenderPass.js\";import { UnrealBloomPass } from \"three/addons/postprocessing/UnrealBloomPass.js\";import { OutputPass } from \"three/addons/postprocessing/OutputPass.js\";import { GLTFLoader } from \"three/addons/loaders/GLTFLoader.js\";import { VRMLoaderPlugin, VRMUtils } from \"@pixiv/three-vrm\";(" + WORLD_RUNTIME.toString() + ")(" + json + "," + JSON.stringify(cfg) + ",THREE,EffectComposer,RenderPass,UnrealBloomPass,OutputPass,GLTFLoader,VRMLoaderPlugin,VRMUtils);<\/script>"
       + "</body></html>";
   }
   if (deck.mode === "journey") {
