@@ -217,7 +217,6 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   if (active) active.close();
   const overlay = el("world"), stage = el("worldStage"), loader = el("worldLoad"), hintEl = el("worldHint"), bubbleEl = el("worldBubble");
   overlay.hidden = false; loader.classList.remove("is-done"); loader.hidden = false; el("worldPanel").hidden = true;
-  el("worldCross").hidden = true;
   if (bubbleEl) bubbleEl.hidden = true;
   loader.innerHTML = '<div class="world__spinner"></div><p class="world__loadmsg">3D-Welt wird vorbereitet …</p><div class="world__bar"><i></i></div>';
   const loadBar = loader.querySelector(".world__bar i"), loadMsg = loader.querySelector(".world__loadmsg");

@@ -189,7 +189,7 @@ function deckSection() {
   if ((state.deck.mode || "deck") === "journey")
     sec.appendChild(h("p", { class: "insp-empty", text: "Journey: Folien werden zu Stationen auf einem Pfad. Stil, Übergang & Kopfzeile haben hier keine Wirkung." }));
   if ((state.deck.mode || "deck") === "world") {
-    sec.appendChild(h("p", { class: "insp-empty", text: "3D-Welt: Folien werden zu Ausstellungs-Tafeln in einer begehbaren Galerie (WASD/Maus, am Handy Joystick). Nah herangehen + E/Tippen öffnet die Details." }));
+    sec.appendChild(h("p", { class: "insp-empty", text: "3D-Welt: Folien werden zu Ausstellungs-Tafeln in einer begehbaren Galerie — eine wählbare Anime-Figur, gesteuert nur per Tastatur (WASD/Pfeiltasten, Shift = rennen), am Handy per Joystick. Nah herangehen + E/Tippen öffnet die Details." }));
     const hsel = h("select", { onchange: (e) => S.setDeckHero(e.target.value) });
     HEROES.forEach((hh) =>
       hsel.appendChild(h("option", { value: hh.id, ...((state.deck.hero || "shibu") === hh.id ? { selected: "selected" } : {}), text: hh.label })));

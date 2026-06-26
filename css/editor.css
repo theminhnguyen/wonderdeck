@@ -465,7 +465,6 @@ html, body {
 .world { position: fixed; inset: 0; z-index: 9000; background: #05060a; }
 .world__stage { position: absolute; inset: 0; }
 .world__stage canvas { display: block; }
-.world__cross { position: fixed; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.7); z-index: 9100; pointer-events: none; }
 .world__load { position: fixed; inset: 0; z-index: 9200; display: grid; place-items: center; align-content: center; gap: 16px; background: radial-gradient(120% 120% at 50% 40%, #14242a, #0a1316 70%); color: #d7e3e6; font-size: 14px; transition: opacity 0.45s ease; }
 .world__load[hidden] { display: none; }
 .world__load.is-done { opacity: 0; pointer-events: none; }
