@@ -466,10 +466,13 @@ html, body {
 .world__stage { position: absolute; inset: 0; }
 .world__stage canvas { display: block; }
 .world__cross { position: fixed; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.7); z-index: 9100; pointer-events: none; }
-.world__load { position: fixed; inset: 0; z-index: 9200; display: grid; place-items: center; align-content: center; gap: 16px; background: #05060a; color: #cdd3dd; font-size: 14px; }
+.world__load { position: fixed; inset: 0; z-index: 9200; display: grid; place-items: center; align-content: center; gap: 16px; background: radial-gradient(120% 120% at 50% 40%, #14242a, #0a1316 70%); color: #d7e3e6; font-size: 14px; transition: opacity 0.45s ease; }
 .world__load[hidden] { display: none; }
+.world__load.is-done { opacity: 0; pointer-events: none; }
 .world__load p { margin: 0; }
 .world__spinner { width: 40px; height: 40px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.15); border-top-color: var(--wd-accent); animation: wspin 0.9s linear infinite; }
+.world__bar { width: min(240px, 62vw); height: 5px; border-radius: 999px; background: rgba(255,255,255,0.14); overflow: hidden; }
+.world__bar i { display: block; height: 100%; width: 0; background: var(--wd-accent); border-radius: 999px; transition: width 0.2s ease; }
 @keyframes wspin { to { transform: rotate(360deg); } }
 .world__hint { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 9100; font-size: 13px; color: rgba(255,255,255,0.78); background: rgba(0,0,0,0.42); padding: 8px 16px; border-radius: 999px; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 .world__hint b { color: #fff; }

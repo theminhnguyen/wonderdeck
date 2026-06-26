@@ -93,6 +93,19 @@ function gradientSky(THREE, topCss, botCss) {
   c.fillStyle = g; c.fillRect(0, 0, 8, 256);
   const t = new THREE.CanvasTexture(cv); if ("colorSpace" in t) t.colorSpace = THREE.SRGBColorSpace; return t;
 }
+// Open-Air-Himmel: Teal-Verlauf + weiche Wolken (abeto-Stimmung)
+function cloudySky(THREE, topCss, botCss) {
+  const cv = document.createElement("canvas"); cv.width = 384; cv.height = 256; const c = cv.getContext("2d");
+  const g = c.createLinearGradient(0, 0, 0, 256); g.addColorStop(0, topCss); g.addColorStop(1, botCss);
+  c.fillStyle = g; c.fillRect(0, 0, 384, 256);
+  for (let i = 0; i < 16; i++) {
+    const x = Math.random() * 384, y = 24 + Math.random() * 150, w = 36 + Math.random() * 80, h = 9 + Math.random() * 16;
+    const rg = c.createRadialGradient(0, 0, 0, 0, 0, w);
+    rg.addColorStop(0, "rgba(255,255,255," + (0.42 + Math.random() * 0.4).toFixed(2) + ")"); rg.addColorStop(1, "rgba(255,255,255,0)");
+    c.save(); c.translate(x, y); c.scale(1, h / w); c.fillStyle = rg; c.beginPath(); c.arc(0, 0, w, 0, Math.PI * 2); c.fill(); c.restore();
+  }
+  const t = new THREE.CanvasTexture(cv); if ("colorSpace" in t) t.colorSpace = THREE.SRGBColorSpace; return t;
+}
 function marbleTexture(THREE, baseCss, veinCss) {
   const cv = document.createElement("canvas"); cv.width = 512; cv.height = 512; const c = cv.getContext("2d");
   c.fillStyle = baseCss; c.fillRect(0, 0, 512, 512);
@@ -203,9 +216,12 @@ function makeHero(THREE, accentHex) {
 export async function openWorld(deck, resolveSrc, onClose = null) {
   if (active) active.close();
   const overlay = el("world"), stage = el("worldStage"), loader = el("worldLoad"), hintEl = el("worldHint"), bubbleEl = el("worldBubble");
-  overlay.hidden = false; loader.hidden = false; el("worldPanel").hidden = true;
+  overlay.hidden = false; loader.classList.remove("is-done"); loader.hidden = false; el("worldPanel").hidden = true;
   el("worldCross").hidden = true;
   if (bubbleEl) bubbleEl.hidden = true;
+  loader.innerHTML = '<div class="world__spinner"></div><p class="world__loadmsg">3D-Welt wird vorbereitet …</p><div class="world__bar"><i></i></div>';
+  const loadBar = loader.querySelector(".world__bar i"), loadMsg = loader.querySelector(".world__loadmsg");
+  const mobile = window.matchMedia("(pointer: coarse)").matches || Math.min(window.innerWidth, window.innerHeight) < 620;
 
   const tv = themeVars(deck.theme);
   const accent = tv["--accent"], ink = tv["--ink"], fontTitle = tv["--font-title"], fontBody = tv["--font-body"];
@@ -213,8 +229,8 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   el("worldPanel").style.setProperty("--ink", ink);
   await (document.fonts ? document.fonts.ready.catch(() => {}) : Promise.resolve());
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  const renderer = new THREE.WebGLRenderer({ antialias: !mobile });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 1.4 : 2)); // Performance: weniger Pixel auf Mobil
   renderer.setSize(window.innerWidth, window.innerHeight);
   if ("outputColorSpace" in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -227,23 +243,23 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   // abeto-Basis-Palette (fest): Teal/Aqua-Himmel + warmes Steingrau; Theme-Akzent nur als Highlight
   const A = { wall: 0xdcd6c9, wallDark: 0x39352e, ceil: 0xe6e0d3, stone: 0xd2cbbc, stoneDark: 0x8a8273, wood: 0x9c7b54, beam: 0xc0b8a8, floor: 0xd0c9ba, floorVein: 0xb3ab9a };
   const scene = new THREE.Scene();
-  scene.background = gradientSky(THREE, "#6cc2bc", "#cbe9e2");
-  scene.fog = new THREE.Fog(0xd2eae3, 46, 150);
+  scene.background = cloudySky(THREE, "#56b4ae", "#cfe9e3");
+  scene.fog = new THREE.Fog(0xd6ebe4, 50, 165);
 
   const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 240);
 
   // Bloom-Pipeline (weiches Leuchten für Laternen, Portal & Akzente — abeto-Glanz)
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.5, 0.5, 0.82);
+  const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), mobile ? 0.32 : 0.5, 0.5, mobile ? 0.86 : 0.82);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
 
-  scene.add(new THREE.HemisphereLight(0xe9f4f1, 0xcdbfa6, 1.05)); // Aqua-Himmel / warmer Boden
-  scene.add(new THREE.AmbientLight(0xece5d6, 0.42));
+  scene.add(new THREE.HemisphereLight(0xeaf6f2, 0xcdbfa6, 1.25)); // offener Aqua-Himmel / warmer Boden
+  scene.add(new THREE.AmbientLight(0xece5d6, 0.48));
   // Sonne mit weichem Schatten — folgt der Figur (knackige Schatten in der Nähe)
   const dir = new THREE.DirectionalLight(0xfff1d6, 1.3);
-  dir.castShadow = true; dir.shadow.mapSize.set(2048, 2048);
+  dir.castShadow = true; dir.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048);
   const sc = dir.shadow.camera; sc.near = 1; sc.far = 70; sc.left = -18; sc.right = 18; sc.top = 18; sc.bottom = -18; sc.updateProjectionMatrix();
   dir.shadow.bias = -0.0007; dir.shadow.normalBias = 0.04;
   scene.add(dir); scene.add(dir.target);
@@ -268,24 +284,26 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   const runner = new THREE.Mesh(new THREE.PlaneGeometry(1.8, hallLen + 24), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.22 }));
   runner.rotation.x = -Math.PI / 2; runner.position.set(0, 0.02, floor.position.z); scene.add(runner);
 
+  const WALL_H = 4.8, WALL_CY = 2.4; // niedrigere Wände → offener Saal, Himmel darüber sichtbar
   const wallMat = new THREE.MeshToonMaterial({ color: A.wall, side: THREE.DoubleSide });
+  const trimMat = new THREE.MeshToonMaterial({ color: A.stone }); // Abschluss-Gesims gegen den Himmel
   for (const sx of [-1, 1]) {
-    const wall = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 6.4), wallMat);
-    wall.position.set(sx * halfW, 3.2, floor.position.z); wall.rotation.y = -sx * Math.PI / 2; scene.add(wall);
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, WALL_H), wallMat);
+    wall.position.set(sx * halfW, WALL_CY, floor.position.z); wall.rotation.y = -sx * Math.PI / 2; scene.add(wall);
     const strip = new THREE.Mesh(new THREE.PlaneGeometry(hallLen + 24, 0.14), new THREE.MeshBasicMaterial({ color: acc.getHex(), transparent: true, opacity: 0.4 }));
-    strip.position.set(sx * (halfW - 0.01), 4.7, floor.position.z); strip.rotation.y = -sx * Math.PI / 2; scene.add(strip);
+    strip.position.set(sx * (halfW - 0.01), WALL_H - 0.35, floor.position.z); strip.rotation.y = -sx * Math.PI / 2; scene.add(strip);
     const base = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.4, hallLen + 24), new THREE.MeshToonMaterial({ color: A.wallDark }));
     base.position.set(sx * (halfW - 0.08), 0.2, floor.position.z); scene.add(base);
+    const trim = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.34, hallLen + 24), trimMat);
+    trim.position.set(sx * (halfW - 0.02), WALL_H + 0.05, floor.position.z); scene.add(trim);
   }
   for (const [z, ry] of [[FRONT_Z, Math.PI], [-hallLen + 5, 0]]) {
-    const w = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, 6.4), wallMat);
-    w.position.set(0, 3.2, z); w.rotation.y = ry; scene.add(w);
+    const w = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, WALL_H), wallMat);
+    w.position.set(0, WALL_CY, z); w.rotation.y = ry; scene.add(w);
   }
-  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshToonMaterial({ color: A.ceil, side: THREE.DoubleSide }));
-  ceil.rotation.x = Math.PI / 2; ceil.position.set(0, 5.4, floor.position.z); scene.add(ceil);
-  const skylight = new THREE.Mesh(new THREE.PlaneGeometry(2.4, hallLen + 20), new THREE.MeshBasicMaterial({ color: 0xfff4e2 }));
-  skylight.rotation.x = Math.PI / 2; skylight.position.set(0, 5.36, floor.position.z); scene.add(skylight);
-  for (let z = -4; z > -hallLen + 6; z -= 16) { const sl = new THREE.PointLight(0xfff2e0, 0.45, 26, 1.8); sl.position.set(0, 5.0, z); scene.add(sl); }
+  disposables.push(trimMat);
+  // Decke offen → Teal-Himmel; nur tiefe, sanfte Füll-Lichter für Wärme
+  for (let z = -4; z > -hallLen + 6; z -= 18) { const sl = new THREE.PointLight(0xfff2e0, 0.3, 22, 1.8); sl.position.set(0, 4.2, z); scene.add(sl); }
 
   /* ----- Materialien Ausstattung ----- */
   const stoneMat = new THREE.MeshToonMaterial({ color: A.stone });
@@ -296,7 +314,7 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   const potMat = new THREE.MeshToonMaterial({ color: 0xb07a5a }); // weiche Terrakotta
   const beamMat = new THREE.MeshToonMaterial({ color: A.beam }); // schlichte, ruhige Balken
   const outlineMat = new THREE.MeshBasicMaterial({ color: 0x1a1620, side: THREE.BackSide }); // abeto-Tinten-Outline
-  disposables.push(stoneMat, stoneDark, woodMat, frameMat, leafMat, potMat, beamMat, outlineMat, floor.geometry, floor.material, wallMat, ceil.material, runner.material, skylight.material);
+  disposables.push(stoneMat, stoneDark, woodMat, frameMat, leafMat, potMat, beamMat, outlineMat, floor.geometry, floor.material, wallMat, runner.material);
 
   const colGeo = new THREE.CylinderGeometry(0.4, 0.46, 4.9, 18);
   const fluteGeo = new THREE.BoxGeometry(1.1, 0.42, 1.1);
@@ -402,7 +420,7 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
     }
     const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 1.9, 8), new THREE.MeshToonMaterial({ color: tint(0.4, 0.32).getHex() }));
     rope.position.set(sx2, 0.74, z); rope.rotation.x = Math.PI / 2; scene.add(rope);
-    boards.push({ slide, x, z });
+    boards.push({ slide, x, z, g, i });
     obstacles.push({ x, z, r: 1.25 });
     disposables.push(tex, board.geometry, frame.geometry, outline.geometry, plinth.geometry, board.material, frame.material, outline.material);
   }));
@@ -471,7 +489,12 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   try {
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMLoaderPlugin(parser));
-    const gltf = await loader.loadAsync(heroUrl(deck.hero));
+    if (loadMsg) loadMsg.textContent = "Figur wird geladen …";
+    const gltf = await new Promise((res, rej) => loader.load(heroUrl(deck.hero), res, (e) => {
+      const pct = e.total ? Math.round((e.loaded / e.total) * 100) : Math.min(96, Math.round(e.loaded / 262144));
+      if (loadBar) loadBar.style.width = pct + "%";
+      if (loadMsg) loadMsg.textContent = "Figur wird geladen … " + pct + "%";
+    }, rej));
     vrm = gltf.userData.vrm;
     try { VRMUtils.rotateVRM0(vrm); } catch (e) {} // VRM0-Modelle nach +Z drehen (wie VRM1)
     try { VRMUtils.removeUnnecessaryVertices(gltf.scene); } catch (e) {}
@@ -514,7 +537,7 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   const keys = {};
   const clock = new THREE.Clock();
   const setHint = (h) => { if (h !== lastHint) { hintEl.innerHTML = h; lastHint = h; } };
-  const idleHint = isTouch ? "Joystick = gehen · nah an eine Tafel + tippen" : "<b>WASD</b> / <b>Pfeiltasten</b> gehen · <b>E</b> für Details";
+  const idleHint = isTouch ? "Joystick = gehen · nah an eine Tafel + tippen" : "<b>WASD</b> gehen · <b>Shift</b> rennen · <b>E</b> Details";
 
   function returnToStart() { hero.position.copy(START); heading = Math.PI; closePanel(); }
 
@@ -595,9 +618,10 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
       if (isTouch) { mx += joy.x; mz += joy.y; }
       const len = Math.hypot(mx, mz);
       const moving = len > 0.01;
+      const run = moving && !!keys["shift"]; // Rennen mit Shift
       if (moving) {
         mx /= len; mz /= len;
-        const spd = 5 * dt;
+        const spd = (run ? 8.6 : 5) * dt;
         hero.position.x += mx * spd; hero.position.z += mz * spd;
         for (const o of obstacles) { const dx = hero.position.x - o.x, dz = hero.position.z - o.z, dd = Math.hypot(dx, dz), rr = o.r + 0.45; if (dd < rr && dd > 0.001) { hero.position.x = o.x + (dx / dd) * rr; hero.position.z = o.z + (dz / dd) * rr; } }
         hero.position.x = clamp(hero.position.x, xMin, xMax);
@@ -612,11 +636,11 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
       // Animation: VRM-Skelett (Lauf/Idle/Atmen/Blinzeln) ODER prozedurale Glieder
       if (vrm) {
         if (moving) {
-          walkT += dt * 9; const sw = Math.sin(walkT);
-          if (vbones.lUpLeg) vbones.lUpLeg.rotation.x = sw * 0.5;
-          if (vbones.rUpLeg) vbones.rUpLeg.rotation.x = -sw * 0.5;
-          if (vbones.lUpArm) vbones.lUpArm.rotation.set(-sw * 0.32, 0, ARM);
-          if (vbones.rUpArm) vbones.rUpArm.rotation.set(sw * 0.32, 0, -ARM);
+          walkT += dt * (run ? 14 : 9); const sw = Math.sin(walkT), amp = run ? 0.66 : 0.5, aamp = run ? 0.5 : 0.32;
+          if (vbones.lUpLeg) vbones.lUpLeg.rotation.x = sw * amp;
+          if (vbones.rUpLeg) vbones.rUpLeg.rotation.x = -sw * amp;
+          if (vbones.lUpArm) vbones.lUpArm.rotation.set(-sw * aamp, 0, ARM);
+          if (vbones.rUpArm) vbones.rUpArm.rotation.set(sw * aamp, 0, -ARM);
         } else {
           walkT = 0;
           const ez = (b, x, z) => { if (b) { b.rotation.x += (x - b.rotation.x) * 0.18; b.rotation.z += (z - b.rotation.z) * 0.18; } };
@@ -643,14 +667,20 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
       camLook.set(hero.position.x, 1.3, hero.position.z - 1.2);
       camera.lookAt(camLook);
 
-      // Nähe zu Tafeln / Portal (horizontal)
-      near = null; let best = 3.4;
-      for (const b of boards) { const d2 = Math.hypot(hero.position.x - b.x, hero.position.z - b.z); if (d2 < best) { best = d2; near = b; } }
+      // Nähe zu Tafeln / Portal (horizontal) + nächste Tafel als Orientierung
+      near = null; let best = 3.4, curIdx = 0, curBest = 1e9;
+      for (const b of boards) {
+        const d2 = Math.hypot(hero.position.x - b.x, hero.position.z - b.z); if (d2 < best) { best = d2; near = b; }
+        const dz = Math.abs(hero.position.z - b.z); if (dz < curBest) { curBest = dz; curIdx = b.i; }
+      }
+      // sanftes „Pop" der gerade nächsten Tafel
+      for (const b of boards) { const t = b === near ? 1.06 : 1.0; b.g.scale.setScalar(b.g.scale.x + (t - b.g.scale.x) * Math.min(1, dt * 8)); }
       nearPortal = !near && Math.hypot(hero.position.x - portalX, hero.position.z - portalZ) < 4.2;
+      const prog = n > 0 ? " · Tafel " + (curIdx + 1) + "/" + n : "";
       if (!tutorialDone) setHint("");
-      else if (near) setHint("<b>" + (isTouch ? "Tippen" : "E") + "</b> für Details");
+      else if (near) setHint("<b>" + (isTouch ? "Tippen" : "E") + "</b> für Details" + prog);
       else if (nearPortal) setHint("<b>" + (isTouch ? "Tippen" : "E") + "</b> · zurück zum Anfang");
-      else setHint(idleHint);
+      else setHint(idleHint + prog);
     }
     ring.rotation.z += dt * 0.6;
     glowDisc.material.opacity = 0.12 + 0.06 * (1 + Math.sin(clock.elapsedTime * 2)) / 2;
@@ -705,7 +735,9 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
     for (const o of todo) { const s = new THREE.Mesh(o.geometry, outlineMat); s.scale.setScalar(1.035); s.userData.isOutline = true; o.add(s); }
   })();
 
-  loader.hidden = true;
+  if (loadBar) loadBar.style.width = "100%";
+  loader.classList.add("is-done"); // sanftes Ausblenden (CSS-Transition) statt hartem Schnitt
+  setTimeout(() => { if (active) loader.hidden = true; }, 480);
   if (tutOff) { tutorialDone = true; if (bubbleEl) bubbleEl.hidden = true; } else showBubble();
   raf = requestAnimationFrame(loop);
 }
