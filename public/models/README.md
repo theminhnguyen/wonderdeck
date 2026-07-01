@@ -22,6 +22,13 @@ GitHub-Pages-URL). Bei Ladefehler greift die prozedurale Ersatz-Figur (`makeHero
 - **rainy-devil / judgeman**: vom Nutzer bereitgestellt — Nutzungsrechte gemäß
   der jeweils im Modell hinterlegten Lizenz.
 
+**Optimiert:** Die Texturen sind auf max. 1024 px verkleinert (Ladezeit) — die
+VRM-Struktur bleibt dabei erhalten. Standard-Tools wie `gltf-transform` verwerfen
+die VRM-Extension; deshalb liegt ein VRM-schonender Verkleinerer bei:
+`tools/resize-vrm.mjs` (macOS/`sips`). Nutzung:
+`node tools/resize-vrm.mjs eingang.vrm ausgang.vrm 1024`.
+
 **Eigene Figur ergänzen:** in [VRoid Studio](https://vroid.com/studio) (gratis)
-bauen, als `.vrm` exportieren, hier ablegen und einen Eintrag in `js/heroes.js`
-(`{ id, label, file }`) hinzufügen — erscheint automatisch im Dropdown.
+bauen, als `.vrm` exportieren, (optional mit dem Resizer verkleinern), hier
+ablegen und einen Eintrag in `js/heroes.js` (`{ id, label, file }`) hinzufügen —
+erscheint automatisch im Dropdown.
