@@ -274,6 +274,20 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   const obstacles = []; // {x,z,r} für einfache Kollision
   const place = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); return m; };
 
+  /* ----- Sonne am Himmel (Bloom fängt sie) + schwebender Staub (Atmosphäre) ----- */
+  const sun = new THREE.Mesh(new THREE.SphereGeometry(2.6, 24, 20), new THREE.MeshBasicMaterial({ color: 0xfff3d6 }));
+  sun.position.set(11, 27, -hallLen * 0.42); sun.userData.noOutline = true; scene.add(sun);
+  const sunHalo = new THREE.Mesh(new THREE.SphereGeometry(4.8, 20, 16), new THREE.MeshBasicMaterial({ color: 0xffe9b8, transparent: true, opacity: 0.22, depthWrite: false }));
+  sunHalo.position.copy(sun.position); sunHalo.userData.noOutline = true; scene.add(sunHalo);
+  disposables.push(sun.geometry, sun.material, sunHalo.geometry, sunHalo.material);
+  const dustN = mobile ? 90 : 220;
+  const dustPos = new Float32Array(dustN * 3);
+  for (let i = 0; i < dustN; i++) { dustPos[i * 3] = (Math.random() * 2 - 1) * (halfW - 0.5); dustPos[i * 3 + 1] = 0.3 + Math.random() * 4.4; dustPos[i * 3 + 2] = 6 - Math.random() * (hallLen + 6); }
+  const dustGeo = new THREE.BufferGeometry(); dustGeo.setAttribute("position", new THREE.BufferAttribute(dustPos, 3));
+  const dustMat = new THREE.PointsMaterial({ color: 0xfff4e0, size: 0.055, sizeAttenuation: true, transparent: true, opacity: 0.5, depthWrite: false });
+  const dust = new THREE.Points(dustGeo, dustMat); dust.userData.noOutline = true; scene.add(dust);
+  disposables.push(dustGeo, dustMat);
+
   /* ----- Boden (Marmor), Wände, Decke ----- */
   const floorTex = marbleTexture(THREE, new THREE.Color(A.floor).getStyle(), new THREE.Color(A.floorVein).getStyle());
   floorTex.repeat.set(4, Math.max(4, Math.round((hallLen + 24) / 8)));
@@ -485,6 +499,7 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   const START = new THREE.Vector3(0, 0, 3);
   let hero, vrm = null, vbones = null, proceduralParts = null;
   const ARM = 1.4; // A-Pose-Winkel (Arme aus T- in Ruhepose gesenkt, fast senkrecht)
+  const lookTarget = new THREE.Object3D(); scene.add(lookTarget); // Blickziel (Augen der Figur)
   try {
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMLoaderPlugin(parser));
@@ -516,6 +531,7 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
     if (vbones.rUpArm) vbones.rUpArm.rotation.z = -ARM;
     if (vbones.lLowArm) vbones.lLowArm.rotation.z = 0.12;
     if (vbones.rLowArm) vbones.rLowArm.rotation.z = -0.12;
+    if (vrm.lookAt) vrm.lookAt.target = lookTarget; // Augen folgen dem Blickziel
     hero = new THREE.Group(); hero.add(vrm.scene);
   } catch (e) {
     console.warn("VRM-Figur konnte nicht geladen werden — prozedurale Ersatz-Figur:", e);
@@ -647,6 +663,9 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
         }
         if (vbones.spine) vbones.spine.rotation.x = Math.sin(clock.elapsedTime * 1.5) * 0.025; // Atmen
         if (vrm.expressionManager) vrm.expressionManager.setValue("blink", (clock.elapsedTime % 4.2) > 4.0 ? 1 : 0);
+        // Blick: still & nah an einer Tafel → Tafel ansehen, sonst nach vorn schauen
+        if (!moving && near) lookTarget.position.set(near.x, 1.55, near.z);
+        else lookTarget.position.set(hero.position.x + Math.sin(heading) * 4, 1.55, hero.position.z + Math.cos(heading) * 4);
         vrm.update(dt);
       } else if (proceduralParts) {
         if (moving) { walkT += dt * 9; const sw = Math.sin(walkT) * 0.7; proceduralParts.lleg.rotation.x = sw; proceduralParts.rleg.rotation.x = -sw; proceduralParts.larm.rotation.x = -sw * 0.7; proceduralParts.rarm.rotation.x = sw * 0.7; }
@@ -683,6 +702,10 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
     }
     ring.rotation.z += dt * 0.6;
     glowDisc.material.opacity = 0.12 + 0.06 * (1 + Math.sin(clock.elapsedTime * 2)) / 2;
+    // Staub schwebt langsam nach oben und wickelt um
+    const dp = dustGeo.attributes.position.array;
+    for (let i = 1; i < dp.length; i += 3) { dp[i] += dt * 0.12; if (dp[i] > 4.9) dp[i] = 0.3; }
+    dustGeo.attributes.position.needsUpdate = true;
     composer.render();
     raf = requestAnimationFrame(loop);
   }

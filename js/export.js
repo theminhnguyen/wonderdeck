@@ -370,6 +370,15 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
     const obstacles = [];
     const glowEnd = new THREE.PointLight(acc.getHex(), 0.9, 80, 1.3); glowEnd.position.set(0, 3.6, -hallLen + 6); scene.add(glowEnd);
 
+    const sun = new THREE.Mesh(new THREE.SphereGeometry(2.6, 24, 20), new THREE.MeshBasicMaterial({ color: 0xfff3d6 }));
+    sun.position.set(11, 27, -hallLen * 0.42); sun.userData.noOutline = true; scene.add(sun);
+    const sunHalo = new THREE.Mesh(new THREE.SphereGeometry(4.8, 20, 16), new THREE.MeshBasicMaterial({ color: 0xffe9b8, transparent: true, opacity: 0.22, depthWrite: false }));
+    sunHalo.position.copy(sun.position); sunHalo.userData.noOutline = true; scene.add(sunHalo);
+    const dustN = mobile ? 90 : 220, dustPos = new Float32Array(dustN * 3);
+    for (let i = 0; i < dustN; i++) { dustPos[i * 3] = (Math.random() * 2 - 1) * (halfW - 0.5); dustPos[i * 3 + 1] = 0.3 + Math.random() * 4.4; dustPos[i * 3 + 2] = 6 - Math.random() * (hallLen + 6); }
+    const dustGeo = new THREE.BufferGeometry(); dustGeo.setAttribute("position", new THREE.BufferAttribute(dustPos, 3));
+    const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ color: 0xfff4e0, size: 0.055, sizeAttenuation: true, transparent: true, opacity: 0.5, depthWrite: false })); dust.userData.noOutline = true; scene.add(dust);
+
     const floorTex = marbleTexture(new THREE.Color(A.floor).getStyle(), new THREE.Color(A.floorVein).getStyle()); floorTex.repeat.set(4, Math.max(4, Math.round((hallLen + 24) / 8)));
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(halfW * 2, hallLen + 24), new THREE.MeshToonMaterial({ map: floorTex }));
     floor.rotation.x = -Math.PI / 2; floor.position.z = -hallLen / 2 + 6; floor.receiveShadow = true; scene.add(floor);
@@ -507,6 +516,7 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
     const START = new THREE.Vector3(0, 0, 3);
     let hero, vrm = null, vbones = null, proceduralParts = null;
     const ARM = 1.4;
+    const lookTarget = new THREE.Object3D(); scene.add(lookTarget);
     try {
       const loader = new GLTFLoader();
       loader.register((parser) => new VRMLoaderPlugin(parser));
@@ -535,6 +545,7 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
       if (vbones.rUpArm) vbones.rUpArm.rotation.z = -ARM;
       if (vbones.lLowArm) vbones.lLowArm.rotation.z = 0.12;
       if (vbones.rLowArm) vbones.rLowArm.rotation.z = -0.12;
+      if (vrm.lookAt) vrm.lookAt.target = lookTarget;
       hero = new THREE.Group(); hero.add(vrm.scene);
     } catch (e) { hero = makeHero(acc.getHex()); proceduralParts = hero.userData.parts; }
     hero.position.copy(START); scene.add(hero);
@@ -622,6 +633,8 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
           }
           if (vbones.spine) vbones.spine.rotation.x = Math.sin(clock.elapsedTime * 1.5) * 0.025;
           if (vrm.expressionManager) vrm.expressionManager.setValue("blink", (clock.elapsedTime % 4.2) > 4.0 ? 1 : 0);
+          if (!moving && near) lookTarget.position.set(near.x, 1.55, near.z);
+          else lookTarget.position.set(hero.position.x + Math.sin(heading) * 4, 1.55, hero.position.z + Math.cos(heading) * 4);
           vrm.update(dt);
         } else if (proceduralParts) {
           if (moving) { walkT += dt * 9; const sw = Math.sin(walkT) * 0.7; proceduralParts.lleg.rotation.x = sw; proceduralParts.rleg.rotation.x = -sw; proceduralParts.larm.rotation.x = -sw * 0.7; proceduralParts.rarm.rotation.x = sw * 0.7; }
@@ -641,6 +654,7 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
         if (!tutorialDone) setHint(""); else if (near) setHint("<b>" + (isTouch ? "Tippen" : "E") + "</b> für Details" + prog); else if (nearPortal) setHint("<b>" + (isTouch ? "Tippen" : "E") + "</b> · zurück zum Anfang"); else setHint(idleHint + prog);
       }
       ring.rotation.z += dt * 0.6; glowDisc.material.opacity = 0.12 + 0.06 * (1 + Math.sin(clock.elapsedTime * 2)) / 2;
+      { const dp = dustGeo.attributes.position.array; for (let i = 1; i < dp.length; i += 3) { dp[i] += dt * 0.12; if (dp[i] > 4.9) dp[i] = 0.3; } dustGeo.attributes.position.needsUpdate = true; }
       composer.render(); requestAnimationFrame(loop);
     }
     homeBtn.onclick = returnToStart;
