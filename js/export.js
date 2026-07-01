@@ -479,8 +479,12 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
       const sx = (k % 2 ? 1 : -1) * 4.4;
       scene.add(place(new THREE.CylinderGeometry(0.48, 0.6, 1.0, 10), sculptBase, sx, 0.5, z));
       scene.add(place(new THREE.CylinderGeometry(0.6, 0.6, 0.08, 10), sculptBase, sx, 1.0, z));
-      if (k % 2) scene.add(place(new THREE.TorusKnotGeometry(0.26, 0.09, 80, 10), sculptAcc, sx, 1.55, z));
-      else scene.add(place(new THREE.IcosahedronGeometry(0.36, 0), sculptAcc, sx, 1.5, z));
+      const sh = k % 5;
+      if (sh === 0) scene.add(place(new THREE.TorusKnotGeometry(0.24, 0.085, 90, 12), sculptAcc, sx, 1.58, z));
+      else if (sh === 1) scene.add(place(new THREE.IcosahedronGeometry(0.36, 0), sculptAcc, sx, 1.5, z));
+      else if (sh === 2) scene.add(place(new THREE.DodecahedronGeometry(0.34, 0), sculptAcc, sx, 1.5, z));
+      else if (sh === 3) scene.add(place(new THREE.ConeGeometry(0.3, 0.72, 6), sculptAcc, sx, 1.62, z));
+      else scene.add(place(new THREE.OctahedronGeometry(0.4, 0), sculptAcc, sx, 1.52, z));
       obstacles.push({ x: sx, z, r: 0.7 });
     }
 
@@ -491,6 +495,15 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
       const gx = sx * (halfW - 0.12);
       scene.add(place(sconceArmGeo, sconceArmMat, gx - sx * 0.08, 3.75, z));
       const bulb = place(sconceBulbGeo, sconceBulbMat, gx - sx * 0.18, 3.75, z); bulb.scale.set(0.7, 1, 0.7); scene.add(bulb);
+    }
+    // Hängende Stoffbanner (von den Säulen in die Luft, gegen den Himmel)
+    const bannerCols = [0xc0554b, 0x4d7a86, 0xcf9a4a, 0x6f7f9c];
+    const bannerGeo = new THREE.PlaneGeometry(0.8, 1.6), bannerStripGeo = new THREE.PlaneGeometry(0.8, 0.16), bannerStripMat = new THREE.MeshBasicMaterial({ color: acc.getHex() });
+    for (let i = 0, z = -6; z > -hallLen + 8; z -= 14, i++) for (const sx of [-1, 1]) {
+      const bx = sx * (halfW - 1.15), ry = -sx * Math.PI / 2;
+      const clothMat = new THREE.MeshToonMaterial({ color: bannerCols[(i + (sx > 0 ? 2 : 0)) % bannerCols.length], side: THREE.DoubleSide });
+      const cloth = place(bannerGeo, clothMat, bx, 4.35, z); cloth.rotation.y = ry; scene.add(cloth);
+      const strp = place(bannerStripGeo, bannerStripMat, bx, 3.6, z); strp.rotation.y = ry; scene.add(strp);
     }
     // Versand-Kisten in den Seitengängen (dezenter abeto-Hafen-Anklang)
     const crateMat = new THREE.MeshToonMaterial({ color: 0xb58a57 }), crateBand = new THREE.MeshToonMaterial({ color: 0x7c5f3d });
@@ -624,17 +637,20 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
             walkT += dt * (run ? 14 : 9); const sw = Math.sin(walkT), amp = run ? 0.66 : 0.5, aamp = run ? 0.5 : 0.32;
             if (vbones.lUpLeg) vbones.lUpLeg.rotation.x = sw * amp;
             if (vbones.rUpLeg) vbones.rUpLeg.rotation.x = -sw * amp;
+            if (vbones.lLowLeg) vbones.lLowLeg.rotation.x = Math.max(0, sw) * 0.55;
+            if (vbones.rLowLeg) vbones.rLowLeg.rotation.x = Math.max(0, -sw) * 0.55;
             if (vbones.lUpArm) vbones.lUpArm.rotation.set(-sw * aamp, 0, ARM);
             if (vbones.rUpArm) vbones.rUpArm.rotation.set(sw * aamp, 0, -ARM);
           } else {
             walkT = 0;
             const ez = (b, x, z) => { if (b) { b.rotation.x += (x - b.rotation.x) * 0.18; b.rotation.z += (z - b.rotation.z) * 0.18; } };
-            ez(vbones.lUpLeg, 0, 0); ez(vbones.rUpLeg, 0, 0); ez(vbones.lUpArm, 0, ARM); ez(vbones.rUpArm, 0, -ARM);
+            ez(vbones.lUpLeg, 0, 0); ez(vbones.rUpLeg, 0, 0); ez(vbones.lLowLeg, 0, 0); ez(vbones.rLowLeg, 0, 0);
+            ez(vbones.lUpArm, 0, ARM); ez(vbones.rUpArm, 0, -ARM);
           }
-          if (vbones.spine) vbones.spine.rotation.x = Math.sin(clock.elapsedTime * 1.5) * 0.025;
+          if (vbones.spine) { vbones.spine.rotation.x = Math.sin(clock.elapsedTime * 1.5) * 0.025; vbones.spine.rotation.z = moving ? 0 : Math.sin(clock.elapsedTime * 0.9) * 0.045; }
           if (vrm.expressionManager) vrm.expressionManager.setValue("blink", (clock.elapsedTime % 4.2) > 4.0 ? 1 : 0);
           if (!moving && near) lookTarget.position.set(near.x, 1.55, near.z);
-          else lookTarget.position.set(hero.position.x + Math.sin(heading) * 4, 1.55, hero.position.z + Math.cos(heading) * 4);
+          else { const gaze = moving ? 0 : Math.sin(clock.elapsedTime * 0.34) * 2.2; lookTarget.position.set(hero.position.x + Math.sin(heading) * 4 + Math.cos(heading) * gaze, 1.55, hero.position.z + Math.cos(heading) * 4 - Math.sin(heading) * gaze); }
           vrm.update(dt);
         } else if (proceduralParts) {
           if (moving) { walkT += dt * 9; const sw = Math.sin(walkT) * 0.7; proceduralParts.lleg.rotation.x = sw; proceduralParts.rleg.rotation.x = -sw; proceduralParts.larm.rotation.x = -sw * 0.7; proceduralParts.rarm.rotation.x = sw * 0.7; }
