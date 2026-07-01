@@ -485,6 +485,9 @@ html, body {
 .world__exit { z-index: 9400; opacity: 0.75; }
 .world:hover .world__exit { opacity: 1; }
 .world__home { position: fixed; top: 18px; left: 18px; z-index: 9400; display: inline-flex; align-items: center; gap: 6px; padding: 9px 15px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.22); background: rgba(0,0,0,0.42); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); opacity: 0.82; transition: opacity 0.15s, background 0.15s; }
+.world__sound { position: fixed; top: 18px; right: 64px; z-index: 9400; width: 38px; height: 38px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.22); background: rgba(0,0,0,0.42); color: #fff; font-size: 15px; cursor: pointer; opacity: 0.82; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); transition: opacity 0.15s; }
+.world__sound:hover { opacity: 1; }
+.world__sound[hidden] { display: none; }
 .world__home:hover { opacity: 1; background: rgba(0,0,0,0.6); }
 /* Comic-Sprechblase (Tutorial) */
 .world__bubble { position: fixed; left: 50%; bottom: 92px; transform: translateX(-50%); z-index: 9350; display: flex; align-items: center; gap: 12px; max-width: min(680px, 92vw); padding: 16px 20px; background: #fffef8; color: #1a1a1a; border: 3px solid #1a1a1a; border-radius: 20px; box-shadow: 0 10px 0 rgba(26,26,26,0.18), 0 18px 44px rgba(0,0,0,0.4); font-family: var(--font-body, "Bricolage Grotesque", "Inter", sans-serif); cursor: pointer; animation: wbPop 0.25s cubic-bezier(0.22,1,0.36,1); }

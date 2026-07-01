@@ -239,6 +239,7 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
   const joy = mk("world__joy"); joy.hidden = true; const nub = mk("world__nub"); joy.appendChild(nub); document.body.appendChild(joy);
   const bubbleEl = mk("world__bubble"); bubbleEl.hidden = true; document.body.appendChild(bubbleEl);
   const homeBtn = document.createElement("button"); homeBtn.className = "world__home"; homeBtn.textContent = "⟲ Anfang"; document.body.appendChild(homeBtn);
+  const soundBtn = document.createElement("button"); soundBtn.className = "world__sound"; soundBtn.textContent = "🔊"; soundBtn.title = "Ton an/aus"; document.body.appendChild(soundBtn);
   panel.style.setProperty("--accent", accent); panel.style.setProperty("--ink", ink);
 
   function coverDraw(ctx, img, w, h) { const r = Math.max(w / img.width, h / img.height), iw = img.width * r, ih = img.height * r; ctx.drawImage(img, (w - iw) / 2, (h - ih) / 2, iw, ih); }
@@ -584,14 +585,34 @@ function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloom
     function dismissTutorial() { clearTimeout(bubbleTimer); bubbleEl.hidden = true; tutorialDone = true; try { localStorage.setItem(TUT_KEY, "off"); } catch (e) {} }
     bubbleEl.onclick = (e) => { if (e.target && e.target.classList && e.target.classList.contains("wb-close")) dismissTutorial(); else nextBubble(); };
 
-    function onKeyDown(e) { const k = e.key.toLowerCase(); keys[k] = true; if (k === "escape" && !tutorialDone && !panelOpen) { e.preventDefault(); dismissTutorial(); return; } if (k === " " || k === "enter") { if (!tutorialDone) { e.preventDefault(); nextBubble(); return; } } if (k === "e") { e.preventDefault(); if (panelOpen) closePanel(); else if (near) openPanel(near.slide); else if (nearPortal) returnToStart(); } if (k === "escape" && panelOpen) closePanel(); if (k === "f") { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}); } }
+    // Sound: sanftes prozedurales Ambiente (Web Audio), erst nach Interaktion
+    const SND_KEY = "wd:worldSound";
+    let soundOn = (() => { try { return localStorage.getItem(SND_KEY) !== "off"; } catch (e) { return true; } })();
+    let audio = null;
+    function buildAudio() {
+      const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+      const ctx = new AC(); const master = ctx.createGain(); master.gain.value = 0; master.connect(ctx.destination);
+      const len = ctx.sampleRate * 2, buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+      let last = 0; for (let i = 0; i < len; i++) { const w = Math.random() * 2 - 1; last = (last + 0.02 * w) / 1.02; d[i] = last * 3.2; }
+      const noise = ctx.createBufferSource(); noise.buffer = buf; noise.loop = true;
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 470; lp.Q.value = 0.6;
+      const ng = ctx.createGain(); ng.gain.value = 0.5; noise.connect(lp); lp.connect(ng); ng.connect(master);
+      const lfo = ctx.createOscillator(); lfo.frequency.value = 0.06; const lg = ctx.createGain(); lg.gain.value = 170; lfo.connect(lg); lg.connect(lp.frequency);
+      const drone = ctx.createOscillator(); drone.type = "sine"; drone.frequency.value = 108; const dg = ctx.createGain(); dg.gain.value = 0.04; drone.connect(dg); dg.connect(master);
+      noise.start(); lfo.start(); drone.start(); return { ctx, master };
+    }
+    function applySound() { if (soundOn && !audio) audio = buildAudio(); if (!audio) return; if (audio.ctx.state === "suspended") audio.ctx.resume(); audio.master.gain.setTargetAtTime(soundOn ? 0.22 : 0.0, audio.ctx.currentTime, 0.5); }
+    soundBtn.textContent = soundOn ? "🔊" : "🔇";
+    soundBtn.onclick = () => { soundOn = !soundOn; try { localStorage.setItem(SND_KEY, soundOn ? "on" : "off"); } catch (e) {} soundBtn.textContent = soundOn ? "🔊" : "🔇"; applySound(); };
+
+    function onKeyDown(e) { const k = e.key.toLowerCase(); keys[k] = true; applySound(); if (k === "escape" && !tutorialDone && !panelOpen) { e.preventDefault(); dismissTutorial(); return; } if (k === " " || k === "enter") { if (!tutorialDone) { e.preventDefault(); nextBubble(); return; } } if (k === "e") { e.preventDefault(); if (panelOpen) closePanel(); else if (near) openPanel(near.slide); else if (nearPortal) returnToStart(); } if (k === "escape" && panelOpen) closePanel(); if (k === "f") { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}); } }
     function onKeyUp(e) { keys[e.key.toLowerCase()] = false; }
     function onResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); composer.setSize(window.innerWidth, window.innerHeight); }
     window.addEventListener("keydown", onKeyDown); window.addEventListener("keyup", onKeyUp); window.addEventListener("resize", onResize);
 
     const jst = { x: 0, y: 0, id: null };
     if (isTouch) {
-      joy.addEventListener("touchstart", (e) => { jst.id = e.changedTouches[0].identifier; e.preventDefault(); }, { passive: false });
+      joy.addEventListener("touchstart", (e) => { jst.id = e.changedTouches[0].identifier; applySound(); e.preventDefault(); }, { passive: false });
       joy.addEventListener("touchmove", (e) => { for (const t of e.changedTouches) { if (t.identifier !== jst.id) continue; const r = joy.getBoundingClientRect(); let dx = t.clientX - (r.left + r.width / 2), dy = t.clientY - (r.top + r.height / 2); const m = 50, d = Math.hypot(dx, dy) || 1; if (d > m) { dx *= m / d; dy *= m / d; } nub.style.transform = "translate(" + dx + "px," + dy + "px)"; jst.x = dx / m; jst.y = dy / m; } e.preventDefault(); }, { passive: false });
       const end = (e) => { for (const t of e.changedTouches) if (t.identifier === jst.id) { jst.id = null; jst.x = jst.y = 0; nub.style.transform = ""; } };
       joy.addEventListener("touchend", end); joy.addEventListener("touchcancel", end);
@@ -712,6 +733,7 @@ const WORLD_CSS = "*{margin:0;box-sizing:border-box}html,body{height:100%;overfl
   + ".world__joy{position:fixed;left:26px;bottom:26px;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);z-index:9100;touch-action:none}.world__joy[hidden]{display:none}"
   + ".world__nub{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4)}"
   + ".world__home{position:fixed;top:18px;left:18px;z-index:9400;padding:9px 15px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:rgba(0,0,0,.42);color:#fff;font-size:13px;font-weight:600;cursor:pointer;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);opacity:.82}.world__home:hover{opacity:1;background:rgba(0,0,0,.6)}"
+  + ".world__sound{position:fixed;top:18px;right:64px;z-index:9400;width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(0,0,0,.42);color:#fff;font-size:15px;cursor:pointer;opacity:.82;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}.world__sound:hover{opacity:1}"
   + ".world__bubble{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);z-index:9350;display:flex;align-items:center;gap:12px;max-width:min(680px,92vw);padding:16px 20px;background:#fffef8;color:#1a1a1a;border:3px solid #1a1a1a;border-radius:20px;box-shadow:0 10px 0 rgba(26,26,26,.18),0 18px 44px rgba(0,0,0,.4);cursor:pointer}.world__bubble[hidden]{display:none}"
   + ".world__bubble::after{content:'';position:absolute;left:46px;bottom:-16px;width:26px;height:26px;background:#fffef8;border-right:3px solid #1a1a1a;border-bottom:3px solid #1a1a1a;transform:rotate(45deg)}"
   + ".world__bubble .wb-av{font-size:34px;line-height:1;flex:0 0 auto}.world__bubble .wb-tx{font-size:15.5px;line-height:1.5;font-weight:500}.world__bubble .wb-tx b{font-weight:800}.world__bubble .wb-next{flex:0 0 auto;align-self:flex-end;font-size:12px;font-weight:700;color:var(--accent,#5aa6ff);white-space:nowrap}"

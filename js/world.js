@@ -595,8 +595,36 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   function dismissTutorial() { clearTimeout(bubbleTimer); if (bubbleEl) bubbleEl.hidden = true; tutorialDone = true; try { localStorage.setItem(TUT_KEY, "off"); } catch (e) {} }
   if (bubbleEl) bubbleEl.onclick = (e) => { if (e.target && e.target.classList && e.target.classList.contains("wb-close")) dismissTutorial(); else nextBubble(); };
 
+  /* ----- Sound: sanftes prozedurales Ambiente (Web Audio), erst nach Interaktion ----- */
+  const SND_KEY = "wd:worldSound";
+  let soundOn = (() => { try { return localStorage.getItem(SND_KEY) !== "off"; } catch (e) { return true; } })();
+  let audio = null;
+  function buildAudio() {
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+    const ctx = new AC();
+    const master = ctx.createGain(); master.gain.value = 0; master.connect(ctx.destination);
+    const len = ctx.sampleRate * 2, buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+    let last = 0; for (let i = 0; i < len; i++) { const w = Math.random() * 2 - 1; last = (last + 0.02 * w) / 1.02; d[i] = last * 3.2; }
+    const noise = ctx.createBufferSource(); noise.buffer = buf; noise.loop = true;
+    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 470; lp.Q.value = 0.6;
+    const ng = ctx.createGain(); ng.gain.value = 0.5; noise.connect(lp); lp.connect(ng); ng.connect(master);
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.06; const lg = ctx.createGain(); lg.gain.value = 170; lfo.connect(lg); lg.connect(lp.frequency);
+    const drone = ctx.createOscillator(); drone.type = "sine"; drone.frequency.value = 108; const dg = ctx.createGain(); dg.gain.value = 0.04; drone.connect(dg); dg.connect(master);
+    noise.start(); lfo.start(); drone.start();
+    return { ctx, master };
+  }
+  function applySound() {
+    if (soundOn && !audio) audio = buildAudio();
+    if (!audio) return;
+    if (audio.ctx.state === "suspended") audio.ctx.resume();
+    audio.master.gain.setTargetAtTime(soundOn ? 0.22 : 0.0, audio.ctx.currentTime, 0.5);
+  }
+  const soundBtn = el("worldSound");
+  if (soundBtn) { soundBtn.hidden = false; soundBtn.textContent = soundOn ? "🔊" : "🔇"; soundBtn.title = "Ton an/aus";
+    soundBtn.onclick = () => { soundOn = !soundOn; try { localStorage.setItem(SND_KEY, soundOn ? "on" : "off"); } catch (e) {} soundBtn.textContent = soundOn ? "🔊" : "🔇"; applySound(); }; }
+
   function onKeyDown(e) {
-    const k = e.key.toLowerCase(); keys[k] = true;
+    const k = e.key.toLowerCase(); keys[k] = true; applySound();
     if (k === "escape" && !tutorialDone && !panelOpen) { e.preventDefault(); dismissTutorial(); return; }
     if (k === " " || k === "enter") { if (!tutorialDone) { e.preventDefault(); nextBubble(); return; } if (k === " " && !panelOpen) { e.preventDefault(); jump(); return; } }
     if (k === "e") { e.preventDefault(); if (panelOpen) closePanel(); else if (near) openPanel(near.slide); else if (nearPortal) returnToStart(); }
@@ -611,7 +639,7 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
   const joy = { x: 0, y: 0, id: null };
   if (isTouch) {
     const joyEl = el("worldJoy"), nub = el("worldNub");
-    joyEl.addEventListener("touchstart", (e) => { joy.id = e.changedTouches[0].identifier; e.preventDefault(); }, { passive: false });
+    joyEl.addEventListener("touchstart", (e) => { joy.id = e.changedTouches[0].identifier; applySound(); e.preventDefault(); }, { passive: false });
     joyEl.addEventListener("touchmove", (e) => { for (const t of e.changedTouches) { if (t.identifier !== joy.id) continue; const r = joyEl.getBoundingClientRect(); let dx = t.clientX - (r.left + r.width / 2), dy = t.clientY - (r.top + r.height / 2); const m = 50, d = Math.hypot(dx, dy) || 1; if (d > m) { dx *= m / d; dy *= m / d; } nub.style.transform = `translate(${dx}px,${dy}px)`; joy.x = dx / m; joy.y = dy / m; } e.preventDefault(); }, { passive: false });
     const end = (e) => { for (const t of e.changedTouches) if (t.identifier === joy.id) { joy.id = null; joy.x = joy.y = 0; nub.style.transform = ""; } };
     joyEl.addEventListener("touchend", end); joyEl.addEventListener("touchcancel", end);
@@ -736,6 +764,7 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
     window.removeEventListener("keyup", onKeyUp);
     window.removeEventListener("resize", onResize);
     if (bubbleEl) { bubbleEl.hidden = true; bubbleEl.onclick = null; }
+    try { if (audio) audio.ctx.close(); } catch (e) {}
     try { disposables.forEach((d) => d && d.dispose && d.dispose()); composer.dispose(); renderer.dispose(); } catch (e) {}
     stage.innerHTML = ""; overlay.hidden = true; el("worldPanel").hidden = true;
     active = null;
