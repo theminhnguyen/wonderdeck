@@ -4,6 +4,7 @@
    debounced in IndexedDB.
    =================================================================== */
 import * as db from "./db.js";
+import { HEROES } from "./heroes.js";
 
 export const uid = () =>
   (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now());
@@ -56,7 +57,8 @@ export function normalizeDeck(deck) {
   if (!deck.nav) deck.nav = [];
   if (!deck.navPos) deck.navPos = "top";
   if (!deck.mode) deck.mode = "deck"; // "deck" (Folien) | "journey" (durchlaufbare Welt)
-  if (!deck.hero) deck.hero = "avatarC"; // Figur der 3D-Welt (siehe HEROES in heroes.js)
+  // Figur der 3D-Welt: fehlend ODER nicht (mehr) verfügbar → erste verfügbare
+  if (!deck.hero || !HEROES.some((hh) => hh.id === deck.hero)) deck.hero = HEROES[0].id;
   (deck.slides || []).forEach((s) => { if (!s.transition) s.transition = "snap"; });
   return deck;
 }
@@ -74,24 +76,67 @@ export const state = {
 export function subscribe(fn) { state._listeners.add(fn); return () => state._listeners.delete(fn); }
 function emit() { state._listeners.forEach((fn) => fn()); }
 
+function doSave() {
+  if (!state.deck) return;
+  db.saveDeck(structuredClone(state.deck))
+    .then(() => document.dispatchEvent(new CustomEvent("wd:saved")))
+    .catch((e) => console.warn("Speichern fehlgeschlagen", e));
+  localStorage.setItem("wonderdeck:currentDeckId", state.deck.id);
+}
 function autosave() {
   clearTimeout(state._saveTimer);
-  state._saveTimer = setTimeout(() => {
-    if (state.deck) {
-      db.saveDeck(structuredClone(state.deck)).catch((e) => console.warn("Speichern fehlgeschlagen", e));
-      localStorage.setItem("wonderdeck:currentDeckId", state.deck.id);
-    }
-  }, 600);
+  state._saveTimer = setTimeout(doSave, 600);
+}
+/** Sofort speichern (z. B. beim Verlassen der Seite) — kein Warten aufs Debounce. */
+export function flushSave() {
+  if (!state._saveTimer) return;
+  clearTimeout(state._saveTimer);
+  state._saveTimer = null;
+  doSave();
+}
+
+/* ---------- Undo / Redo (Snapshot-Verlauf des Decks) ---------- */
+const H = { list: [], idx: -1, timer: null, MAX: 60 };
+function snapshotNow() {
+  if (!state.deck) return;
+  const snap = JSON.stringify(state.deck);
+  if (H.idx >= 0 && H.list[H.idx] === snap) return; // nichts geändert
+  H.list = H.list.slice(0, H.idx + 1); // Redo-Zweig verwerfen
+  H.list.push(snap);
+  if (H.list.length > H.MAX) H.list.shift();
+  H.idx = H.list.length - 1;
+}
+function resetHistory() { H.list = []; H.idx = -1; clearTimeout(H.timer); snapshotNow(); }
+function restore(snap) {
+  state.deck = normalizeDeck(JSON.parse(snap));
+  state.current = Math.max(0, Math.min(state.current, state.deck.slides.length - 1));
+  state.sel = { type: null, id: null };
+  emit();
+  autosave();
+}
+export function undo() {
+  clearTimeout(H.timer); snapshotNow(); // laufende Text-Edits erst festhalten
+  if (H.idx <= 0) return false;
+  H.idx -= 1; restore(H.list[H.idx]); return true;
+}
+export function redo() {
+  if (H.idx >= H.list.length - 1) return false;
+  H.idx += 1; restore(H.list[H.idx]); return true;
 }
 
 /** Eine Änderung anwenden: neu rendern + speichern. */
 export function commit({ save = true } = {}) {
   emit();
-  if (save) autosave();
+  if (save) { autosave(); snapshotNow(); }
 }
 
-/** Nur speichern (kein Re-Render) — für Live-Edits (Slider, Texteingabe). */
-export function touchSave() { autosave(); }
+/** Nur speichern (kein Re-Render) — für Live-Edits (Slider, Texteingabe).
+    Verlauf wird gebündelt festgehalten (nach kurzer Tipp-Pause). */
+export function touchSave() {
+  autosave();
+  clearTimeout(H.timer);
+  H.timer = setTimeout(snapshotNow, 800);
+}
 
 /* ---------- Zugriffshelfer ---------- */
 export const curSlide = () => state.deck.slides[state.current];
@@ -116,6 +161,7 @@ export async function initDeck() {
   state.images = await db.loadImagesForDeck(deck);
   state.current = 0;
   state.sel = { type: null, id: null };
+  resetHistory();
   emit();
   autosave();
 }
@@ -127,6 +173,7 @@ export async function loadDeckObject(deck) {
   state.images = await db.loadImagesForDeck(deck);
   state.current = 0;
   state.sel = { type: null, id: null };
+  resetHistory();
   emit();
 }
 
@@ -143,6 +190,7 @@ export async function newDeck() {
   state.sel = { type: null, id: null };
   await db.saveDeck(structuredClone(deck));
   localStorage.setItem("wonderdeck:currentDeckId", deck.id);
+  resetHistory();
   emit();
 }
 
@@ -190,6 +238,19 @@ export function deleteSlide(index) {
   if (state.deck.slides.length <= 1) return;
   state.deck.slides.splice(index, 1);
   state.current = Math.max(0, Math.min(state.current, state.deck.slides.length - 1));
+  state.sel = { type: null, id: null };
+  commit();
+}
+/** Folie duplizieren (mit frischen IDs; Bilder werden per imageId geteilt). */
+export function duplicateSlide(index = state.current) {
+  const src = state.deck.slides[index];
+  if (!src) return;
+  const copy = structuredClone(src);
+  copy.id = uid();
+  copy.layers.forEach((l) => (l.id = uid()));
+  copy.texts.forEach((t) => (t.id = uid()));
+  state.deck.slides.splice(index + 1, 0, copy);
+  state.current = index + 1;
   state.sel = { type: null, id: null };
   commit();
 }
@@ -261,6 +322,7 @@ export async function deleteDeckById(id) {
     if (all.length) await loadDeckObject(all[all.length - 1]);
     else await newDeck();
   }
+  db.pruneImages().catch(() => {}); // verwaiste Bilder des gelöschten Decks aufräumen
 }
 
 /* ---------- Ebenen-Mutationen ---------- */
@@ -339,5 +401,6 @@ export async function importDeck(bundle) {
   state.sel = { type: null, id: null };
   await db.saveDeck(structuredClone(deck));
   localStorage.setItem("wonderdeck:currentDeckId", deck.id);
+  resetHistory();
   emit();
 }

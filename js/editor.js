@@ -61,6 +61,7 @@ function renderAll() {
   renderInspector();
   const title = el("deckTitle");
   if (document.activeElement !== title) title.value = state.deck.title;
+  document.title = (state.deck.title ? state.deck.title + " — " : "") + "WonderDeck";
   // Präsentieren-Button zeigt den Modus, damit klar ist, was passiert
   const mode = state.deck.mode || "deck";
   el("btnPresent").textContent = mode === "world" ? "▶ 3D-Welt betreten" : mode === "journey" ? "▶ Journey starten" : "▶ Präsentieren";
@@ -78,6 +79,12 @@ function renderRail() {
     });
     thumb.append(
       h("span", { class: "thumb__num", text: String(i + 1) }),
+      h("button", {
+        class: "thumb__dup",
+        text: "⧉",
+        title: "Folie duplizieren (⌘/Strg+D)",
+        onclick: (ev) => { ev.stopPropagation(); S.duplicateSlide(i); },
+      }),
       h("button", {
         class: "thumb__del",
         text: "✕",
@@ -192,7 +199,7 @@ function deckSection() {
     sec.appendChild(h("p", { class: "insp-empty", text: "3D-Welt: Folien werden zu Ausstellungs-Tafeln in einer begehbaren Galerie — eine wählbare Anime-Figur, gesteuert nur per Tastatur (WASD/Pfeiltasten, Shift = rennen), am Handy per Joystick. Nah herangehen + E/Tippen öffnet die Details." }));
     const hsel = h("select", { onchange: (e) => S.setDeckHero(e.target.value) });
     HEROES.forEach((hh) =>
-      hsel.appendChild(h("option", { value: hh.id, ...((state.deck.hero || "shibu") === hh.id ? { selected: "selected" } : {}), text: hh.label })));
+      hsel.appendChild(h("option", { value: hh.id, ...((state.deck.hero || HEROES[0].id) === hh.id ? { selected: "selected" } : {}), text: hh.label })));
     sec.appendChild(field("Figur", hsel));
   }
 
@@ -504,7 +511,7 @@ export function init() {
   });
   el("btnExportHtml").addEventListener("click", () => { menuPanel.hidden = true; exportStandaloneHTML(state.deck, state.images); });
   el("btnImport").addEventListener("click", () => { menuPanel.hidden = true; el("fileImport").click(); });
-  el("btnNewDeck").addEventListener("click", () => { menuPanel.hidden = true; if (confirm("Neue, leere Präsentation starten? Sie ersetzt die aktuelle Ansicht (vorher ggf. über das Backup-Menü sichern).")) S.newDeck(); });
+  el("btnNewDeck").addEventListener("click", () => { menuPanel.hidden = true; if (confirm("Neue, leere Präsentation starten? Die aktuelle bleibt in der Bibliothek (Menü → Meine Präsentationen) erhalten.")) S.newDeck(); });
 
   // Hilfe-Fenster
   const help = el("help");
@@ -607,14 +614,39 @@ export function init() {
   el("decksBackdrop").addEventListener("click", closeDecks);
   refreshDecks(); // Deck-Liste für Nav-Ziele vorladen
 
+  // Speicher-Feedback: kleines „✓ Gespeichert" in der Topbar nach jedem Autosave
+  const badge = el("saveBadge");
+  let badgeTimer = null;
+  if (badge) document.addEventListener("wd:saved", () => {
+    badge.classList.add("is-on");
+    clearTimeout(badgeTimer);
+    badgeTimer = setTimeout(() => badge.classList.remove("is-on"), 1600);
+  });
+
   // Tastenkürzel im Editor
   document.addEventListener("keydown", (e) => {
-    if (el("present").hidden === false) return; // Präsentation hat Vorrang
+    if (el("present").hidden === false || el("journey").hidden === false || el("world").hidden === false) return; // Präsentation hat Vorrang
     if (!help.hidden) { if (e.key === "Escape") closeHelp(); return; } // Hilfe offen
     if (!gallery.hidden) { if (e.key === "Escape") closeGallery(); return; } // Galerie offen
     if (!layoutsM.hidden) { if (e.key === "Escape") closeLayouts(); return; } // Vorlagen offen
     if (!decksM.hidden) { if (e.key === "Escape") closeDecks(); return; } // Bibliothek offen
     const typing = ["INPUT", "TEXTAREA"].includes(document.activeElement.tagName) || document.activeElement.isContentEditable;
+    const mod = e.metaKey || e.ctrlKey;
+    // Undo/Redo — beim Tippen macht der Browser sein eigenes Text-Undo
+    if (mod && !typing && e.key.toLowerCase() === "z") {
+      e.preventDefault();
+      const ok = e.shiftKey ? S.redo() : S.undo();
+      if (ok) toast(e.shiftKey ? "Wiederhergestellt" : "Rückgängig gemacht");
+      return;
+    }
+    if (mod && !typing && e.key.toLowerCase() === "y") { e.preventDefault(); if (S.redo()) toast("Wiederhergestellt"); return; }
+    if (mod && !typing && e.key.toLowerCase() === "d") { e.preventDefault(); S.duplicateSlide(); toast("Folie dupliziert"); return; }
+    // Folien wechseln mit ↑/↓ (wenn nicht getippt und nichts ausgewählt ist)
+    if (!typing && !state.sel.type && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      const to = state.current + (e.key === "ArrowDown" ? 1 : -1);
+      if (to >= 0 && to < state.deck.slides.length) { e.preventDefault(); S.selectSlide(to); }
+      return;
+    }
     if ((e.key === "Delete" || e.key === "Backspace") && state.sel.type && !typing) { e.preventDefault(); S.deleteSelected(); }
     if (e.key === "Escape") clearSel();
   });

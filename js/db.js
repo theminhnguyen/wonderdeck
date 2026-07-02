@@ -73,11 +73,17 @@ export async function loadImagesForDeck(deck) {
   return map;
 }
 
-/** Räumt Bilder weg, die kein Deck mehr referenziert (einfacher GC). */
-export async function pruneImages(deck) {
+/** Räumt Bilder weg, die KEIN gespeichertes Deck mehr referenziert (GC).
+    Prüft alle Decks inkl. Kopfzeilen-Logos — niemals nur ein einzelnes Deck,
+    sonst würden Bilder anderer Präsentationen gelöscht. */
+export async function pruneImages() {
+  const decks = await getAllDecks();
   const used = new Set();
-  for (const slide of deck.slides || [])
-    for (const layer of slide.layers || []) if (layer.imageId) used.add(layer.imageId);
+  for (const deck of decks || []) {
+    if (deck.brandImageId) used.add(deck.brandImageId);
+    for (const slide of deck.slides || [])
+      for (const layer of slide.layers || []) if (layer.imageId) used.add(layer.imageId);
+  }
   const all = await tx("images", "readonly", (s) => reqP(s.getAllKeys()));
   await Promise.all(all.filter((k) => !used.has(k)).map((k) => deleteImage(k)));
 }

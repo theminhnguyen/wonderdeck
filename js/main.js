@@ -3,7 +3,7 @@
    Deep-Links: #present / ?present=N (Präsentation), ?slide=N (Folie),
    #help (Hilfe öffnen).
    =================================================================== */
-import { initDeck, selectSlide, state, srcOf, loadDeckObject } from "./state.js";
+import { initDeck, selectSlide, state, srcOf, loadDeckObject, flushSave } from "./state.js";
 import { init as initEditor } from "./editor.js";
 import { openPresent } from "./present.js";
 import { openJourney } from "./journey.js";
@@ -32,6 +32,10 @@ async function boot() {
       else if (state.deck.mode === "journey") openJourney(state.deck, srcOf, null, start);
       else openPresent(state.deck, srcOf, start);
     }
+    // Beim Verlassen/Verstecken der Seite ausstehende Änderungen sofort sichern
+    // (Autosave ist debounced — ohne das ginge die letzte Änderung ggf. verloren).
+    window.addEventListener("pagehide", flushSave);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushSave(); });
   } catch (err) {
     console.error("WonderDeck-Start fehlgeschlagen:", err);
     document.body.innerHTML =

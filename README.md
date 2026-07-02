@@ -1,56 +1,74 @@
 # WonderDeck ✦
 
 Ein cinematisches **Präsentations-Tool** als PowerPoint-Alternative — komplett im
-Browser, ohne Server, ohne Konto, gratis. Erstelle Folien im **Wonder**-Stil
-(maus-reaktiver Hero) oder **Snap**-Stil (Szene), zieh Bilder per Drag-and-drop
-in volle Ebenen-Kontrolle und präsentiere im Vollbild mit gleitenden Übergängen.
+Browser, ohne Server, ohne Konto, gratis.
+
+**Live:** https://theminhnguyen.github.io/wonderdeck/
+
+Drei Präsentations-Modi pro Deck:
+
+| Modus | Beschreibung |
+|---|---|
+| **▦ Folien** | Klassisches Deck mit Ebenen-Parallax, Maus-Effekten, Ken-Burns & gleitenden Übergängen |
+| **🚶 Journey** | Folien werden Stationen auf einem durchlaufbaren 2.5D-Pfad |
+| **🌐 3D-Welt** | Begehbares Open-Air-Museum (Three.js): eine wählbare Anime-Figur (VRM) läuft per Tastatur durch eine Galerie — Folien hängen als Tafeln, E öffnet Details |
 
 ## Lokal starten
 
 ```bash
-cd ~/Desktop/wonderdeck
+cd wonderdeck
 python3 -m http.server 8081
 ```
 
-Dann im Browser öffnen: **http://localhost:8081**
+Dann öffnen: **http://localhost:8081**
 (Wichtig: über den Server öffnen, nicht per Doppelklick — sonst blockiert der
 Browser Module & Speicher.)
 
 ## Bedienung
 
-- **Folie hinzufügen:** Knopf oben oder „+ Folie hinzufügen" links öffnet die
-  **Layout-Vorlagen** (Hero, Titel zentriert, Kapitel, Aussage/Zitat, Titel+Text,
-  Große Zahl, Titel rechts, Leer).
-- **Bild einfügen:** Bild einfach **auf die Bühne ziehen** (oder „+ Bild-Ebene").
-  Jede Ebene hat Parallax, reaktiv-Schalter, langsamen Zoom (Ken-Burns), Größe,
-  Deckkraft und Reihenfolge.
-- **Text:** Auf der Bühne **direkt klicken und tippen**. Rechts Art (Kicker/Titel/
-  Untertitel/Fließtext), Ausrichtung und Position einstellen.
-- **Stil pro Folie:** rechts „Wonder" (Maus-Effekt, starker Zoom) oder „Snap" (Szene).
-- **Präsentieren:** Knopf „▶ Präsentieren". Weiter mit **Scrollen, Pfeiltasten,
-  Leertaste, Klick auf die Punkte** oder Wischen. **Esc** beendet.
-  Direkt-Start: `…/index.html#present`.
-- **Speichern:** passiert **automatisch im Browser** (IndexedDB).
-- **Backup:** Menü „Backup" → „Als Datei sichern" / „Datei laden" (eine `.wdeck.json`
-  inkl. Bilder, zum Sichern & Weitergeben).
-- **Als Webseite exportieren:** Menü „Backup" → „Als Webseite exportieren" erzeugt
-  eine einzelne `.html` mit allen Bildern + Animationen — läuft überall per
-  Doppelklick, ganz ohne WonderDeck.
-- **Beispiele:** Menü „Backup" → „Beispiele …" lädt fertige Präsentationen.
+- **Folie hinzufügen:** „+ Folie" öffnet die Layout-Vorlagen. **Duplizieren:**
+  ⧉ an der Miniatur oder **⌘/Strg+D**. Reihenfolge per Drag-and-drop.
+- **Rückgängig / Wiederherstellen:** **⌘/Strg+Z** · **Shift+⌘/Strg+Z**.
+- **Bild einfügen:** aufs Bühnenfeld ziehen (oder „+ Bild-Ebene"). Kopierte
+  PowerPoint-Folien/Bilder mit **⌘/Strg+V** als neue Folie einfügen.
+  Jede Ebene: Parallax, Reaktiv, Ken-Burns, Größe, Deckkraft, Reihenfolge.
+- **Text:** auf der Bühne direkt klicken und tippen; Art/Ausrichtung/Position rechts.
+- **Modus & Theme:** rechts im Inspektor (deck-weit); in der 3D-Welt zusätzlich die **Figur**.
+- **Präsentieren:** „▶"-Knopf (Beschriftung folgt dem Modus). Folien: Scrollen/
+  Pfeile/Leertaste/Dots, **Esc** beendet. 3D-Welt: **WASD** gehen, **Shift** rennen,
+  **Leertaste** springen, **E** Details, 🔊 Ambiente an/aus.
+- **Speichern:** automatisch im Browser (IndexedDB), „✓ Gespeichert" bestätigt.
+  Mehrere Präsentationen unter „☰ Menü → Meine Präsentationen".
+- **Sichern & Teilen:** „☰ Menü" → `.wdeck.json` (Backup inkl. Bilder) oder
+  **„Als Webseite exportieren"** — eine einzelne `.html`, die überall läuft
+  (auch Journey & 3D-Welt).
+- **Beispiele:** „☰ Menü → Beispiele" lädt fertige Decks nach Kategorien.
+
+Deep-Links: `#present`, `?slide=N`, `?present=N`, `?example=KEY`, `#help`,
+`#gallery`, `#layouts`, `#decks`.
 
 ## Aufbau (kein Build-Schritt, reine ES-Module)
 
 ```
 wonderdeck/
-├── index.html            Editor-Oberfläche
+├── index.html            Editor-Oberfläche (+ Import-Map für Three.js/VRM via CDN)
 ├── css/{stage,editor}.css
-└── js/
-    ├── main.js           Start
-    ├── db.js             IndexedDB (Folien + Bilder)
-    ├── state.js          Datenmodell + Auto-Speichern
-    ├── seed.js           Demo-Präsentation beim ersten Start
-    ├── stage.js          rendert eine Folie (geteilt)
-    ├── effects.js        Parallax, Intro, Ken-Burns, Snap-Übergang
-    ├── present.js        Vollbild-Präsentationsmodus
-    └── editor.js         Editor-Logik (Leiste, Inspektor, Drag-and-drop)
+├── js/
+│   ├── main.js           Start & Deep-Links
+│   ├── db.js             IndexedDB (Decks + Bilder, GC für verwaiste Bilder)
+│   ├── state.js          Datenmodell, Auto-Speichern, Undo/Redo-Verlauf
+│   ├── stage.js          rendert eine Folie (geteilt: Editor/Thumbs/Präsentation)
+│   ├── effects.js        Parallax, Intro, Ken-Burns, Übergänge
+│   ├── present.js        Vollbild-Präsentationsmodus (+ Website-Kopfzeile)
+│   ├── journey.js        2.5D-Journey-Modus
+│   ├── world.js          3D-Welt (Three.js, VRM-Figur, Bloom, Ambiente)
+│   ├── heroes.js         Registry der wählbaren 3D-Figuren
+│   ├── editor.js         Editor-Logik (Leiste, Inspektor, Drag-and-drop, Shortcuts)
+│   ├── export.js         Standalone-HTML-Export (alle 3 Modi)
+│   ├── themes.js / layouts.js / examples.js / gfx.js / seed.js
+├── public/models/        VRM-Figuren (CC0/Nutzer) + README mit Lizenzen
+└── tools/resize-vrm.mjs  VRM-schonender Textur-Verkleinerer
 ```
+
+Die 3D-Welt lädt Three.js + three-vrm **lazy** via CDN-Import-Map — erst beim
+Betreten, der Editor bleibt leichtgewichtig.
