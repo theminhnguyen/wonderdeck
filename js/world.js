@@ -699,21 +699,18 @@ export async function openWorld(deck, resolveSrc, onClose = null) {
           walkT += dt * (run ? 14 : 9); const sw = Math.sin(walkT), amp = run ? 0.66 : 0.5, aamp = run ? 0.5 : 0.32;
           if (vbones.lUpLeg) vbones.lUpLeg.rotation.x = sw * amp;
           if (vbones.rUpLeg) vbones.rUpLeg.rotation.x = -sw * amp;
-          if (vbones.lLowLeg) vbones.lLowLeg.rotation.x = Math.max(0, sw) * 0.55; // Knie beugt sich
-          if (vbones.rLowLeg) vbones.rLowLeg.rotation.x = Math.max(0, -sw) * 0.55;
           if (vbones.lUpArm) vbones.lUpArm.rotation.set(-sw * aamp, 0, ARM);
           if (vbones.rUpArm) vbones.rUpArm.rotation.set(sw * aamp, 0, -ARM);
         } else {
           walkT = 0;
           const ez = (b, x, z) => { if (b) { b.rotation.x += (x - b.rotation.x) * 0.18; b.rotation.z += (z - b.rotation.z) * 0.18; } };
-          ez(vbones.lUpLeg, 0, 0); ez(vbones.rUpLeg, 0, 0); ez(vbones.lLowLeg, 0, 0); ez(vbones.rLowLeg, 0, 0);
-          ez(vbones.lUpArm, 0, ARM); ez(vbones.rUpArm, 0, -ARM);
+          ez(vbones.lUpLeg, 0, 0); ez(vbones.rUpLeg, 0, 0); ez(vbones.lUpArm, 0, ARM); ez(vbones.rUpArm, 0, -ARM);
         }
-        if (vbones.spine) { vbones.spine.rotation.x = Math.sin(clock.elapsedTime * 1.5) * 0.025; vbones.spine.rotation.z = moving ? 0 : Math.sin(clock.elapsedTime * 0.9) * 0.045; } // Atmen + Idle-Wiegen
+        if (vbones.spine) vbones.spine.rotation.x = Math.sin(clock.elapsedTime * 1.5) * 0.025; // ruhiges Atmen
         if (vrm.expressionManager) vrm.expressionManager.setValue("blink", (clock.elapsedTime % 4.2) > 4.0 ? 1 : 0);
-        // Blick: still & nah an Tafel → Tafel ansehen; sonst nach vorn (im Stand leicht umherblicken)
+        // Blick: still & nah an einer Tafel → Tafel ansehen, sonst ruhig nach vorn
         if (!moving && near) lookTarget.position.set(near.x, 1.55, near.z);
-        else { const gaze = moving ? 0 : Math.sin(clock.elapsedTime * 0.34) * 2.2; lookTarget.position.set(hero.position.x + Math.sin(heading) * 4 + Math.cos(heading) * gaze, 1.55, hero.position.z + Math.cos(heading) * 4 - Math.sin(heading) * gaze); }
+        else lookTarget.position.set(hero.position.x + Math.sin(heading) * 4, 1.55, hero.position.z + Math.cos(heading) * 4);
         vrm.update(dt);
       } else if (proceduralParts) {
         if (moving) { walkT += dt * 9; const sw = Math.sin(walkT) * 0.7; proceduralParts.lleg.rotation.x = sw; proceduralParts.rleg.rotation.x = -sw; proceduralParts.larm.rotation.x = -sw * 0.7; proceduralParts.rarm.rotation.x = sw * 0.7; }
