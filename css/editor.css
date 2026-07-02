@@ -97,6 +97,8 @@ html, body {
   border-radius: 7px;
   padding: 9px 10px;
   cursor: pointer;
+  text-decoration: none; /* auch als <a> nutzbar */
+  box-sizing: border-box;
 }
 .menu__item:hover { background: #2a3340; }
 .menu__sep { border: 0; border-top: 1px solid var(--wd-line); margin: 6px 4px; }

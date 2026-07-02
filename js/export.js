@@ -222,7 +222,7 @@ const JOURNEY_CSS = "*{margin:0;box-sizing:border-box}html,body{height:100%;over
    Spiegelt js/world.js. Wird als type="module" eingebettet, importiert THREE
    und ruft diese Funktion mit (DECK, CFG, THREE) auf. */
 function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloomPass, OutputPass, GLTFLoader, VRMLoaderPlugin, VRMUtils) {
-  const HERO_FILES = { avatarC: "avatar-c.vrm", rainy: "rainy-devil.vrm", judge: "judgeman.vrm" }; // shibu/avatarA vorerst ausgeblendet
+  const HERO_FILES = { avatarC: "avatar-c.vrm", shino: "shino.vrm", vita: "vita.vrm" }; // Registry: js/heroes.js
   const HERO_VRM_URL = "https://theminhnguyen.github.io/wonderdeck/public/models/" + (HERO_FILES[CFG.hero] || HERO_FILES.avatarC);
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const esc = (s) => String(s == null ? "" : s).replace(/[<&>]/g, (c) => ({ "<": "&lt;", "&": "&amp;", ">": "&gt;" }[c]));

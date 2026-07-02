@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WonderDeck — Verwandle deine Bilder in eine begehbare 3D-Galerie</title>
+  <meta name="description" content="WonderDeck macht aus deinen Folien und Bildern eine begehbare 3D-Galerie mit Anime-Figur — teilbar als eine einzige HTML-Datei. Kostenlos, ohne Konto, direkt im Browser." />
+  <meta property="og:title" content="WonderDeck — begehbare 3D-Galerien aus deinen Bildern" />
+  <meta property="og:description" content="Folien, Journeys und begehbare 3D-Welten — erstellt im Browser, geteilt als eine Datei." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0e14; --panel: #11161f; --line: rgba(255,255,255,0.09);
+      --ink: #eef2f7; --mut: #9aa5b4; --gold: #c9a25b; --teal: #6cc2bc;
+    }
+    * { margin: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--ink); font-family: "Inter", sans-serif; line-height: 1.6; }
+    h1, h2, h3 { font-family: "Space Grotesk", sans-serif; line-height: 1.12; }
+    a { color: inherit; }
+    .wrap { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+
+    /* Nav */
+    .nav { position: sticky; top: 0; z-index: 50; background: rgba(10,14,20,0.82); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+    .nav__in { display: flex; align-items: center; gap: 26px; height: 62px; }
+    .nav__brand { font-family: "Space Grotesk", sans-serif; font-weight: 700; font-size: 18px; }
+    .nav__brand b { color: var(--gold); }
+    .nav__links { display: flex; gap: 22px; margin-left: auto; font-size: 14px; color: var(--mut); }
+    .nav__links a { text-decoration: none; }
+    .nav__links a:hover { color: var(--ink); }
+    .nav .cta { margin-left: 8px; }
+
+    /* Buttons */
+    .btn { display: inline-block; padding: 12px 22px; border-radius: 999px; font-size: 15px; font-weight: 600; text-decoration: none; border: 1px solid var(--line); color: var(--ink); transition: transform 0.15s, background 0.15s; }
+    .btn:hover { transform: translateY(-1px); }
+    .btn--gold { background: var(--gold); border-color: var(--gold); color: #14100a; }
+    .btn--gold:hover { background: #d9b26b; }
+    .btn--ghost:hover { background: rgba(255,255,255,0.06); }
+    .btn--big { padding: 15px 30px; font-size: 16px; }
+
+    /* Hero */
+    .hero { padding: 88px 0 40px; text-align: center; position: relative; overflow: hidden; }
+    .hero::before { content: ""; position: absolute; inset: -40% -20% auto; height: 130%; background:
+      radial-gradient(50% 60% at 30% 20%, rgba(108,194,188,0.16), transparent 70%),
+      radial-gradient(45% 55% at 72% 12%, rgba(201,162,91,0.14), transparent 70%); pointer-events: none; }
+    .hero__kicker { font-size: 13px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--teal); }
+    .hero h1 { font-size: clamp(34px, 6vw, 62px); margin: 18px auto 20px; max-width: 820px; }
+    .hero h1 em { font-style: normal; color: var(--gold); }
+    .hero p.lead { font-size: clamp(16px, 2.2vw, 19px); color: var(--mut); max-width: 640px; margin: 0 auto 34px; }
+    .hero__cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .hero__trust { margin-top: 22px; font-size: 13px; color: var(--mut); }
+    .hero__trust b { color: var(--ink); font-weight: 500; }
+
+    /* Szene (stilisierte Galerie) */
+    .scene { margin: 54px auto 0; max-width: 880px; border-radius: 18px; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 40px 90px rgba(0,0,0,0.5); }
+    .scene svg { display: block; width: 100%; height: auto; }
+
+    /* Sections */
+    section { padding: 84px 0; }
+    .sec__kicker { font-size: 12px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); }
+    .sec__title { font-size: clamp(26px, 4vw, 38px); margin: 12px 0 14px; }
+    .sec__lead { color: var(--mut); max-width: 620px; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-top: 40px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 26px; }
+    .card .ico { font-size: 26px; }
+    .card h3 { font-size: 17px; margin: 12px 0 8px; }
+    .card p { font-size: 14.5px; color: var(--mut); }
+
+    /* Steps */
+    .steps { counter-reset: step; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin-top: 40px; }
+    .step { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 26px 26px 26px 26px; }
+    .step::before { counter-increment: step; content: counter(step); position: absolute; top: -14px; left: 22px; width: 30px; height: 30px; border-radius: 50%; background: var(--gold); color: #14100a; font-weight: 700; font-family: "Space Grotesk", sans-serif; display: grid; place-items: center; font-size: 15px; }
+    .step h3 { font-size: 16px; margin: 6px 0 8px; }
+    .step p { font-size: 14.5px; color: var(--mut); }
+
+    /* Kaufen */
+    .buy { text-align: center; }
+    .buy__card { max-width: 460px; margin: 40px auto 0; background: linear-gradient(180deg, #141a24, #10151d); border: 1px solid rgba(201,162,91,0.35); border-radius: 20px; padding: 38px 34px; }
+    .buy__price { font-family: "Space Grotesk", sans-serif; font-size: 44px; font-weight: 700; }
+    .buy__price span { font-size: 15px; font-weight: 500; color: var(--mut); }
+    .buy__list { list-style: none; padding: 0; margin: 20px 0 26px; font-size: 14.5px; color: var(--mut); }
+    .buy__list li { padding: 5px 0; }
+    .buy__list b { color: var(--ink); font-weight: 500; }
+    .buy__soon { font-size: 13px; color: var(--mut); margin-top: 12px; }
+
+    /* FAQ */
+    .faq details { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; margin-top: 12px; }
+    .faq summary { cursor: pointer; font-weight: 600; font-size: 15px; }
+    .faq p { margin-top: 10px; font-size: 14.5px; color: var(--mut); }
+
+    footer { border-top: 1px solid var(--line); padding: 34px 0 46px; font-size: 13.5px; color: var(--mut); }
+    .foot { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
+    .foot a { color: var(--mut); }
+    .foot a:hover { color: var(--ink); }
+    .foot .sp { margin-left: auto; }
+
+    :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 4px; }
+    @media (max-width: 640px) { .nav__links { display: none; } }
+  </style>
+</head>
+<body>
+
+  <nav class="nav"><div class="wrap nav__in">
+    <span class="nav__brand"><b>✦</b> WonderDeck</span>
+    <div class="nav__links">
+      <a href="#funktionen">Funktionen</a>
+      <a href="#ablauf">So geht's</a>
+      <a href="#kaufen">Preis</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <a class="btn btn--ghost cta" href="index.html">App öffnen</a>
+  </div></nav>
+
+  <header class="hero"><div class="wrap">
+    <p class="hero__kicker">Präsentationen · Journeys · 3D-Welten</p>
+    <h1>Verwandle deine Bilder in eine <em>begehbare 3D-Galerie</em>.</h1>
+    <p class="lead">
+      WonderDeck macht aus Folien und Bildern ein kleines Museum, durch das man
+      mit einer Anime-Figur läuft — und teilt alles als <b>eine einzige HTML-Datei</b>.
+      Direkt im Browser, ohne Konto.
+    </p>
+    <div class="hero__cta">
+      <a class="btn btn--gold btn--big" href="index.html?example=world&present=1">▶ Live-Demo: 3D-Galerie betreten</a>
+      <a class="btn btn--ghost btn--big" href="index.html">Eigene Galerie bauen</a>
+    </div>
+    <p class="hero__trust"><b>Kostenlos</b> · keine Anmeldung · deine Daten bleiben in deinem Browser</p>
+
+    <!-- Stilisierte Galerie-Szene -->
+    <div class="scene" aria-hidden="true">
+      <svg viewBox="0 0 880 380" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#56b4ae"/><stop offset="1" stop-color="#cfe9e3"/>
+          </linearGradient>
+          <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#d8d2c3"/><stop offset="1" stop-color="#c9c2b1"/>
+          </linearGradient>
+        </defs>
+        <rect width="880" height="230" fill="url(#sky)"/>
+        <circle cx="700" cy="64" r="26" fill="#fff3d6"/><circle cx="700" cy="64" r="40" fill="#ffe9b8" opacity="0.35"/>
+        <ellipse cx="200" cy="70" rx="60" ry="14" fill="#fff" opacity="0.5"/>
+        <ellipse cx="420" cy="44" rx="46" ry="11" fill="#fff" opacity="0.4"/>
+        <rect y="230" width="880" height="150" fill="url(#floor)"/>
+        <polygon points="360,230 520,230 620,380 260,380" fill="#5aa6ff" opacity="0.18"/>
+        <!-- Säulen -->
+        <g fill="#e3ddcf" stroke="#141019" stroke-width="2">
+          <rect x="70" y="120" width="26" height="112"/><rect x="60" y="110" width="46" height="12"/>
+          <rect x="784" y="120" width="26" height="112"/><rect x="774" y="110" width="46" height="12"/>
+          <rect x="250" y="140" width="20" height="92"/><rect x="242" y="132" width="36" height="10"/>
+          <rect x="610" y="140" width="20" height="92"/><rect x="602" y="132" width="36" height="10"/>
+        </g>
+        <!-- Tafeln -->
+        <g stroke="#141019" stroke-width="2.5">
+          <rect x="120" y="120" width="180" height="104" rx="4" fill="#10203a"/>
+          <rect x="580" y="120" width="180" height="104" rx="4" fill="#0a1428"/>
+        </g>
+        <rect x="136" y="188" width="70" height="7" rx="3" fill="#8fb6ff" opacity="0.9"/>
+        <rect x="136" y="172" width="110" height="10" rx="4" fill="#fff"/>
+        <rect x="596" y="172" width="96" height="10" rx="4" fill="#fff"/>
+        <!-- Banner -->
+        <g stroke="#141019" stroke-width="2">
+          <rect x="330" y="96" width="26" height="44" fill="#c0554b"/>
+          <rect x="520" y="96" width="26" height="44" fill="#4d7a86"/>
+        </g>
+        <!-- Figur (Silhouette) -->
+        <g stroke="#141019" stroke-width="2.5">
+          <circle cx="440" cy="238" r="14" fill="#3b3247"/>
+          <rect x="428" y="252" width="24" height="34" rx="8" fill="#23262d"/>
+          <rect x="431" y="286" width="8" height="26" rx="4" fill="#f2d6c2"/>
+          <rect x="441" y="286" width="8" height="26" rx="4" fill="#f2d6c2"/>
+        </g>
+        <ellipse cx="440" cy="318" rx="26" ry="6" fill="#000" opacity="0.15"/>
+      </svg>
+    </div>
+  </div></header>
+
+  <section id="funktionen"><div class="wrap">
+    <p class="sec__kicker">Funktionen</p>
+    <h2 class="sec__title">Mehr als Folien.</h2>
+    <p class="sec__lead">Ein Werkzeug, drei Bühnen: klassisches Deck, durchlaufbare Journey — und die begehbare 3D-Welt.</p>
+    <div class="grid">
+      <div class="card"><span class="ico">🌐</span><h3>Begehbare 3D-Galerie</h3><p>Deine Inhalte hängen als Tafeln in einem Open-Air-Museum: Teal-Himmel, weiche Schatten, Ambiente-Sound. Laufen per WASD, rennen mit Shift, Details mit E.</p></div>
+      <div class="card"><span class="ico">🧍</span><h3>Anime-Figuren (VRM)</h3><p>Wählbare cel-shaded Figuren mit Lauf-, Atem- und Blinzel-Animation. Alle Modelle lizenzgeprüft (CC0/VRoid) — auch kommerziell nutzbar.</p></div>
+      <div class="card"><span class="ico">📦</span><h3>Eine Datei zum Teilen</h3><p>Der Export erzeugt eine einzige <b>.html</b> — Empfänger öffnen sie per Doppelklick und laufen selbst durch deine Galerie. Kein WonderDeck nötig.</p></div>
+      <div class="card"><span class="ico">🎬</span><h3>Cinematische Folien</h3><p>Ebenen-Parallax, Ken-Burns-Zoom, weiche Übergänge, maus-reaktive Deko — Präsentationen mit Kino-Gefühl.</p></div>
+      <div class="card"><span class="ico">🔒</span><h3>Privat per Design</h3><p>Alles bleibt lokal in deinem Browser (Auto-Speichern). Kein Konto, kein Server, kein Tracking.</p></div>
+      <div class="card"><span class="ico">↩️</span><h3>Profi-Editor</h3><p>Undo/Redo, Folien duplizieren, Layout-Vorlagen, Themes, PowerPoint-Folien per Cmd+V einfügen, Beispiele-Galerie.</p></div>
+    </div>
+  </div></section>
+
+  <section id="ablauf"><div class="wrap">
+    <p class="sec__kicker">So geht's</p>
+    <h2 class="sec__title">In drei Schritten zur eigenen Galerie.</h2>
+    <div class="steps">
+      <div class="step"><h3>Inhalte anlegen</h3><p>Bilder auf die Bühne ziehen, Titel dazu — oder eine Vorlage aus der Beispiele-Galerie laden.</p></div>
+      <div class="step"><h3>Modus „3D-Welt" wählen</h3><p>Rechts im Inspektor auf 🌐 3D-Welt stellen, Figur aussuchen — fertig ist das begehbare Museum.</p></div>
+      <div class="step"><h3>Exportieren & teilen</h3><p>„Als Webseite exportieren" erzeugt eine HTML-Datei. Verschicken — die Empfänger laufen selbst hindurch.</p></div>
+    </div>
+  </div></section>
+
+  <section id="kaufen" class="buy"><div class="wrap">
+    <p class="sec__kicker">Preis</p>
+    <h2 class="sec__title">Aktuell kostenlos.</h2>
+    <p class="sec__lead" style="margin: 0 auto;">WonderDeck ist frei nutzbar. Wer das Projekt unterstützen oder die kommende Pro-Version sichern will:</p>
+    <div class="buy__card">
+      <div class="buy__price">0&nbsp;€ <span>/ für alle Grundfunktionen</span></div>
+      <ul class="buy__list">
+        <li><b>Alle 3 Modi</b> — Folien, Journey, 3D-Welt</li>
+        <li><b>HTML-Export</b> zum Teilen</li>
+        <li><b>Lizenzgeprüfte Figuren</b> inklusive</li>
+        <li>Pro (geplant): eigene Figuren-Pakete, mehr Welten, Vorlagen</li>
+      </ul>
+      <a id="buyBtn" class="btn btn--gold btn--big" href="index.html">Kostenlos loslegen</a>
+      <p class="buy__soon" id="buyNote">Pro-Version in Vorbereitung — der Kauf-Button erscheint hier, sobald sie erhältlich ist.</p>
+    </div>
+  </div></section>
+
+  <section id="faq" class="faq"><div class="wrap">
+    <p class="sec__kicker">FAQ</p>
+    <h2 class="sec__title">Häufige Fragen.</h2>
+    <details><summary>Wem gehören meine Inhalte?</summary><p>Dir. Alles wird lokal in deinem Browser gespeichert (IndexedDB) — nichts verlässt dein Gerät, außer du exportierst und teilst es selbst.</p></details>
+    <details><summary>Funktioniert der Export offline?</summary><p>Die exportierte HTML-Datei enthält deine Bilder eingebettet. Für die 3D-Welt lädt sie die 3D-Engine und die Figur beim Öffnen aus dem Netz — dafür braucht der Empfänger einmalig Internet.</p></details>
+    <details><summary>Kann ich eine eigene Figur verwenden?</summary><p>Ja — in <a href="https://vroid.com/studio" target="_blank" rel="noopener">VRoid Studio</a> (gratis) eine Figur bauen, als .vrm exportieren und einbinden. Eigene Figuren gehören dir, auch kommerziell.</p></details>
+    <details><summary>Darf ich WonderDeck geschäftlich nutzen?</summary><p>Ja. Alle mitgelieferten Figuren sind lizenzgeprüft (CC0 bzw. VRoid-Lizenz mit erlaubter kommerzieller Nutzung) — Nachweise liegen im Repository.</p></details>
+  </div></section>
+
+  <footer><div class="wrap foot">
+    <span>✦ WonderDeck</span>
+    <a href="https://github.com/theminhnguyen/wonderdeck" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://github.com/theminhnguyen/wonderdeck/blob/main/public/models/README.md" target="_blank" rel="noopener">Figuren-Lizenzen</a>
+    <span class="sp">© 2026 WonderDeck</span>
+    <!-- Vor dem Verkauf ergänzen: Impressum & Datenschutzerklärung -->
+  </div></footer>
+
+  <script>
+    // ==== Kauf-Anbindung (Gumroad/Lemon Squeezy) ====
+    // Sobald ein Produkt existiert: hier die Kauf-URL eintragen — mehr ist nicht nötig.
+    // Beispiel: const BUY_URL = "https://DEINSHOP.gumroad.com/l/wonderdeck-pro";
+    const BUY_URL = "";
+    const PRICE_LABEL = "9 €"; // Anzeigepreis der Pro-Version
+    if (BUY_URL) {
+      const btn = document.getElementById("buyBtn");
+      btn.href = BUY_URL; btn.target = "_blank"; btn.rel = "noopener";
+      btn.textContent = "★ Pro kaufen — " + PRICE_LABEL;
+      document.getElementById("buyNote").textContent = "Einmalkauf über Gumroad — sichere Zahlung, sofortiger Zugang.";
+    }
+  </script>
+</body>
+</html>

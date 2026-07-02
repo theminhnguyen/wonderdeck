@@ -3,7 +3,8 @@
 Ein cinematisches **Präsentations-Tool** als PowerPoint-Alternative — komplett im
 Browser, ohne Server, ohne Konto, gratis.
 
-**Live:** https://theminhnguyen.github.io/wonderdeck/
+**Live:** https://theminhnguyen.github.io/wonderdeck/ ·
+**Landing-Page:** https://theminhnguyen.github.io/wonderdeck/landing.html
 
 Drei Präsentations-Modi pro Deck:
 
@@ -72,3 +73,19 @@ wonderdeck/
 
 Die 3D-Welt lädt Three.js + three-vrm **lazy** via CDN-Import-Map — erst beim
 Betreten, der Editor bleibt leichtgewichtig.
+
+## Kommerzielle Nutzung & Verkauf
+
+- **Figuren-Lizenzen sind geprüft** (alle CC0 bzw. VRoid-Lizenz mit erlaubter
+  kommerzieller Nutzung) — Nachweise in [`public/models/README.md`](public/models/README.md).
+  Nicht-kommerzielle Modelle wurden entfernt.
+- **Landing-Page:** [`landing.html`](landing.html) — Produktseite mit Live-Demo-Link
+  („3D-Galerie aus deinen Bildern") und vorbereiteter Kauf-Sektion.
+- **Kauf anschließen (wenn gewünscht):**
+  1. Konto bei [Gumroad](https://gumroad.com) oder [Lemon Squeezy](https://lemonsqueezy.com)
+     anlegen (kostenlos, nur prozentuale Gebühr pro Verkauf) und ein Produkt
+     „WonderDeck Pro" erstellen.
+  2. Die Produkt-URL in `landing.html` bei `const BUY_URL = ""` eintragen — der
+     Kauf-Button erscheint automatisch.
+  3. Vor dem ersten Verkauf: **Impressum & Datenschutzerklärung** ergänzen
+     (Platzhalter im Footer der Landing-Page).

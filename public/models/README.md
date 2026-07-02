@@ -2,33 +2,39 @@
 
 Auswählbare Figuren für die begehbare 3D-Welt. Alle im **VRM**-Format
 (geladen via [`@pixiv/three-vrm`](https://github.com/pixiv/three-vrm)),
-cel-shaded (MToon). Die Auswahl erfolgt **pro Präsentation** im Editor-Inspektor
-(3D-Welt-Modus → Feld „Figur") und wird in `deck.hero` gespeichert.
+cel-shaded (MToon). Auswahl **pro Präsentation** im Editor-Inspektor
+(3D-Welt-Modus → „Figur"), gespeichert in `deck.hero`. Registry: [`js/heroes.js`](../../js/heroes.js).
 
-Registry: [`js/heroes.js`](../../js/heroes.js). Geladen in `js/world.js` (App,
-relativer Pfad) und gespiegelt in `js/export.js` (Standalone-Export, absolute
-GitHub-Pages-URL). Bei Ladefehler greift die prozedurale Ersatz-Figur (`makeHero`).
+## Lizenzen (kommerzielle Nutzung geprüft ✅)
 
-| Datei | Figur | Stil | Lizenz |
-|---|---|---|---|
-| `shibu.vrm` | Sendagaya Shibu | dunkler Bob, Schul-Weste, oranger Akzent (abeto-nah) | CC0 |
-| `avatar-a.vrm` | AvatarSample_A | casual: Cardigan, Top, Shorts | VRoid-Sample |
-| `avatar-c.vrm` | AvatarSample_C | Junge: Sportjacke, Cargo-Hose | VRoid-Sample |
-| `rainy-devil.vrm` | レイニーデビル (Rainy Devil) | gelber Regenmantel, leuchtende Augen | siehe Modell |
-| `judgeman.vrm` | ジャッジマン (Judgeman) | schwarze Robe, weiße Maske | siehe Modell |
+Die Lizenz ist bei VRM **in der Datei selbst hinterlegt** (`extensions.VRM.meta`).
+Stand der Prüfung: 2026-06-24, per Auslesen der eingebetteten Metadaten.
 
-- **shibu.vrm**: CC0 (gemeinfrei), Quelle [github.com/madjin/vrm-samples](https://github.com/madjin/vrm-samples).
-- **avatar-a / avatar-c**: offizielle VRoid-Sample-Avatare.
-- **rainy-devil / judgeman**: vom Nutzer bereitgestellt — Nutzungsrechte gemäß
-  der jeweils im Modell hinterlegten Lizenz.
+| Datei | Figur | Lizenz | Kommerziell | Weitergabe | Nachweis |
+|---|---|---|---|---|---|
+| `avatar-c.vrm` | AvatarSample_C (VRoid Project) | VRoid-Lizenz | ✅ erlaubt (auch Firmen) | ✅ erlaubt | [Lizenz-URL](https://hub.vroid.com/license?allowed_to_use_user=everyone&characterization_allowed_user=everyone&corporate_commercial_use=allow&credit=unnecessary&modification=allow&personal_commercial_use=profit&redistribution=allow&sexual_expression=allow&version=1&violent_expression=allow) |
+| `shino.vrm` | Sendagaya Shino | **CC0** | ✅ | ✅ | Meta: `licenseName: CC0`, `commercialUssageName: Allow` |
+| `vita.vrm` | Vita | **CC0** | ✅ | ✅ | Meta: `licenseName: CC0`, `commercialUssageName: Allow` |
+| `shibu.vrm` *(ausgeblendet)* | Sendagaya Shibu | **CC0** | ✅ | ✅ | Meta: CC0 / Allow |
+| `avatar-a.vrm` *(ausgeblendet)* | AvatarSample_A (VRoid Project) | VRoid-Lizenz | ✅ erlaubt (auch Firmen) | ✅ erlaubt | wie AvatarSample_C |
 
-**Optimiert:** Die Texturen sind auf max. 1024 px verkleinert (Ladezeit) — die
-VRM-Struktur bleibt dabei erhalten. Standard-Tools wie `gltf-transform` verwerfen
-die VRM-Extension; deshalb liegt ein VRM-schonender Verkleinerer bei:
-`tools/resize-vrm.mjs` (macOS/`sips`). Nutzung:
-`node tools/resize-vrm.mjs eingang.vrm ausgang.vrm 1024`.
+**Entfernt (2026-06-24):** „Rainy Devil" und „Judgeman" (Autor: Mujo Moroyuki) —
+deren VRoid-Lizenz verbietet kommerzielle Nutzung **und** Weitergabe
+(`corporate_commercial_use=disallow`, `redistribution=disallow`). Sie wurden aus
+App und Repo entfernt; bestehende Decks fallen automatisch auf Avatar C zurück.
+
+Quellen: [madjin/vrm-samples](https://github.com/madjin/vrm-samples) (VRoid-Beta-Samples).
+
+## Technisches
+
+- Texturen auf max. 1024 px verkleinert (Ladezeit) — **VRM-schonend** via
+  [`tools/resize-vrm.mjs`](../../tools/resize-vrm.mjs) (Standard-Tools wie
+  gltf-transform verwerfen die VRM-Extension!).
+  Nutzung: `node tools/resize-vrm.mjs eingang.vrm ausgang.vrm 1024`
+- Lizenz-Metadaten einer VRM prüfen:
+  die Datei ist ein glb — JSON-Chunk lesen, `extensions.VRM.meta.commercialUssageName`
+  muss `Allow` sein, `redistribution` in der `otherPermissionUrl` beachten.
 
 **Eigene Figur ergänzen:** in [VRoid Studio](https://vroid.com/studio) (gratis)
-bauen, als `.vrm` exportieren, (optional mit dem Resizer verkleinern), hier
-ablegen und einen Eintrag in `js/heroes.js` (`{ id, label, file }`) hinzufügen —
-erscheint automatisch im Dropdown.
+bauen, als `.vrm` exportieren (eigene Figuren gehören dir), optional verkleinern,
+hier ablegen + Eintrag in `js/heroes.js` — erscheint automatisch im Dropdown.
