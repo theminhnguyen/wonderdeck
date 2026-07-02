@@ -56,7 +56,7 @@ export function normalizeDeck(deck) {
   if (!deck.nav) deck.nav = [];
   if (!deck.navPos) deck.navPos = "top";
   if (!deck.mode) deck.mode = "deck"; // "deck" (Folien) | "journey" (durchlaufbare Welt)
-  if (!deck.hero) deck.hero = "shibu"; // Figur der 3D-Welt (siehe HEROES in world.js)
+  if (!deck.hero) deck.hero = "avatarC"; // Figur der 3D-Welt (siehe HEROES in heroes.js)
   (deck.slides || []).forEach((s) => { if (!s.transition) s.transition = "snap"; });
   return deck;
 }

@@ -222,8 +222,8 @@ const JOURNEY_CSS = "*{margin:0;box-sizing:border-box}html,body{height:100%;over
    Spiegelt js/world.js. Wird als type="module" eingebettet, importiert THREE
    und ruft diese Funktion mit (DECK, CFG, THREE) auf. */
 function WORLD_RUNTIME(DECK, CFG, THREE, EffectComposer, RenderPass, UnrealBloomPass, OutputPass, GLTFLoader, VRMLoaderPlugin, VRMUtils) {
-  const HERO_FILES = { shibu: "shibu.vrm", avatarA: "avatar-a.vrm", avatarC: "avatar-c.vrm", rainy: "rainy-devil.vrm", judge: "judgeman.vrm" };
-  const HERO_VRM_URL = "https://theminhnguyen.github.io/wonderdeck/public/models/" + (HERO_FILES[CFG.hero] || HERO_FILES.shibu);
+  const HERO_FILES = { avatarC: "avatar-c.vrm", rainy: "rainy-devil.vrm", judge: "judgeman.vrm" }; // shibu/avatarA vorerst ausgeblendet
+  const HERO_VRM_URL = "https://theminhnguyen.github.io/wonderdeck/public/models/" + (HERO_FILES[CFG.hero] || HERO_FILES.avatarC);
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const esc = (s) => String(s == null ? "" : s).replace(/[<&>]/g, (c) => ({ "<": "&lt;", "&": "&amp;", ">": "&gt;" }[c]));
   const hexA = (hex, a) => { let h = String(hex || "").trim().replace("#", ""); if (h.length === 3) h = h.split("").map((x) => x + x).join(""); if (h.length !== 6 || /[^0-9a-f]/i.test(h)) return "rgba(255,255,255," + a + ")"; return "rgba(" + parseInt(h.slice(0, 2), 16) + "," + parseInt(h.slice(2, 4), 16) + "," + parseInt(h.slice(4, 6), 16) + "," + a + ")"; };
