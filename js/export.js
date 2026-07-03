@@ -767,7 +767,7 @@ function CARD_RUNTIME(DECK) {
   for (let y = 3; y <= 4; y++) for (let x = 3; x <= 6; x++) tiles.push({ x, y, img: T.rug });
   [[0, 2, T.plant], [COLS - 1, 2, T.plant], [0, ROWS - 1, T.plant], [COLS - 1, ROWS - 1, T.plant], [4, 2, T.table], [5, 2, T.table]].forEach(([x, y, img]) => { tiles.push({ x, y, img }); solid.add(x + "," + y); });
   const spots = [];
-  for (let row = 3; spots.length < Math.max(greet.length, 1); row += 2)
+  for (let row = 3; spots.length < greet.length; row += 2)
     for (const gx of [2, 7, 4]) { if (spots.length < greet.length) spots.push([gx, row + (gx === 4 ? 1 : 0)]); }
   const npcs = greet.map((g, i) => ({ g, x: spots[i][0], y: spots[i][1], dir: "down" }));
   npcs.forEach((n) => solid.add(n.x + "," + n.y));

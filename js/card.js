@@ -237,7 +237,7 @@ export function openCard(deck, onClose = null) {
 
   /* ----- NPCs (ein Männchen pro Gruß) ----- */
   const spots = [];
-  for (let row = 3, i = 0; spots.length < Math.max(greet.length, 1); row += 2, i++)
+  for (let row = 3; spots.length < greet.length; row += 2)
     for (const gx of [2, 7, 4]) { if (spots.length < greet.length) spots.push([gx, row + (gx === 4 ? 1 : 0)]); }
   const npcs = greet.map((g, i) => ({ g, x: spots[i][0], y: spots[i][1], dir: "down" }));
   npcs.forEach((n) => solid.add(n.x + "," + n.y));
