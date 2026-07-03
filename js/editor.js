@@ -64,7 +64,7 @@ function renderAll() {
   document.title = (state.deck.title ? state.deck.title + " — " : "") + "WonderDeck";
   // Präsentieren-Button zeigt den Modus, damit klar ist, was passiert
   const mode = state.deck.mode || "deck";
-  el("btnPresent").textContent = mode === "world" ? "▶ 3D-Welt betreten" : mode === "journey" ? "▶ Journey starten" : "▶ Präsentieren";
+  el("btnPresent").textContent = mode === "world" ? "▶ 3D-Welt betreten" : mode === "journey" ? "▶ Journey starten" : mode === "card" ? "▶ Grußkarte öffnen" : "▶ Präsentieren";
 }
 
 /* =================== Folien-Leiste =================== */
@@ -189,10 +189,12 @@ function deckSection() {
   const sec = h("div", { class: "insp-section" }, [h("h3", { text: "Theme (ganzes Deck)" })]);
 
   // Modus: klassisches Folien-Deck vs. durchlaufbare Journey-Welt
-  const modeSeg = h("div", { class: "seg" });
-  [["deck", "▦ Folien"], ["journey", "🚶 Journey"], ["world", "🌐 3D-Welt"]].forEach(([val, lab]) =>
+  const modeSeg = h("div", { class: "seg", style: "flex-wrap:wrap" });
+  [["deck", "▦ Folien"], ["journey", "🚶 Journey"], ["world", "🌐 3D-Welt"], ["card", "💌 Grußkarte"]].forEach(([val, lab]) =>
     modeSeg.appendChild(h("button", { class: (state.deck.mode || "deck") === val ? "is-on" : "", text: lab, onclick: () => S.setDeckMode(val) })));
   sec.appendChild(field("Modus", modeSeg));
+  if ((state.deck.mode || "deck") === "card")
+    sec.appendChild(h("p", { class: "insp-empty", text: "Grußkarte: ein kleiner Retro-Raum im Game-Boy-Stil. Jeder Gruß wird ein Männchen — der Empfänger läuft hin (Pfeile/WASD) und drückt E, um den Gruß zu lesen. Der Titel oben ist die Begrüßung." }));
   if ((state.deck.mode || "deck") === "journey")
     sec.appendChild(h("p", { class: "insp-empty", text: "Journey: Folien werden zu Stationen auf einem Pfad. Stil, Übergang & Kopfzeile haben hier keine Wirkung." }));
   if ((state.deck.mode || "deck") === "world") {
@@ -265,10 +267,30 @@ function navSection() {
   return sec;
 }
 
+function greetingSection() {
+  const sec = h("div", { class: "insp-section" }, [h("h3", { text: "Grüße (Männchen im Raum)" })]);
+  const list = state.deck.greetings || [];
+  if (!list.length)
+    sec.appendChild(h("p", { class: "insp-empty", text: "Noch keine Grüße. Jeder Eintrag erscheint als Männchen im Raum — Name + Text ausfüllen." }));
+  list.forEach((g, i) => {
+    const row = h("div", { class: "field" });
+    row.appendChild(h("div", { class: "row" }, [
+      h("input", { type: "text", value: g.name || "", placeholder: "Name (z. B. Oma)", oninput: (e) => { g.name = e.target.value; S.touchSave(); } }),
+      h("button", { class: "navrow__del", text: "✕", title: "Gruß löschen", onclick: () => S.deleteGreeting(g.id) }),
+    ]));
+    row.appendChild(h("textarea", { placeholder: "Der Gruß … (z. B. Alles Gute zum Geburtstag!)", oninput: (e) => { g.text = e.target.value; S.touchSave(); } }, g.text || ""));
+    sec.appendChild(row);
+  });
+  sec.appendChild(h("button", { class: "btn btn-block", text: "+ Gruß hinzufügen", onclick: () => S.addGreeting() }));
+  return sec;
+}
+
 function renderInspector() {
   const insp = el("inspector");
   insp.innerHTML = "";
   insp.appendChild(deckSection());
+  // Grußkarte: nur Grüße bearbeiten — Folien/Ebenen spielen dort keine Rolle.
+  if ((state.deck.mode || "deck") === "card") { insp.appendChild(greetingSection()); return; }
   // Website-Kopfzeile gibt es nur im klassischen Folien-Modus (Journey/3D-Welt zeigen keine Nav).
   if ((state.deck.mode || "deck") === "deck") insp.appendChild(navSection());
   insp.appendChild(slideSection());
@@ -452,6 +474,7 @@ export function init() {
   el("btnAddText").addEventListener("click", () => S.addText("body"));
   const present = (idx) => {
     if (state.deck.mode === "world") import("./world.js?v=" + Date.now()).then((m) => m.openWorld(state.deck, srcOf, () => {}));
+    else if (state.deck.mode === "card") import("./card.js").then((m) => m.openCard(state.deck, () => {}));
     else if (state.deck.mode === "journey") openJourney(state.deck, srcOf, () => {});
     else openPresent(state.deck, srcOf, idx == null ? state.current : idx, (i) => S.selectSlide(i), onDeckNav);
   };
@@ -472,7 +495,7 @@ export function init() {
   document.addEventListener("paste", async (e) => {
     const ae = document.activeElement;
     if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.isContentEditable)) return; // Text normal einfügen
-    if (!el("present").hidden || !el("journey").hidden || !el("world").hidden) return; // nicht während Präsentation
+    if (!el("present").hidden || !el("journey").hidden || !el("world").hidden || !el("card").hidden) return; // nicht während Präsentation
     const items = (e.clipboardData && e.clipboardData.items) || [];
     const files = [];
     for (const it of items) if (it.type && it.type.indexOf("image/") === 0) { const f = it.getAsFile(); if (f) files.push(f); }
@@ -625,7 +648,7 @@ export function init() {
 
   // Tastenkürzel im Editor
   document.addEventListener("keydown", (e) => {
-    if (el("present").hidden === false || el("journey").hidden === false || el("world").hidden === false) return; // Präsentation hat Vorrang
+    if (el("present").hidden === false || el("journey").hidden === false || el("world").hidden === false || el("card").hidden === false) return; // Präsentation hat Vorrang
     if (!help.hidden) { if (e.key === "Escape") closeHelp(); return; } // Hilfe offen
     if (!gallery.hidden) { if (e.key === "Escape") closeGallery(); return; } // Galerie offen
     if (!layoutsM.hidden) { if (e.key === "Escape") closeLayouts(); return; } // Vorlagen offen
