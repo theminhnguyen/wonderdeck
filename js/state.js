@@ -56,10 +56,10 @@ export function normalizeDeck(deck) {
   if (!deck.theme) deck.theme = "aurum";
   if (!deck.nav) deck.nav = [];
   if (!deck.navPos) deck.navPos = "top";
-  if (!deck.mode) deck.mode = "deck"; // "deck" | "journey" | "world" | "card" (Grußkarte)
+  // "deck" (Folien) | "journey" | "world"; unbekannte/entfernte Modi → deck
+  if (!["deck", "journey", "world"].includes(deck.mode)) deck.mode = "deck";
   // Figur der 3D-Welt: fehlend ODER nicht (mehr) verfügbar → erste verfügbare
   if (!deck.hero || !HEROES.some((hh) => hh.id === deck.hero)) deck.hero = HEROES[0].id;
-  if (!deck.greetings) deck.greetings = []; // Grußkarte: [{id, name, text}]
   (deck.slides || []).forEach((s) => { if (!s.transition) s.transition = "snap"; });
   return deck;
 }
@@ -293,17 +293,6 @@ export function deleteNavItem(id) {
 }
 export function setNavPos(pos) { state.deck.navPos = pos; commit(); }
 export function setDeckMode(m) { state.deck.mode = m; commit(); }
-
-/* ---------- Grußkarte (Retro-Raum): Grüße = Männchen im Raum ---------- */
-export function addGreeting() {
-  if (!state.deck.greetings) state.deck.greetings = [];
-  state.deck.greetings.push({ id: uid(), name: "", text: "" });
-  commit();
-}
-export function deleteGreeting(id) {
-  state.deck.greetings = (state.deck.greetings || []).filter((g) => g.id !== id);
-  commit();
-}
 export function setDeckHero(id) { state.deck.hero = id; commit(); }
 export function setDeckBrand(text) { state.deck.brand = text; commit(); }
 export async function setBrandImage(dataURL) {

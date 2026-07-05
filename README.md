@@ -13,7 +13,6 @@ Drei Präsentations-Modi pro Deck:
 | **▦ Folien** | Klassisches Deck mit Ebenen-Parallax, Maus-Effekten, Ken-Burns & gleitenden Übergängen |
 | **🚶 Journey** | Folien werden Stationen auf einem durchlaufbaren 2.5D-Pfad |
 | **🌐 3D-Welt** | Begehbares Open-Air-Museum (Three.js): eine wählbare Anime-Figur (VRM) läuft per Tastatur durch eine Galerie — Folien hängen als Tafeln, E öffnet Details |
-| **💌 Grußkarte** | Retro-Raum im Game-Boy-Stil (eigene Pixel-Art, 4-Farben-Blau): jeder Gruß wird ein Männchen — hinlaufen, E drücken, Gruß lesen. Export ist eine winzige Offline-HTML |
 
 ## Lokal starten
 

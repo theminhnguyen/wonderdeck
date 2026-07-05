@@ -526,20 +526,3 @@ html, body {
 /* Kurz-Feedback unten (Toast) */
 .wd-toast { position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 12px); z-index: 12000; background: rgba(20, 24, 30, 0.95); color: #f4f6f8; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 999px; padding: 11px 20px; font-size: 13.5px; box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5); opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; }
 .wd-toast.is-on { opacity: 1; transform: translate(-50%, 0); }
-
-/* ============ Grußkarte (Game-Boy-Stil) ============ */
-.gbcard { position: fixed; inset: 0; z-index: 9500; background: #0c1422; display: grid; place-items: center; }
-.gbcard[hidden] { display: none; }
-.gbcard__holder { display: grid; place-items: center; }
-.gbcard__screen, .card__screen { image-rendering: pixelated; image-rendering: crisp-edges; border-radius: 6px; box-shadow: 0 0 0 8px #182840, 0 0 0 10px #0a0e14, 0 30px 80px rgba(0,0,0,0.6); background: #182840; }
-.gbcard__hint { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); font-size: 12px; color: rgba(255,255,255,0.65); background: rgba(0,0,0,0.4); padding: 6px 14px; border-radius: 999px; }
-.gbcard__hint b { color: #fff; }
-.gbcard__pad { position: fixed; left: 0; right: 0; bottom: 42px; display: flex; justify-content: space-between; align-items: center; padding: 0 30px; pointer-events: none; }
-.gbcard__pad[hidden] { display: none; }
-.gbcard__dpad { display: grid; grid-template-columns: 48px 48px 48px; grid-template-rows: 48px 48px; gap: 2px; pointer-events: auto; }
-.gbcard__dpad button { font-size: 17px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.1); color: #fff; }
-.gbcard__dpad #cardUp { grid-column: 2; grid-row: 1; }
-.gbcard__dpad #cardLeft { grid-column: 1; grid-row: 2; }
-.gbcard__dpad #cardRight { grid-column: 3; grid-row: 2; }
-.gbcard__dpad #cardDown { grid-column: 2; grid-row: 2; }
-.gbcard__a { width: 64px; height: 64px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.3); background: #a83248; color: #fff; font-weight: 700; font-size: 19px; pointer-events: auto; }
