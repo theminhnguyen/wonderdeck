@@ -603,6 +603,17 @@ export function init() {
   el("btnExportHtml").addEventListener("click", () => { menuPanel.hidden = true; exportStandaloneHTML(state.deck, state.images); });
   el("btnImport").addEventListener("click", () => { menuPanel.hidden = true; el("fileImport").click(); });
   el("btnNewDeck").addEventListener("click", () => { menuPanel.hidden = true; if (confirm("Neue, leere Präsentation starten? Die aktuelle bleibt in der Bibliothek (Menü → Meine Präsentationen) erhalten.")) S.newDeck(); });
+  el("btnNewLanding").addEventListener("click", async () => {
+    menuPanel.hidden = true;
+    const ex = EXAMPLES.find((e) => e.key === "swiss");
+    if (!ex) return;
+    try {
+      const deck = await ex.build();
+      await S.loadDeckObject(deck);
+      S.setDeckTitle("Meine Landingpage");
+      toast("Landingpage-Vorlage geladen — Texte, Farben & Formen einfach anpassen.");
+    } catch (err) { alert("Vorlage konnte nicht geladen werden: " + err.message); }
+  });
 
   // Hilfe-Fenster
   const help = el("help");
