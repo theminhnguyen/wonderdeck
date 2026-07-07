@@ -7,6 +7,8 @@
    Intro-Transforms auf den einzelnen Ebenen (RAF) — sie überlagern sich.
    =================================================================== */
 
+import { shapeTransform } from "./stage.js";
+
 export const SNAP_DUR = 760; // ms
 export const SNAP_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 const KEN_DUR = 9000; // ms für volle Ken-Burns-Fahrt
@@ -23,6 +25,7 @@ export function resetIntro(stage, now = performance.now()) {
     t.el.style.opacity = "0";
     t.el.style.transform = "translateY(26px)";
   });
+  (stage.shapes || []).forEach((Sh) => { Sh.el.style.opacity = "0"; });
 }
 
 /** Einen Frame der Folie aktualisieren. mouse = {nx, ny} in -1..1. */
@@ -49,6 +52,16 @@ export function updateStage(stage, mouse, now = performance.now()) {
     }
     L.el.style.transform =
       `translate3d(${tx.toFixed(2)}px, ${ty.toFixed(2)}px, 0) scale(${scale.toFixed(4)}) rotate(${rot.toFixed(2)}deg)`;
+  });
+
+  (stage.shapes || []).forEach((Sh) => {
+    const c = Sh.cfg;
+    const introS = lerp(0.7, 1, easeOutCubic(clamp01(active / 900)));
+    const fade = easeOutCubic(clamp01((active - 120) / 700));
+    const tx = -mouse.nx * (c.parallax || 0);
+    const ty = -mouse.ny * (c.parallax || 0);
+    Sh.el.style.opacity = ((c.opacity == null ? 1 : c.opacity) * fade).toFixed(3);
+    Sh.el.style.transform = shapeTransform(c, `translate3d(${tx.toFixed(2)}px, ${ty.toFixed(2)}px, 0) `, introS);
   });
 
   stage.texts.forEach((t, i) => {

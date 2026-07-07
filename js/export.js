@@ -17,15 +17,32 @@ function VIEWER_RUNTIME(DECK) {
   const dots = document.getElementById("dots"), counter = document.getElementById("counter");
   const fine = matchMedia("(pointer:fine)").matches;
 
+  function bgCss(slide) {
+    var g = slide.bgGrad;
+    if (g && g.from && g.to) return "linear-gradient(" + (g.angle == null ? 160 : g.angle) + "deg," + g.from + "," + g.to + ")";
+    return slide.bg || "#05070a";
+  }
+  function shapeT(sh, extra, scale) {
+    return "translate(-50%,-50%) " + (extra || "") + "rotate(" + (sh.rotation || 0) + "deg) scale(" + (scale == null ? 1 : scale) + ")";
+  }
   function stageEl(slide) {
     const root = document.createElement("div");
-    root.className = "wd-stage"; root.style.background = slide.bg || "#05070a"; root.dataset.style = slide.style;
+    root.className = "wd-stage"; root.style.background = bgCss(slide); root.dataset.style = slide.style;
     if (slide.ink) root.style.setProperty("--ink", slide.ink);
     const layers = [];
     (slide.layers || []).forEach((c, i) => {
       const el = document.createElement("div"); el.className = "wd-layer"; el.style.zIndex = i + 1; el.style.opacity = c.opacity == null ? 1 : c.opacity;
       if (c.src) { const im = document.createElement("img"); im.src = c.src; el.appendChild(im); }
       el.style.transform = "scale(" + (c.scale || 1) + ")"; root.appendChild(el); layers.push({ el: el, cfg: c });
+    });
+    const shapes = [];
+    (slide.shapes || []).forEach((sh) => {
+      const el = document.createElement("div"); el.className = "wd-shape wd-shape--" + sh.type; el.dataset.id = sh.id;
+      el.style.left = (sh.x == null ? 50 : sh.x) + "%"; el.style.top = (sh.y == null ? 46 : sh.y) + "%";
+      el.style.width = (sh.size == null ? 22 : sh.size) + "cqw";
+      el.style.setProperty("--sc", sh.color || "#d6452f"); el.style.setProperty("--th", String(sh.thickness == null ? 0.7 : sh.thickness));
+      el.style.opacity = sh.opacity == null ? 1 : sh.opacity; el.style.transform = shapeT(sh);
+      root.appendChild(el); shapes.push({ el: el, cfg: sh });
     });
     const texts = [];
     (slide.texts || []).forEach((t) => {
@@ -34,14 +51,14 @@ function VIEWER_RUNTIME(DECK) {
       el.style.width = (t.w == null ? 60 : t.w) + "%"; el.style.textAlign = t.align || "left"; el.textContent = t.text || "";
       root.appendChild(el); texts.push({ el: el, cfg: t });
     });
-    return { root: root, layers: layers, texts: texts };
+    return { root: root, layers: layers, shapes: shapes, texts: texts };
   }
 
   const stages = DECK.slides.map((s) => { const st = stageEl(s); st._transition = s.transition || "snap"; st.root.style.display = "none"; vp.appendChild(st.root); return st; });
   let index = 0, target = -1, locked = false, lastWheel = 0, touchY = null;
   const m = { nx: 0, ny: 0, tx: 0, ty: 0, cx: innerWidth / 2, cy: innerHeight / 2, lx: innerWidth / 2, ly: innerHeight / 2 };
 
-  function resetIntro(st, now) { st._t0 = now; st.texts.forEach((t) => { t.el.style.opacity = 0; t.el.style.transform = "translateY(26px)"; }); }
+  function resetIntro(st, now) { st._t0 = now; st.texts.forEach((t) => { t.el.style.opacity = 0; t.el.style.transform = "translateY(26px)"; }); (st.shapes || []).forEach((S) => { S.el.style.opacity = 0; }); }
   function update(st, now) {
     const a = now - (st._t0 || now);
     const id = st.root.dataset.style === "wonder" ? 2000 : 1100;
@@ -51,6 +68,12 @@ function VIEWER_RUNTIME(DECK) {
       let tx = -m.nx * (c.parallax || 0), ty = -m.ny * (c.parallax || 0), rot = 0;
       if (c.reactive) { tx += -m.nx * (c.parallax || 0) * 1.3; ty += -m.ny * (c.parallax || 0) * 1.3; rot = m.nx * 1.3; }
       L.el.style.transform = "translate3d(" + tx + "px," + ty + "px,0) scale(" + sc + ") rotate(" + rot + "deg)";
+    });
+    (st.shapes || []).forEach((S) => {
+      const c = S.cfg, introS = lerp(0.7, 1, easeOutCubic(clamp01(a / 900))), fade = easeOutCubic(clamp01((a - 120) / 700));
+      const tx = -m.nx * (c.parallax || 0), ty = -m.ny * (c.parallax || 0);
+      S.el.style.opacity = (c.opacity == null ? 1 : c.opacity) * fade;
+      S.el.style.transform = shapeT(c, "translate3d(" + tx + "px," + ty + "px,0) ", introS);
     });
     st.texts.forEach((t, i) => { const te = easeOutCubic(clamp01((a - 250 - i * 140) / 900)); t.el.style.opacity = te; t.el.style.transform = "translateY(" + (1 - te) * 26 + "px)"; });
   }
@@ -128,6 +151,13 @@ const VIEWER_CSS = "*{margin:0;box-sizing:border-box}html,body{height:100%;overf
   + ".wd-stage{position:absolute;inset:0;overflow:hidden;container-type:inline-size;background:#05070a;will-change:transform,opacity}"
   + ".wd-layer{position:absolute;inset:-8%;width:116%;height:116%;will-change:transform,opacity}"
   + ".wd-layer img{width:100%;height:100%;object-fit:cover;object-position:center;display:block}"
+  + ".wd-shape{position:absolute;pointer-events:none;z-index:30;will-change:transform,opacity}"
+  + ".wd-shape--ring,.wd-shape--disc,.wd-shape--square,.wd-shape--frame{aspect-ratio:1}"
+  + ".wd-shape--ring{border-radius:50%;border:calc(var(--th,0.7)*1cqw) solid var(--sc,#d6452f)}"
+  + ".wd-shape--disc{border-radius:50%;background:var(--sc,#d6452f)}"
+  + ".wd-shape--square{background:var(--sc,#d6452f)}"
+  + ".wd-shape--frame{border:calc(var(--th,0.7)*1cqw) solid var(--sc,#d6452f)}"
+  + ".wd-shape--line{height:calc(var(--th,0.5)*1cqw);background:var(--sc,#d6452f);border-radius:calc(var(--th,0.5)*0.5cqw)}"
   + ".wd-text{position:absolute;max-width:60%;color:var(--ink,#f6efe6);text-shadow:0 2px 28px rgba(0,0,0,.5);line-height:1.08;white-space:pre-wrap;word-break:break-word;z-index:50}"
   + ".wd-text[data-role=title]{font-family:var(--font-title,'Playfair Display',Georgia,serif);font-weight:600;font-size:clamp(28px,7.4cqw,96px)}"
   + ".wd-text[data-role=subtitle]{font-family:var(--font-body,'Inter',sans-serif);font-weight:300;font-size:clamp(13px,2.1cqw,24px);line-height:1.5;opacity:.9}"

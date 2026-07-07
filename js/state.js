@@ -35,6 +35,30 @@ export function createText(role = "title") {
   return { id: uid(), ...p };
 }
 
+/* Deko-Formen (Ring, Kreis, Quadrat, Rahmen, Linie) — rein per CSS gezeichnet,
+   kein Bild nötig. size/thickness in „cqw" (skalieren mit der Bühnenbreite). */
+export const SHAPE_TYPES = [
+  { type: "ring",   label: "◯ Ring" },
+  { type: "disc",   label: "● Kreis" },
+  { type: "square", label: "■ Quadrat" },
+  { type: "frame",  label: "▢ Rahmen" },
+  { type: "line",   label: "▬ Linie" },
+];
+export function createShape(type = "ring") {
+  const t = SHAPE_TYPES.some((s) => s.type === type) ? type : "ring";
+  return {
+    id: uid(),
+    type: t,
+    color: "#d6452f",
+    x: 50, y: 46,          // Mittelpunkt in % der Bühne
+    size: t === "line" ? 30 : 22, // Breite in cqw
+    thickness: t === "line" ? 0.5 : 0.7, // Strich-/Randstärke in cqw
+    rotation: 0,
+    opacity: 1,
+    parallax: 10,          // Maus-Tiefe (px) in der Präsentation
+  };
+}
+
 export function createSlide({ style = "snap" } = {}) {
   return {
     id: uid(),
@@ -42,6 +66,7 @@ export function createSlide({ style = "snap" } = {}) {
     transition: "snap",    // Übergang ZU dieser Folie (snap|fade|slide|zoom|push)
     bg: "#0a1118",
     layers: [],
+    shapes: [],            // Deko-Formen (CSS)
     texts: [createText("title")],
   };
 }
@@ -60,7 +85,12 @@ export function normalizeDeck(deck) {
   if (!["deck", "journey", "world"].includes(deck.mode)) deck.mode = "deck";
   // Figur der 3D-Welt: fehlend ODER nicht (mehr) verfügbar → erste verfügbare
   if (!deck.hero || !HEROES.some((hh) => hh.id === deck.hero)) deck.hero = HEROES[0].id;
-  (deck.slides || []).forEach((s) => { if (!s.transition) s.transition = "snap"; });
+  (deck.slides || []).forEach((s) => {
+    if (!s.transition) s.transition = "snap";
+    if (!Array.isArray(s.shapes)) s.shapes = []; // neues Feld für ältere Decks
+    // Verlauf nur behalten, wenn vollständig — sonst verwerfen (fällt auf bg zurück)
+    if (s.bgGrad && !(s.bgGrad.from && s.bgGrad.to)) delete s.bgGrad;
+  });
   return deck;
 }
 
@@ -144,6 +174,7 @@ export const curSlide = () => state.deck.slides[state.current];
 export const srcOf = (layer) => layer.src || state.images[layer.imageId] || null;
 export function findLayer(id) { return curSlide().layers.find((l) => l.id === id); }
 export function findText(id) { return curSlide().texts.find((t) => t.id === id); }
+export function findShape(id) { return (curSlide().shapes || []).find((sh) => sh.id === id); }
 
 /* ---------- Deck laden / neu ---------- */
 export async function initDeck() {
@@ -207,7 +238,9 @@ export function addSlide(style = "snap") {
 export function addSlideFromSpec(spec) {
   const s = createSlide({ style: spec.style || "snap" });
   if (spec.bg) s.bg = spec.bg;
+  if (spec.bgGrad) s.bgGrad = { ...spec.bgGrad };
   if (spec.ink) s.ink = spec.ink;
+  if (spec.shapes) s.shapes = (typeof spec.shapes === "function" ? spec.shapes() : spec.shapes).map((sh) => ({ ...createShape(sh.type), ...sh, id: uid() }));
   s.texts = typeof spec.texts === "function" ? spec.texts() : (spec.texts || []);
   state.deck.slides.splice(state.current + 1, 0, s);
   state.current += 1;
@@ -249,6 +282,7 @@ export function duplicateSlide(index = state.current) {
   const copy = structuredClone(src);
   copy.id = uid();
   copy.layers.forEach((l) => (l.id = uid()));
+  (copy.shapes || []).forEach((sh) => (sh.id = uid()));
   copy.texts.forEach((t) => (t.id = uid()));
   state.deck.slides.splice(index + 1, 0, copy);
   state.current = index + 1;
@@ -270,7 +304,14 @@ export function moveSlide(from, to) {
 }
 export function setSlideStyle(style) { curSlide().style = style; commit(); }
 export function setSlideTransition(t) { curSlide().transition = t; commit(); }
-export function setSlideBg(color) { curSlide().bg = color; commit(); }
+export function setSlideBg(color) { const s = curSlide(); s.bg = color; delete s.bgGrad; commit(); }
+/** Verlauf-Hintergrund setzen/ändern ({ from, to, angle }); bg bleibt als Solid-Fallback. */
+export function setSlideGradient(patch) {
+  const s = curSlide();
+  s.bgGrad = Object.assign({ from: s.bg || "#0a1118", to: "#5f574c", angle: 160 }, s.bgGrad, patch);
+  commit();
+}
+export function clearSlideGradient() { delete curSlide().bgGrad; commit(); }
 export function setSlideInk(ink) { if (ink) curSlide().ink = ink; else delete curSlide().ink; commit(); }
 export function setDeckTitle(title) { state.deck.title = title; commit(); }
 export function setDeckTheme(key) { state.deck.theme = key; commit(); }
@@ -357,6 +398,25 @@ export function reorderLayer(id, dir) {
   commit();
 }
 
+/* ---------- Form-Mutationen ---------- */
+export function addShape(type = "ring") {
+  const s = curSlide();
+  if (!Array.isArray(s.shapes)) s.shapes = [];
+  const sh = createShape(type);
+  s.shapes.push(sh);
+  state.sel = { type: "shape", id: sh.id };
+  commit();
+}
+export function updateShape(id, patch) { const sh = findShape(id); if (sh) Object.assign(sh, patch); commit(); }
+export function reorderShape(id, dir) {
+  const arr = curSlide().shapes || [];
+  const i = arr.findIndex((sh) => sh.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= arr.length) return;
+  [arr[i], arr[j]] = [arr[j], arr[i]];
+  commit();
+}
+
 /* ---------- Text-Mutationen ---------- */
 export function addText(role = "body") {
   const t = createText(role);
@@ -374,6 +434,7 @@ export function deleteSelected() {
   if (!type) return;
   const s = curSlide();
   if (type === "layer") s.layers = s.layers.filter((l) => l.id !== id);
+  if (type === "shape") s.shapes = (s.shapes || []).filter((sh) => sh.id !== id);
   if (type === "text") s.texts = s.texts.filter((t) => t.id !== id);
   state.sel = { type: null, id: null };
   commit();

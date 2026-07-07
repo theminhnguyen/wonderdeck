@@ -34,6 +34,12 @@ Browser Module & Speicher.)
   PowerPoint-Folien/Bilder mit **⌘/Strg+V** als neue Folie einfügen.
   Jede Ebene: Parallax, Reaktiv, Ken-Burns, Größe, Deckkraft, Reihenfolge.
 - **Text:** auf der Bühne direkt klicken und tippen; Art/Ausrichtung/Position rechts.
+- **Formen:** „+ Form" fügt Deko-Formen ein (Ring, Kreis, Quadrat, Rahmen, Linie) —
+  rein per CSS, ohne Bild. Farbe, Größe, Strichstärke, Drehung, Position & Parallax
+  rechts im Inspektor.
+- **Hintergrund:** pro Folie einfarbig **oder Farbverlauf** (zwei Farben + Winkel),
+  im Inspektor unter „Folie". So entstehen Landingpages ganz ohne Bilddateien
+  (siehe Beispiel „Landing · Snap-Scroll Website").
 - **Modus & Theme:** rechts im Inspektor (deck-weit); in der 3D-Welt zusätzlich die **Figur**.
 - **Präsentieren:** „▶"-Knopf (Beschriftung folgt dem Modus). Folien: Scrollen/
   Pfeile/Leertaste/Dots, **Esc** beendet. 3D-Welt: **WASD** gehen, **Shift** rennen,

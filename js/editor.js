@@ -4,7 +4,7 @@
    =================================================================== */
 import * as S from "./state.js";
 import { srcOf, curSlide, state } from "./state.js";
-import { createStage } from "./stage.js";
+import { createStage, bgCss, shapeTransform } from "./stage.js";
 import { openPresent } from "./present.js";
 import { openJourney } from "./journey.js";
 import { EXAMPLES, CATEGORIES } from "./examples.js";
@@ -273,8 +273,9 @@ function renderInspector() {
   if ((state.deck.mode || "deck") === "deck") insp.appendChild(navSection());
   insp.appendChild(slideSection());
   if (state.sel.type === "layer") insp.appendChild(layerSection(S.findLayer(state.sel.id)));
+  else if (state.sel.type === "shape") insp.appendChild(shapeSection(S.findShape(state.sel.id)));
   else if (state.sel.type === "text") insp.appendChild(textSection(S.findText(state.sel.id)));
-  else insp.appendChild(h("p", { class: "insp-empty", text: "Tipp: Klicke eine Ebene oder einen Text auf der Bühne an, um sie zu bearbeiten. Bilder ziehst du einfach auf die Bühne." }));
+  else insp.appendChild(h("p", { class: "insp-empty", text: "Tipp: Klicke eine Ebene oder einen Text auf der Bühne an, um sie zu bearbeiten. Bilder ziehst du einfach auf die Bühne; Formen fügst du oben mit + Form ein." }));
 }
 
 function slideSection() {
@@ -295,9 +296,29 @@ function slideSection() {
     sec.appendChild(field("Stil dieser Folie", seg));
   }
 
-  // Hintergrundfarbe (wirkt in allen Modi: hinter Ebenen / als Tafel-Hintergrund)
-  sec.appendChild(field("Hintergrundfarbe (hinter Ebenen)",
-    h("input", { type: "color", value: slide.bg || "#0a1118", oninput: (e) => S.setSlideBg(e.target.value) })));
+  // Hintergrund: einfarbig ODER Farbverlauf (wirkt in allen Modi, hinter Ebenen)
+  const isGrad = !!slide.bgGrad;
+  const bgSeg = h("div", { class: "seg" });
+  [["solid", "Farbe"], ["grad", "Verlauf"]].forEach(([val, lab]) =>
+    bgSeg.appendChild(h("button", {
+      class: (isGrad ? "grad" : "solid") === val ? "is-on" : "", text: lab,
+      onclick: () => { if (val === "grad" && !isGrad) S.setSlideGradient({}); if (val === "solid" && isGrad) S.clearSlideGradient(); },
+    })));
+  sec.appendChild(field("Hintergrund", bgSeg));
+
+  const liveStageBg = () => { const st = el("stageFrame").querySelector(".wd-stage"); if (st) st.style.background = bgCss(slide); };
+  if (!isGrad) {
+    sec.appendChild(field("Farbe (hinter Ebenen)",
+      h("input", { type: "color", value: slide.bg || "#0a1118", oninput: (e) => S.setSlideBg(e.target.value) })));
+  } else {
+    const g = slide.bgGrad;
+    sec.appendChild(h("div", { class: "field" }, [h("label", { text: "Verlauf (von → nach)" }), h("div", { class: "row" }, [
+      h("input", { type: "color", value: g.from || "#0a1118", oninput: (e) => { g.from = e.target.value; liveStageBg(); S.touchSave(); } }),
+      h("input", { type: "color", value: g.to || "#5f574c", oninput: (e) => { g.to = e.target.value; liveStageBg(); S.touchSave(); } }),
+    ])]));
+    sec.appendChild(slider("Winkel", g.angle == null ? 160 : g.angle, 0, 360, 5,
+      (v) => { g.angle = v; liveStageBg(); S.touchSave(); }, (v) => v + "°"));
+  }
 
   // Übergang zu dieser Folie — nur im Folien-Modus.
   if (mode === "deck") {
@@ -347,6 +368,29 @@ function slideSection() {
   if (slide.layers.length) sec.appendChild(field("Ebenen (oben = vorne)", list));
   else sec.appendChild(h("p", { class: "insp-empty", text: "Noch keine Bild-Ebenen. Zieh ein Bild auf die Bühne." }));
 
+  // Formen-Liste (Deko-Formen dieser Folie)
+  const shapes = slide.shapes || [];
+  if (shapes.length) {
+    const slist = h("div", { class: "layerlist" });
+    [...shapes].reverse().forEach((sh) => {
+      const lab = (S.SHAPE_TYPES.find((t) => t.type === sh.type) || {}).label || sh.type;
+      const item = h("div", {
+        class: "layeritem" + (state.sel.id === sh.id ? " is-sel" : ""),
+        onclick: () => selectEl("shape", sh.id),
+      });
+      item.append(
+        h("div", { class: "layeritem__thumb", style: `background:${sh.color};border-radius:${sh.type === "ring" || sh.type === "disc" ? "50%" : "3px"}` }),
+        h("span", { class: "layeritem__name", text: lab }),
+        h("div", { class: "layeritem__ord" }, [
+          h("button", { text: "▲", title: "nach vorn", onclick: (e) => { e.stopPropagation(); S.reorderShape(sh.id, +1); } }),
+          h("button", { text: "▼", title: "nach hinten", onclick: (e) => { e.stopPropagation(); S.reorderShape(sh.id, -1); } }),
+        ])
+      );
+      slist.appendChild(item);
+    });
+    sec.appendChild(field("Formen (oben = vorne)", slist));
+  }
+
   return sec;
 }
 
@@ -383,6 +427,52 @@ function layerSection(layer) {
   }
 
   sec.appendChild(h("button", { class: "btn btn-block btn-danger", text: "Ebene löschen", onclick: () => S.deleteSelected() }));
+  return sec;
+}
+
+function shapeSection(sh) {
+  if (!sh) return h("div");
+  const sec = h("div", { class: "insp-section" }, [h("h3", { text: "Form" })]);
+  const node = () => el("stageFrame").querySelector(`.wd-shape[data-id="${sh.id}"]`);
+
+  // Art
+  const typeSel = h("select", { onchange: (e) => S.updateShape(sh.id, { type: e.target.value }) });
+  S.SHAPE_TYPES.forEach((st) => typeSel.appendChild(h("option", { value: st.type, ...(sh.type === st.type ? { selected: "selected" } : {}), text: st.label })));
+  sec.appendChild(field("Art", typeSel));
+
+  // Farbe
+  sec.appendChild(field("Farbe", h("input", { type: "color", value: sh.color || "#d6452f",
+    oninput: (e) => { sh.color = e.target.value; const n = node(); if (n) n.style.setProperty("--sc", e.target.value); S.touchSave(); } })));
+
+  // Größe
+  sec.appendChild(slider("Größe", sh.size ?? 22, 5, 90, 1,
+    (v) => { sh.size = v; const n = node(); if (n) n.style.width = v + "cqw"; S.touchSave(); }, (v) => v + "%"));
+
+  // Strichstärke — nur wo sichtbar (Ring/Rahmen/Linie)
+  if (sh.type === "ring" || sh.type === "frame" || sh.type === "line")
+    sec.appendChild(slider("Strichstärke", sh.thickness ?? 0.7, 0.2, 4, 0.1,
+      (v) => { sh.thickness = v; const n = node(); if (n) n.style.setProperty("--th", String(v)); S.touchSave(); }, (v) => v.toFixed(1)));
+
+  // Drehung
+  sec.appendChild(slider("Drehung", sh.rotation || 0, -90, 90, 1,
+    (v) => { sh.rotation = v; const n = node(); if (n) n.style.transform = shapeTransform(sh); S.touchSave(); }, (v) => v + "°"));
+
+  // Position
+  sec.appendChild(slider("Position X", sh.x ?? 50, 0, 100, 1,
+    (v) => { sh.x = v; const n = node(); if (n) n.style.left = v + "%"; S.touchSave(); }, (v) => v + "%"));
+  sec.appendChild(slider("Position Y", sh.y ?? 46, 0, 100, 1,
+    (v) => { sh.y = v; const n = node(); if (n) n.style.top = v + "%"; S.touchSave(); }, (v) => v + "%"));
+
+  // Deckkraft
+  sec.appendChild(slider("Deckkraft", sh.opacity ?? 1, 0.1, 1, 0.05,
+    (v) => { sh.opacity = v; const n = node(); if (n) n.style.opacity = v; S.touchSave(); }, (v) => Math.round(v * 100) + "%"));
+
+  // Parallax (nur in der Präsentation sichtbar)
+  if ((state.deck.mode || "deck") === "deck")
+    sec.appendChild(slider("Parallax (Maus-Tiefe)", sh.parallax ?? 10, 0, 40, 1,
+      (v) => { sh.parallax = v; S.touchSave(); }, (v) => v + "px"));
+
+  sec.appendChild(h("button", { class: "btn btn-block btn-danger", text: "Form löschen", onclick: () => S.deleteSelected() }));
   return sec;
 }
 
@@ -450,6 +540,7 @@ export function init() {
   el("railAdd").addEventListener("click", () => openLayouts());
   el("btnAddLayer").addEventListener("click", () => { imageMode = { mode: "add", layerId: null }; el("fileImage").click(); });
   el("btnAddText").addEventListener("click", () => S.addText("body"));
+  el("btnAddShape").addEventListener("click", () => S.addShape("ring"));
   const present = (idx) => {
     if (state.deck.mode === "world") import("./world.js?v=" + Date.now()).then((m) => m.openWorld(state.deck, srcOf, () => {}));
     else if (state.deck.mode === "journey") openJourney(state.deck, srcOf, () => {});

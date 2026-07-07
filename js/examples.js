@@ -4,7 +4,7 @@
    neues Deck zurück (eigene id). Grafiken sind generiert — keine Uploads.
    =================================================================== */
 import * as db from "./db.js";
-import { uid, createSlide, createLayer, createText } from "./state.js";
+import { uid, createSlide, createLayer, createText, createShape } from "./state.js";
 import * as G from "./gfx.js";
 
 async function img(url) { const id = uid(); await db.putImage(id, url); return id; }
@@ -140,25 +140,47 @@ async function buildEon() {
 
 /* ---------- Swiss · Editorial (High-End-Minimalismus) ---------- */
 async function buildSwiss() {
-  const bg1 = await img(G.skyGrad(["#1c1b19", "#2a2825", "#5f574c"]));
-  const ring = await img(G.svgURL('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900"><circle cx="800" cy="450" r="300" fill="none" stroke="#f4f1ea" stroke-opacity="0.5" stroke-width="2"/><circle cx="800" cy="450" r="215" fill="none" stroke="#f4f1ea" stroke-opacity="0.16" stroke-width="1.5"/></svg>'));
-  const bg2 = await img(G.skyGrad(["#e7e1d4", "#d8d0c0", "#c4b9a6"])); // helle Sektion
-  const square = await img(G.svgURL('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900"><rect x="1090" y="250" width="380" height="380" fill="#3a352d"/></svg>'));
-  const bg3 = await img(G.skyGrad(["#141414", "#1c1c1c", "#262320"]));
-  const bars = await img(G.svgURL('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900"><rect x="240" y="120" width="3" height="640" fill="#f4f1ea" fill-opacity="0.35"/><circle cx="1150" cy="250" r="70" fill="#d6452f"/></svg>'));
+  // Komplett OHNE Bilder: Hintergründe sind native Verläufe, die Deko sind
+  // native Formen — exakt das, was man im Editor selbst zusammenklickt.
+  const sh = (type, p) => Object.assign(createShape(type), p);
+  const S = ({ style = "snap", bg, bgGrad, ink, transition, shapes = [], texts }) => {
+    const s = createSlide({ style }); s.bg = bg; s.layers = []; s.shapes = shapes; s.texts = texts;
+    if (bgGrad) s.bgGrad = bgGrad;
+    if (ink) s.ink = ink;
+    if (transition) s.transition = transition;
+    return s;
+  };
 
   const slides = [
-    Slide("wonder", "#1a1916", [L(bg1, "Verlauf", 10, 0.08), L(ring, "Ring (reaktiv)", 26, 0, true)],
-      [T("kicker", "◆ UNIVERSAL TEMPLATE", { x: 20, y: 26, w: 60, align: "center" }),
-       T("title", "FORM &\nFUNCTION", { x: 10, y: 36, w: 80, align: "center" }),
-       T("subtitle", "High-End-Minimalismus im Swiss-Design-Stil.", { x: 20, y: 66, w: 60, align: "center" })]),
-    Slide("snap", "#201d18", [L(bg2, "Verlauf", 12, 0.08), L(square, "Block", 30)],
-      [T("body", "Wir reduzieren auf das Wesentliche, damit das Wichtige sprechen kann. Raster, Typografie, Weißraum.", { x: 8, y: 22, w: 42 }),
-       T("title", "Less,\nbut better", { x: 40, y: 60, w: 54, align: "right" })], "slide", "#1a1a1a"),
-    Slide("snap", "#141414", [L(bg3, "Verlauf", 10, 0.1), L(bars, "Linie + Punkt", 22)],
-      [T("title", "Let's\ntalk", { x: 8, y: 34, w: 50 }),
-       T("body", "Bereit für ein Projekt, das auffällt? Schreib uns.", { x: 52, y: 42, w: 40, align: "right" }),
-       T("kicker", "INSTAGRAM · LINKEDIN · BEHANCE", { x: 8, y: 82, w: 80 })], "fade"),
+    S({ style: "snap", bg: "#2a2825", bgGrad: { from: "#1c1b19", to: "#5f574c", angle: 150 },
+      shapes: [
+        sh("ring", { color: "#f4f1ea", x: 50, y: 50, size: 44, thickness: 0.22, opacity: 0.5, parallax: 16 }),
+        sh("ring", { color: "#f4f1ea", x: 50, y: 50, size: 31, thickness: 0.16, opacity: 0.18, parallax: 24 }),
+        sh("disc", { color: "#d6452f", x: 71, y: 30, size: 5, opacity: 1, parallax: 30 }),
+      ],
+      texts: [
+        T("kicker", "◆ UNIVERSAL TEMPLATE", { x: 20, y: 26, w: 60, align: "center" }),
+        T("title", "FORM &\nFUNCTION", { x: 10, y: 36, w: 80, align: "center" }),
+        T("subtitle", "High-End-Minimalismus im Swiss-Design-Stil.", { x: 20, y: 66, w: 60, align: "center" }),
+      ] }),
+    S({ style: "snap", bg: "#d8d0c0", ink: "#1a1a1a", transition: "slide",
+      bgGrad: { from: "#e7e1d4", to: "#c4b9a6", angle: 160 },
+      shapes: [ sh("square", { color: "#3a352d", x: 80, y: 46, size: 30, opacity: 1, parallax: 12 }) ],
+      texts: [
+        T("body", "Wir reduzieren auf das Wesentliche, damit das Wichtige sprechen kann. Raster, Typografie, Weißraum.", { x: 8, y: 22, w: 42 }),
+        T("title", "Less,\nbut better", { x: 40, y: 60, w: 54, align: "right" }),
+      ] }),
+    S({ style: "snap", bg: "#1c1c1c", transition: "fade",
+      bgGrad: { from: "#141414", to: "#262320", angle: 205 },
+      shapes: [
+        sh("line", { color: "#f4f1ea", x: 15, y: 50, size: 56, thickness: 0.2, rotation: 90, opacity: 0.35, parallax: 8 }),
+        sh("disc", { color: "#d6452f", x: 72, y: 27, size: 9, opacity: 1, parallax: 20 }),
+      ],
+      texts: [
+        T("title", "Let's\ntalk", { x: 22, y: 34, w: 50 }),
+        T("body", "Bereit für ein Projekt, das auffällt? Schreib uns.", { x: 52, y: 42, w: 40, align: "right" }),
+        T("kicker", "INSTAGRAM · LINKEDIN · BEHANCE", { x: 22, y: 82, w: 70 }),
+      ] }),
   ];
   const nav = [
     { id: uid(), label: "Work", type: "slide", target: slides[0].id },
@@ -311,7 +333,7 @@ export const CATEGORIES = [
 
 export const EXAMPLES = [
   { key: "grundlagen", cat: "start", name: "Grundlagen-Demo", desc: "Der Schnellstart: Wonder-Hero plus geschichtete Snap-Szenen.", grad: "linear-gradient(135deg,#1d2f86,#a85fa0,#f4a071)", build: () => import("./seed.js").then((m) => m.buildSeedDeck()) },
-  { key: "swiss", cat: "business", name: "Landing · Snap-Scroll Website", desc: "Website-Look wie eine Landingpage (Swiss-Stil, wie reference.html): Kopfzeile + 3 Sektionen.", grad: "linear-gradient(135deg,#1c1b19,#5f574c)", build: buildSwiss },
+  { key: "swiss", cat: "business", name: "Landing · Snap-Scroll Website", desc: "Landingpage im Swiss-Stil (wie reference.html) — ganz ohne Bilder: nur Verläufe & Formen, die du selbst nachbaust.", grad: "linear-gradient(135deg,#1c1b19,#5f574c)", build: buildSwiss },
   { key: "pitch", cat: "business", name: "Projekt-Pitch", desc: "Business-Pitch: Problem · Lösung · Wirkung · Call-to-Action.", grad: "linear-gradient(135deg,#0a1230,#2f6f9e)", build: buildPitch },
   { key: "update", cat: "business", name: "Quartals-Update", desc: "Status-Update: Highlights, Kennzahlen, Ausblick.", grad: "linear-gradient(135deg,#06231c,#3fd6a0)", build: buildUpdate },
   { key: "roadmap", cat: "business", name: "Roadmap", desc: "Zeitachse mit Phasen (Q1–Q4) und Meilensteinen.", grad: "linear-gradient(135deg,#0a1230,#5aa6ff)", build: buildRoadmap },

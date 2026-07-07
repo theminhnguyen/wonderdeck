@@ -45,6 +45,24 @@
   user-select: none;
 }
 
+/* ---------- Deko-Formen (rein CSS, kein Bild) ---------- */
+/* --sc = Farbe, --th = Strichstärke (Zahl → cqw). Größe kommt als width:Ncqw. */
+.wd-shape {
+  position: absolute;
+  pointer-events: none;      /* Auswahl läuft über die Inspektor-Liste */
+  z-index: 30;               /* über Bild-Ebenen, unter Text (50) */
+  will-change: transform, opacity;
+}
+.wd-shape--ring,
+.wd-shape--disc,
+.wd-shape--square,
+.wd-shape--frame { aspect-ratio: 1; }
+.wd-shape--ring  { border-radius: 50%; border: calc(var(--th, 0.7) * 1cqw) solid var(--sc, #d6452f); }
+.wd-shape--disc  { border-radius: 50%; background: var(--sc, #d6452f); }
+.wd-shape--square { background: var(--sc, #d6452f); }
+.wd-shape--frame { border: calc(var(--th, 0.7) * 1cqw) solid var(--sc, #d6452f); }
+.wd-shape--line  { height: calc(var(--th, 0.5) * 1cqw); background: var(--sc, #d6452f); border-radius: calc(var(--th, 0.5) * 0.5cqw); }
+
 /* ---------- Text-Blöcke ---------- */
 .wd-text {
   position: absolute;

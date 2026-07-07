@@ -5,10 +5,23 @@
    Gibt Element + Referenzen zurück, damit effects.js animieren kann.
    =================================================================== */
 
+/** Effektiver CSS-Hintergrund: Verlauf (falls vollständig) sonst Solid-Farbe.
+    slide.bg bleibt immer eine einfache Farbe (Fallback für Canvas-Thumbs etc.). */
+export function bgCss(slide) {
+  const g = slide.bgGrad;
+  if (g && g.from && g.to) return `linear-gradient(${g.angle == null ? 160 : g.angle}deg, ${g.from}, ${g.to})`;
+  return slide.bg || "#05070a";
+}
+
+/** Basis-Transform einer Form (Zentrieren + Rotation); effects.js überlagert Parallax/Intro. */
+export function shapeTransform(sh, extra = "", scale = 1) {
+  return `translate(-50%,-50%) ${extra}rotate(${sh.rotation || 0}deg) scale(${scale})`;
+}
+
 export function createStage(slide, resolveSrc) {
   const root = document.createElement("div");
   root.className = "wd-stage";
-  root.style.background = slide.bg || "#05070a";
+  root.style.background = bgCss(slide);
   root.dataset.style = slide.style;
   if (slide.ink) root.style.setProperty("--ink", slide.ink); // per-Folie Textfarbe (überschreibt Theme)
 
@@ -36,6 +49,22 @@ export function createStage(slide, resolveSrc) {
     layers.push({ el, cfg: layer });
   });
 
+  const shapes = [];
+  (slide.shapes || []).forEach((sh) => {
+    const el = document.createElement("div");
+    el.className = "wd-shape wd-shape--" + sh.type;
+    el.dataset.id = sh.id;
+    el.style.left = (sh.x ?? 50) + "%";
+    el.style.top = (sh.y ?? 46) + "%";
+    el.style.width = (sh.size ?? 22) + "cqw";
+    el.style.setProperty("--sc", sh.color || "#d6452f");
+    el.style.setProperty("--th", String(sh.thickness ?? 0.7));
+    el.style.opacity = sh.opacity ?? 1;
+    el.style.transform = shapeTransform(sh); // Ruhezustand; Präsentation animiert
+    root.appendChild(el);
+    shapes.push({ el, cfg: sh });
+  });
+
   const texts = [];
   slide.texts.forEach((t) => {
     const el = document.createElement("div");
@@ -51,5 +80,5 @@ export function createStage(slide, resolveSrc) {
     texts.push({ el, cfg: t });
   });
 
-  return { root, layers, texts };
+  return { root, layers, shapes, texts };
 }
